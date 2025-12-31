@@ -50,7 +50,7 @@ A sophisticated microfinance platform built for the Kenyan market with role-base
 ## 📦 Installation
 
 ### Prerequisites
-- Node.js 18+ 
+- Node.js 20+ 
 - npm or yarn
 - Supabase account
 - Stripe account (for payments)
