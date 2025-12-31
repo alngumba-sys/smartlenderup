@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
-import { useAuth } from './AuthContext';
+import { useAuth, type User } from './AuthContext';
 import {
   createLoanDisbursementEntry,
   createLoanRepaymentEntry,
@@ -17,7 +17,7 @@ import { saveProjectState, loadProjectState, type ProjectState } from '../utils/
 import { ensureSupabaseSync, type SyncResult } from '../utils/ensureSupabaseSync';
 import { migrateClientIds, applyMigration } from '../utils/migrateClientIds';
 import { getCurrencyCode } from '../utils/currencyUtils';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 import { 
   autoCheckAndMigrate, 
   showMigrationNotification,
@@ -46,7 +46,7 @@ export interface Client {
     relationship: string;
     phone: string;
   };
-  status: 'Active' | 'Inactive' | 'Blacklisted';
+  status: 'Active' | 'Inactive' | 'Blacklisted' | 'Good Standing' | 'In Arrears' | 'Fully Paid' | 'Current';
   photo?: string;
   documents?: {
     id: string;
@@ -68,6 +68,21 @@ export interface Client {
   joinDate: string;
   createdBy: string;
   lastUpdated: string;
+  // Additional aliases and properties for backwards compatibility
+  clientId?: string;
+  fullName?: string;
+  phoneNumber?: string;
+  nationalId?: string;
+  businessName?: string;
+  bank?: string;
+  gpsLocation?: { lat: number; lng: number };
+  town?: string;
+  groupAffiliation?: string;
+  description?: string;
+  accountNumber?: string;
+  totalPaid?: number;
+  openLoanBalance?: number;
+  predictedDefaultDate?: string;
 }
 
 export interface Loan {
@@ -85,7 +100,7 @@ export interface Loan {
   disbursementDate: string;
   firstRepaymentDate: string;
   maturityDate: string;
-  status: 'Pending' | 'Approved' | 'Disbursed' | 'Active' | 'Fully Paid' | 'Closed' | 'Written Off' | 'Rejected';
+  status: 'Pending' | 'Approved' | 'Disbursed' | 'Active' | 'Fully Paid' | 'Closed' | 'Written Off' | 'Rejected' | 'In Arrears' | 'Under Review' | 'Need Approval' | 'Pending Disbursement';
   approvedBy?: string;
   approvedDate?: string;
   disbursedBy?: string;
@@ -125,6 +140,17 @@ export interface Loan {
   notes?: string;
   createdDate?: string;
   lastUpdated?: string;
+  // Additional aliases and properties for backwards compatibility
+  loanId?: string;
+  loanAmount?: number;
+  loanType?: string;
+  clientType?: 'Individual' | 'Group';
+  loanTerm?: number;
+  termMonths?: number;
+  tenor?: number;
+  processingFeePercentage?: number;
+  amount?: number;
+  arrears?: number;
 }
 
 export interface Repayment {
@@ -147,6 +173,12 @@ export interface Repayment {
   approvedDate?: string;
   createdDate: string;
   bankAccountId?: string; // Bank account to which repayment was credited
+  // Additional aliases for backwards compatibility
+  date?: string;
+  method?: string;
+  transactionId?: string;
+  installmentNumber?: number;
+  principalPaid?: number;
 }
 
 export interface Savings {
@@ -215,6 +247,17 @@ export interface LoanProduct {
   status: 'Active' | 'Inactive';
   createdDate: string;
   lastUpdated: string;
+  // Aliases for backwards compatibility
+  minTenor?: number;
+  maxTenor?: number;
+  tenorMonths?: number;
+  requiresCollateral?: boolean;
+  requiresGuarantor?: boolean;
+  minGuarantors?: number;
+  insuranceFeeRate?: number;
+  loanNumberFormat?: string;
+  isActive?: boolean;
+  disbursementMethod?: string;
 }
 
 export interface Shareholder {
@@ -250,6 +293,8 @@ export interface ShareholderTransaction {
   notes?: string;
   bankAccountId?: string;
   createdDate: string;
+  status?: 'pending' | 'completed' | 'cancelled';
+  date?: string;
 }
 
 export interface Expense {
@@ -274,6 +319,8 @@ export interface Expense {
   createdDate: string;
   bankAccountId?: string; // Bank account from which expense was paid
   paymentType?: 'Salary/Wage' | 'Service Fee' | 'Consulting Fee' | 'Allowance' | 'Bonus' | 'Reimbursement' | 'Other'; // For employee/contractor payments
+  notes?: string;
+  recordedBy?: string;
 }
 
 export interface Payee {
@@ -409,6 +456,7 @@ export interface Ticket {
   updatedDate: string;
   resolvedDate?: string;
   resolution?: string;
+  resolutionNotes?: string;
 }
 
 // Groups (Chamas)
@@ -458,6 +506,11 @@ export interface Approval {
     accountNumber: string;
     notes?: string;
   };
+  // Additional properties
+  stage?: string;
+  approverRole?: string;
+  date?: string;
+  comments?: string;
 }
 
 export interface Disbursement {
@@ -528,6 +581,10 @@ export interface FundingTransaction {
   depositorName?: string;
   transactionType: 'Credit' | 'Debit'; // Credit for funding, Debit for disbursements
   relatedLoanId?: string; // Link to loan if this is a disbursement
+  mpesaDetails?: {
+    transactionCode: string;
+    phoneNumber?: string;
+  };
 }
 
 // Journal Entry System for Double-Entry Bookkeeping
@@ -559,6 +616,50 @@ export interface JournalEntryLine {
   description: string;
   debit: number;
   credit: number;
+}
+
+// Compliance Reports
+export interface ComplianceReport {
+  id: string;
+  reportType: string;
+  reportDate: string;
+  reportingPeriod: string;
+  status: 'Draft' | 'Submitted' | 'Approved' | 'Rejected';
+  submittedTo: string;
+  submittedBy: string;
+  submissionDate?: string;
+  approvalDate?: string;
+  comments?: string;
+  issuesIdentified?: number;
+  findings?: string;
+  notes?: string;
+}
+
+// Staff Management
+export interface Staff {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  branch: string;
+  role: string;
+  photo?: string;
+  status: 'Active' | 'Inactive' | 'Suspended';
+  createdDate: string;
+  loginRestrictions?: {
+    workDays: string[];
+    workStartTime: string;
+    workEndTime: string;
+    ipAddress?: string;
+    country?: string;
+  };
+  permissions?: {
+    backdating: boolean;
+    postdating: boolean;
+    repaymentsNeedApproval: boolean;
+    savingsNeedApproval: boolean;
+  };
 }
 
 // ============= CONTEXT DEFINITION =============

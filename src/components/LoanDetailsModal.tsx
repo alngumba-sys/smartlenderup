@@ -3,7 +3,7 @@ import { X, Calendar, DollarSign, User, Building2, PercentIcon, AlertCircle, Fil
 import { PrintableStatement } from './PrintableStatement';
 import { useTheme } from '../contexts/ThemeContext';
 import { useData } from '../contexts/DataContext';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 import { generateInstallments, loanFees, loanInsurance, loanRestructures } from '../data/dummyData';
 import { getCurrencyCode } from '../utils/currencyUtils';
 import { EarlySettlementModal } from './modals/EarlySettlementModal';

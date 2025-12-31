@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Database, Eye, EyeOff, Trash2, Download, RefreshCw } from 'lucide-react';
+import { Database as DatabaseIcon, Eye, EyeOff, Trash2, Download, RefreshCw } from 'lucide-react';
 import { db } from '../utils/database';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -38,7 +38,7 @@ export function DatabaseViewer() {
         className="fixed bottom-6 right-6 z-[100] bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-full shadow-lg flex items-center gap-2 transition-all"
         title="View Database"
       >
-        <Database className="size-6" />
+        <DatabaseIcon className="size-6" />
         {organizations.length > 0 && (
           <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full size-6 flex items-center justify-center font-bold">
             {organizations.length}
@@ -52,7 +52,7 @@ export function DatabaseViewer() {
           {/* Header */}
           <div className="bg-purple-600 dark:bg-purple-700 px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Database className="size-5 text-white" />
+              <DatabaseIcon className="size-5 text-white" />
               <h3 className="font-bold text-white">Database Viewer (Dev Tool)</h3>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-white hover:text-gray-200">

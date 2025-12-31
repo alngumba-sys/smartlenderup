@@ -1,4 +1,4 @@
-import { X, Users, Calendar, TrendingUp, MapPin } from 'lucide-react';
+import { X, Users, Calendar, TrendingUp, MapPin, CheckCircle, AlertTriangle, Phone, Clock, FileText, Eye, Download } from 'lucide-react';
 import { groups, clients, groupMeetings } from '../data/dummyData';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -258,74 +258,16 @@ export function GroupDetailsModal({ groupId, onClose }: GroupDetailsModalProps) 
           {/* Group Documents */}
           <div className="bg-white p-4 rounded-lg border border-gray-200">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-gray-900">Group Documents ({documents.length})</h3>
+              <h3 className="text-gray-900">Group Documents</h3>
               <button className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center gap-2">
                 <FileText className="size-4" />
                 Upload Document
               </button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-gray-700">Document Type</th>
-                    <th className="px-4 py-3 text-left text-gray-700">File Name</th>
-                    <th className="px-4 py-3 text-left text-gray-700">Upload Date</th>
-                    <th className="px-4 py-3 text-left text-gray-700">Uploaded By</th>
-                    <th className="px-4 py-3 text-center text-gray-700">Status</th>
-                    <th className="px-4 py-3 text-left text-gray-700">Expiry Date</th>
-                    <th className="px-4 py-3 text-center text-gray-700">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {documents.map((doc) => (
-                    <tr key={doc.id} className="border-t border-gray-100 hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-900">
-                        <div className="flex items-center gap-2">
-                          <FileText className="size-4 text-blue-600" />
-                          {doc.type}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-gray-700">{doc.fileName}</td>
-                      <td className="px-4 py-3 text-gray-700">{doc.uploadDate}</td>
-                      <td className="px-4 py-3 text-gray-700">{doc.uploadedBy}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          doc.status === 'Verified' ? 'bg-emerald-100 text-emerald-800' :
-                          doc.status === 'Pending' ? 'bg-amber-100 text-amber-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {doc.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-gray-700">
-                        {doc.expiryDate ? (
-                          <span className={new Date(doc.expiryDate) < new Date() ? 'text-red-600' : ''}>
-                            {doc.expiryDate}
-                          </span>
-                        ) : '-'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-2">
-                          <button className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="View">
-                            <Eye className="size-4" />
-                          </button>
-                          <button className="p-1 text-emerald-600 hover:bg-emerald-50 rounded" title="Download">
-                            <Download className="size-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="text-center py-8 text-gray-500">
+              <FileText className="size-12 mx-auto mb-2 text-gray-300" />
+              <p>No documents uploaded yet</p>
             </div>
-            {documents.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <FileText className="size-12 mx-auto mb-2 text-gray-300" />
-                <p>No documents uploaded yet</p>
-              </div>
-            )}
           </div>
         </div>
 

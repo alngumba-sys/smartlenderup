@@ -8,7 +8,7 @@ import {
   downloadMigrationSQL,
   type MigrationCheckResult,
 } from '../utils/simpleAutoMigration';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 import { useAuth } from '../contexts/AuthContext';
 
 export function SchemaMigrationPanel() {

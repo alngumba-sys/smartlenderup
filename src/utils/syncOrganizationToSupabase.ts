@@ -4,7 +4,7 @@
  */
 
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 
 export const syncOrganizationToSupabase = async () => {
   try {

@@ -3,8 +3,8 @@ import { Eye, EyeOff, ChevronDown, Search, Globe, Menu, X, Users, TrendingUp, Sh
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 const abcLogo = '/logo.svg'; // Replaced figma:asset for deployment
-const smartLenderLogo = '/logo.svg'; // Replaced figma:asset for deployment
-const laptopImage = '/logo.svg'; // Replaced figma:asset for deployment
+import smartLenderLogo from 'figma:asset/fd18aa8c77f7b0374c9ef5d44e370cbe0bc4832b.png';
+import laptopImage from 'figma:asset/2dba3dabe7010b763ebec2a8f70edae4bf1041a6.png';
 const aiInsightsImage = '/logo.svg'; // Replaced figma:asset for deployment
 import { OrganizationSignUpModal } from './modals/OrganizationSignUpModal';
 import { OrganizationSuccessModal } from './modals/OrganizationSuccessModal';
@@ -16,7 +16,7 @@ import { SuperAdminDashboard } from './SuperAdminDashboard';
 import { FeaturesCarousel } from './FeaturesCarousel';
 import { db } from '../utils/database';
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 
 interface LoginPageProps {
   onLogin: (userType: 'admin' | 'employee', userData: any) => void;

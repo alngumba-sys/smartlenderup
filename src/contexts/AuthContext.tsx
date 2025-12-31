@@ -10,6 +10,7 @@ export interface User {
   userType: 'admin' | 'employee';
   branch?: string;
   permissions?: RolePermissions;
+  organizationId?: string;
 }
 
 interface AuthContextType {

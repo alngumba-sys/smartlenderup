@@ -7,7 +7,7 @@ import { ViewToggle } from '../ViewToggle';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigation } from '../../contexts/NavigationContext';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 import { safePercentage, safeToFixed } from '../../utils/safeCalculations';
 import { getOrganizationName } from '../../utils/organizationUtils';
 

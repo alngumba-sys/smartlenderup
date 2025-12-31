@@ -1,52 +1,5 @@
 // Dummy Data for BV FUNGUO LTD Microfinance Platform
-
-export interface Client {
-  id: string;
-  accountNumber: string;
-  name: string;
-  nationalId: string;
-  phone: string;
-  businessType: string;
-  status: 'Current' | 'In Arrears' | 'Fully Paid';
-  creditScore: number;
-  gpsLocation: { lat: number; lng: number };
-  groupAffiliation?: string;
-  joinDate: string;
-  totalPaid: number;
-  openLoanBalance: number;
-  predictedDefaultDate?: string;
-  photo?: string;
-}
-
-export interface LoanProduct {
-  id: string;
-  name: string;
-  description: string;
-  maxAmount: number;
-  interestRate: number;
-  interestType: 'Flat' | 'Declining';
-  repaymentFrequency: 'Monthly' | 'Quarterly';
-  tenorMonths: number;
-}
-
-export interface Loan {
-  id: string;
-  clientId: string;
-  productId: string;
-  principalAmount: number;
-  disbursementDate: string;
-  maturityDate: string;
-  status: 'Active' | 'In Arrears' | 'Fully Paid' | 'Written Off';
-  daysInArrears: number;
-  outstandingBalance: number;
-  loanOfficer: string;
-  numberOfInstallments?: number;
-  term?: number;
-  installmentAmount?: number;
-  totalRepayable?: number;
-  firstRepaymentDate?: string;
-  repaymentFrequency?: 'Monthly' | 'Weekly' | 'Bi-Weekly' | 'Daily' | 'Quarterly';
-}
+import type { Client, Loan, LoanProduct } from '../contexts/DataContext';
 
 export interface Payment {
   id: string;

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 import { isValidUUID, generateUUID, ensureUUID } from '../utils/uuidUtils';
 import type {
   Client,
@@ -25,9 +25,9 @@ import type {
   Ticket,
   Group,
   Guarantor,
-  Collateral,
-  LoanDocument
+  Collateral
 } from '../contexts/DataContext';
+import type { LoanDocument } from '../types';
 
 // Track if Supabase is available
 let supabaseAvailable: boolean | null = null;
@@ -332,7 +332,6 @@ const transformLoanProductForSupabase = (product: any): any => {
     'collateral_required': 'collateral_required',
     'created_at': 'created_at',
     'updated_at': 'updated_at',
-    'name': 'name',
     'product_code': 'product_code',
   };
   

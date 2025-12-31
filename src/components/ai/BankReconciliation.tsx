@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getCurrencyCode } from '../../utils/currencyUtils';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 
 interface BankTransaction {
   id: string;

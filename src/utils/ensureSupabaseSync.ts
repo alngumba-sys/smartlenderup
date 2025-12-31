@@ -9,7 +9,7 @@
  */
 
 import * as supabaseService from '../lib/supabaseService';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 
 // Get organization-scoped storage key
 function getStorageKey(baseKey: string): string {

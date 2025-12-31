@@ -1,4 +1,4 @@
-import { X, Phone, MessageSquare, Mail, UserCheck, CalendarClock } from 'lucide-react';
+import { X, Phone, MessageSquare, Mail, UserCheck, CalendarClock, CheckCircle, Calendar, XCircle, AlertTriangle, MapPin, FileText } from 'lucide-react';
 import { useState } from 'react';
 import { loans, clients, collectionActivities, CollectionActivity } from '../data/dummyData';
 import { useTheme } from '../contexts/ThemeContext';

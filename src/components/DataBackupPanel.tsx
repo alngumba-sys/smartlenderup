@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Download, Upload, Database, HardDrive, Clock, FileJson, AlertCircle, CheckCircle, Trash2, RefreshCw, Search, Cloud } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useData } from '../contexts/DataContext';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 import {
   downloadBackup,
   importBackup,

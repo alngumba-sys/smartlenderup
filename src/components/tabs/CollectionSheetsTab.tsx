@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { FileText, Calendar, AlertTriangle, Clock, Send, Mail, Phone, Download, Filter, Search, X, CheckCircle, XCircle } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 import { getCurrencyCode } from '../../utils/currencyUtils';
 
 export function CollectionSheetsTab() {

@@ -2,7 +2,7 @@ import { X, Shield, AlertCircle, Upload } from 'lucide-react';
 import { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useData } from '../../contexts/DataContext';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 import { getCurrencyCode } from '../../utils/currencyUtils';
 
 interface AddCollateralModalProps {

@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 
 // ============================================
 // AUTOMATIC SCHEMA MIGRATION UTILITY
@@ -568,6 +568,7 @@ export async function autoMigrateSchemas(): Promise<MigrationResult> {
     const tableResult = {
       tableName: tableSchema.tableName,
       columnsAdded: [] as string[],
+      error: undefined as string | undefined,
     };
 
     try {

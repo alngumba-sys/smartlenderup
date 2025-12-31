@@ -1,7 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { XCircle, Plus } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getCurrencyCode } from '../../utils/currencyUtils';
 

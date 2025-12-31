@@ -3,7 +3,7 @@ import { Package, CheckCircle, AlertCircle, XCircle, RefreshCw, Database, Eye, S
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 
 interface DiagnosticResult {
   status: 'success' | 'warning' | 'error';
