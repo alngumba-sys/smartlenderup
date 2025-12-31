@@ -3,7 +3,7 @@ import { Wallet } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { BankAccountsSection } from '../sections/BankAccountsSection';
 import { FundAccountModal, FundAccountData } from '../modals/FundAccountModal';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { getCurrencyCode, formatCurrency } from '../../utils/currencyUtils';
 
 export function BankAccountsTab() {

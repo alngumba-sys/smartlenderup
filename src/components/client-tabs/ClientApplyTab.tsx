@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { FileText, CheckCircle, Upload, AlertCircle, Calculator, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
 import { loanProducts } from '../../data/dummyData';
 import { useData } from '../../contexts/DataContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface ClientApplyTabProps {
   clientId: string;

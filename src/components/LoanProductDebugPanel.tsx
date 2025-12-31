@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { runLoanProductDiagnostic } from '../utils/loanProductDiagnostic';
 
 export function LoanProductDebugPanel() {

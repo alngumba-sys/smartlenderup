@@ -19,7 +19,7 @@ import {
 } from '../utils/singleObjectSync';
 import { migrateClientIds, applyMigration } from '../utils/migrateClientIds';
 import { getCurrencyCode } from '../utils/currencyUtils';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { 
   autoCheckAndMigrate, 
   showMigrationNotification,

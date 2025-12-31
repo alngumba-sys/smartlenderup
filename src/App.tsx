@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Toaster } from 'sonner@2.0.3';
+import { Toaster } from 'sonner';
 import { MessageSquare, Bell, Users, LogOut, ChevronDown, ChevronRight, Eye, Edit, Share2, FolderInput, Copy, Trash2, Mail, Link2, Facebook, Twitter, Instagram } from 'lucide-react';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';

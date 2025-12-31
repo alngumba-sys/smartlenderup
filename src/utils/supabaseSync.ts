@@ -1,5 +1,5 @@
 import * as supabaseService from '../lib/supabaseService';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { SUPABASE_CONFIG, logSync, notifySync } from '../config/supabaseConfig';
 
 // Configuration - now using centralized config

@@ -8,7 +8,7 @@
  */
 
 import { syncToSupabase } from './supabaseSync';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export async function syncExistingDataToSupabase(): Promise<void> {
   console.log('🔄 ===== SYNCING EXISTING DATA TO SUPABASE =====');

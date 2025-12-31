@@ -4,7 +4,7 @@ import { useData } from '../../contexts/DataContext';
 import { CollectionActivityModal } from '../CollectionActivityModal';
 import { RecordPaymentModal } from '../modals/RecordPaymentModal';
 import { ViewToggle } from '../ViewToggle';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useTheme } from '../../contexts/ThemeContext';
 
 export function PaymentsTab() {

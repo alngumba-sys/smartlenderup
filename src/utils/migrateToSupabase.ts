@@ -10,7 +10,7 @@
  */
 
 import * as supabaseService from '../lib/supabaseService';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 const getStorageKey = (key: string) => {
   const org = localStorage.getItem('current_organization');

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { isValidUUID, generateUUID, ensureUUID } from '../utils/uuidUtils';
 import type {
   Client,

@@ -16,7 +16,7 @@ import { SuperAdminDashboard } from './SuperAdminDashboard';
 import { FeaturesCarousel } from './FeaturesCarousel';
 import { db } from '../utils/database';
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface LoginPageProps {
   onLogin: (userType: 'admin' | 'employee', userData: any) => void;
