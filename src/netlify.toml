@@ -1,6 +1,6 @@
 [build]
   publish = "dist"
-  command = "npm ci && npm run build"
+  command = "npm install && npm run build"
 
 [[redirects]]
   from = "/*"
@@ -9,6 +9,4 @@
 
 [build.environment]
   NODE_VERSION = "20"
-  NODE_OPTIONS = "--max-old-space-size=4096"
-  CI = "true"
   NPM_FLAGS = "--legacy-peer-deps"
