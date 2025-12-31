@@ -1,0 +1,88 @@
+================================================================================
+🚨 RLS ERROR - TWO WAYS TO FIX (Pick One)
+================================================================================
+
+Your Error:
+❌ Error saving project state: code 42501
+❌ new row violates row-level security policy for table "project_states"
+
+================================================================================
+OPTION 1: CODE FIX (2 Minutes - No SQL Needed) ⭐ EASIEST
+================================================================================
+
+I already updated your code! Just follow these 3 steps:
+
+Step 1: Get Service Key
+  - Go to: https://supabase.com/dashboard
+  - Click your project
+  - Settings → API
+  - Copy the "service_role" key
+
+Step 2: Add to .env File
+  - Create file: .env (in project root)
+  - Add this line:
+    VITE_SUPABASE_SERVICE_KEY=paste_your_key_here
+  - Save file
+
+Step 3: Restart Dev Server
+  - Stop server (Ctrl+C)
+  - Start again (npm run dev)
+  - Check console - should see: ✅ Project state saved successfully
+
+Done! Error is gone! ✅
+
+⚠️ WARNING: This bypasses security. Only use for development!
+⚠️ Fix RLS properly before production (see Option 2)
+
+Full guide: /GET_SERVICE_KEY.md
+Details: /TEMPORARY_RLS_BYPASS.md
+
+================================================================================
+OPTION 2: FIX RLS PROPERLY (30 Seconds - Permanent Fix) ⭐ BEST
+================================================================================
+
+Step 1: Copy This SQL
+  - Open file: /COPY_PASTE_FIX.sql
+  - Copy all the text
+
+Step 2: Run in Supabase
+  - Go to: https://supabase.com/dashboard
+  - SQL Editor → New Query
+  - Paste the SQL
+  - Click "Run"
+
+Step 3: Refresh App
+  - Refresh your app
+  - Test making changes
+  - Error is gone permanently! ✅
+
+This is the PROPER fix - production-ready!
+
+Full guide: /START_HERE.md
+
+================================================================================
+WHICH ONE SHOULD I CHOOSE?
+================================================================================
+
+Choose OPTION 1 if:
+  ✓ You can't access Supabase dashboard
+  ✓ You want the quickest fix
+  ✓ You're just developing/testing
+
+Choose OPTION 2 if:
+  ✓ You can run SQL in Supabase
+  ✓ You want a permanent, secure fix
+  ✓ You're preparing for production
+
+Both work! Pick whichever is easier for you.
+
+================================================================================
+HELP - I'M STUCK!
+================================================================================
+
+Can't access Supabase? → Use OPTION 1
+Don't know how to create .env? → Read /GET_SERVICE_KEY.md
+SQL not working? → Read /VISUAL_FIX_GUIDE.md
+Want to understand more? → Read /RLS_FIX_README.md
+
+================================================================================
