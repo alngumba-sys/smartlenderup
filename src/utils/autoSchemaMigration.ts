@@ -707,6 +707,7 @@ export async function migrateTable(tableName: string): Promise<MigrationResult> 
   const tableResult = {
     tableName,
     columnsAdded: [] as string[],
+    error: undefined as string | undefined,
   };
 
   try {

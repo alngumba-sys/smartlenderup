@@ -3,7 +3,7 @@
  * This will create sample clients, loans, loan products, and other data
  */
 
-export function populateSampleData(): void {
+export function populateSampleData(): boolean {
   console.log('🔄 Populating sample data...');
   
   // Sample Loan Products
