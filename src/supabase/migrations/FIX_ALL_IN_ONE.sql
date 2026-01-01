@@ -1,0 +1,148 @@
+-- =====================================================
+-- ALL-IN-ONE FIX: Add all 112 missing columns
+-- Run this single script to add all missing columns at once
+-- =====================================================
+
+-- EXPENSES (7 missing columns)
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS organization_id UUID;
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS expense_id TEXT;
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS subcategory TEXT;
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS payment_reference TEXT;
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS payment_date TIMESTAMPTZ;
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS attachments JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS payment_type TEXT;
+
+-- PAYEES (8 missing columns)
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS organization_id UUID;
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS type TEXT;
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS bank_account TEXT;
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS mpesa_number TEXT;
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS tax_pin TEXT;
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS kra_pin TEXT;
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS contact_person TEXT;
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS last_payment_date TIMESTAMPTZ;
+
+-- GROUPS (12 missing columns)
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS organization_id UUID;
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS group_id TEXT;
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS meeting_time TEXT;
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS chairperson TEXT;
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS chairperson_phone TEXT;
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS secretary TEXT;
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS treasurer TEXT;
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS total_members INTEGER DEFAULT 0;
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS active_members INTEGER DEFAULT 0;
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS group_status TEXT DEFAULT 'Active';
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS default_rate NUMERIC;
+
+-- TASKS (6 missing columns)
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS assigned_by TEXT;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS created_date TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS completed_date TIMESTAMPTZ;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS related_entity_type TEXT;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS related_entity_id TEXT;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS notes TEXT;
+
+-- PAYROLL_RUNS (12 missing columns)
+ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS period TEXT;
+ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS pay_date TIMESTAMPTZ;
+ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS employees JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS total_gross_pay NUMERIC DEFAULT 0;
+ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS total_net_pay NUMERIC DEFAULT 0;
+ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS created_by TEXT;
+ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS created_date TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS approved_by TEXT;
+ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS approved_date TIMESTAMPTZ;
+ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS paid_date TIMESTAMPTZ;
+ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS bank_account_id TEXT;
+ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS notes TEXT;
+
+-- FUNDING_TRANSACTIONS (3 missing columns)
+ALTER TABLE funding_transactions ADD COLUMN IF NOT EXISTS organization_id UUID;
+ALTER TABLE funding_transactions ADD COLUMN IF NOT EXISTS transaction_id TEXT;
+ALTER TABLE funding_transactions ADD COLUMN IF NOT EXISTS transaction_date TIMESTAMPTZ DEFAULT NOW();
+
+-- DISBURSEMENTS (14 missing columns)
+ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS client_id TEXT;
+ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS client_name TEXT;
+ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS scheduled_date TIMESTAMPTZ;
+ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS actual_date TIMESTAMPTZ;
+ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS channel TEXT;
+ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS mpesa_number TEXT;
+ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS bank_name TEXT;
+ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS account_number TEXT;
+ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS reference TEXT;
+ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Pending';
+ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS processed_by TEXT;
+ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS created_date TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS created_by TEXT;
+
+-- APPROVALS (18 missing columns)
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS organization_id UUID;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS type TEXT;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS requested_by TEXT;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS request_date TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS amount NUMERIC;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS client_id TEXT;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS client_name TEXT;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'Medium';
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS approver_name TEXT;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS approval_date TIMESTAMPTZ;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS decision_date TIMESTAMPTZ;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS related_id TEXT;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS phase INTEGER;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS decision TEXT;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS disbursement_data JSONB;
+
+-- JOURNAL_ENTRIES (9 missing columns)
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS organization_id UUID;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS entry_id TEXT;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS entry_date TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS reference_type TEXT;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS reference_id TEXT;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS lines JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS account TEXT;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS debit NUMERIC DEFAULT 0;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS credit NUMERIC DEFAULT 0;
+
+-- PROCESSING_FEE_RECORDS (4 missing columns)
+ALTER TABLE processing_fee_records ADD COLUMN IF NOT EXISTS organization_id UUID;
+ALTER TABLE processing_fee_records ADD COLUMN IF NOT EXISTS amount NUMERIC DEFAULT 0;
+ALTER TABLE processing_fee_records ADD COLUMN IF NOT EXISTS waived_by TEXT;
+ALTER TABLE processing_fee_records ADD COLUMN IF NOT EXISTS waived_reason TEXT;
+
+-- TICKETS (7 missing columns)
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ticket_number TEXT;
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS client_id TEXT;
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS client_name TEXT;
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS subject TEXT;
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS channel TEXT DEFAULT 'Portal';
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS updated_date TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS resolution TEXT;
+
+-- KYC_RECORDS (10 missing columns)
+ALTER TABLE kyc_records ADD COLUMN IF NOT EXISTS client_name TEXT;
+ALTER TABLE kyc_records ADD COLUMN IF NOT EXISTS risk_rating TEXT;
+ALTER TABLE kyc_records ADD COLUMN IF NOT EXISTS last_review_date TIMESTAMPTZ;
+ALTER TABLE kyc_records ADD COLUMN IF NOT EXISTS next_review_date TIMESTAMPTZ;
+ALTER TABLE kyc_records ADD COLUMN IF NOT EXISTS national_id_verified BOOLEAN DEFAULT FALSE;
+ALTER TABLE kyc_records ADD COLUMN IF NOT EXISTS address_verified BOOLEAN DEFAULT FALSE;
+ALTER TABLE kyc_records ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE;
+ALTER TABLE kyc_records ADD COLUMN IF NOT EXISTS biometrics_collected BOOLEAN DEFAULT FALSE;
+ALTER TABLE kyc_records ADD COLUMN IF NOT EXISTS documents_on_file JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE kyc_records ADD COLUMN IF NOT EXISTS reviewed_by TEXT;
+
+-- AUDIT_LOGS (2 missing columns)
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS organization_id UUID;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS performed_by TEXT;
+
+-- Success message
+DO $$
+BEGIN
+  RAISE NOTICE '✅ Successfully added all 112 missing columns!';
+END $$;

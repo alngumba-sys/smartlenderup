@@ -1,0 +1,174 @@
+-- ============================================
+-- QUICK FIX: Add All 119 Missing Columns
+-- Copy this entire file and run in Supabase SQL Editor
+-- ============================================
+
+-- APPROVALS (18 columns)
+ALTER TABLE approvals
+  ADD COLUMN IF NOT EXISTS organization_id TEXT,
+  ADD COLUMN IF NOT EXISTS type TEXT,
+  ADD COLUMN IF NOT EXISTS title TEXT,
+  ADD COLUMN IF NOT EXISTS description TEXT,
+  ADD COLUMN IF NOT EXISTS requested_by TEXT,
+  ADD COLUMN IF NOT EXISTS request_date TEXT,
+  ADD COLUMN IF NOT EXISTS amount DECIMAL(15,2),
+  ADD COLUMN IF NOT EXISTS client_id TEXT,
+  ADD COLUMN IF NOT EXISTS client_name TEXT,
+  ADD COLUMN IF NOT EXISTS priority TEXT,
+  ADD COLUMN IF NOT EXISTS approver_name TEXT,
+  ADD COLUMN IF NOT EXISTS approval_date TEXT,
+  ADD COLUMN IF NOT EXISTS decision_date TEXT,
+  ADD COLUMN IF NOT EXISTS rejection_reason TEXT,
+  ADD COLUMN IF NOT EXISTS related_id TEXT,
+  ADD COLUMN IF NOT EXISTS phase TEXT,
+  ADD COLUMN IF NOT EXISTS decision TEXT,
+  ADD COLUMN IF NOT EXISTS disbursement_data JSONB;
+
+-- SHAREHOLDERS (3 columns)
+ALTER TABLE shareholders
+  ADD COLUMN IF NOT EXISTS organization_id TEXT,
+  ADD COLUMN IF NOT EXISTS shareholder_id TEXT,
+  ADD COLUMN IF NOT EXISTS shares INTEGER DEFAULT 0;
+
+-- JOURNAL_ENTRIES (9 columns)
+ALTER TABLE journal_entries
+  ADD COLUMN IF NOT EXISTS organization_id TEXT,
+  ADD COLUMN IF NOT EXISTS entry_id TEXT,
+  ADD COLUMN IF NOT EXISTS entry_date TEXT,
+  ADD COLUMN IF NOT EXISTS reference_type TEXT,
+  ADD COLUMN IF NOT EXISTS reference_id TEXT,
+  ADD COLUMN IF NOT EXISTS lines JSONB,
+  ADD COLUMN IF NOT EXISTS account TEXT,
+  ADD COLUMN IF NOT EXISTS debit DECIMAL(15,2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS credit DECIMAL(15,2) DEFAULT 0;
+
+-- SHAREHOLDER_TRANSACTIONS (1 column)
+ALTER TABLE shareholder_transactions
+  ADD COLUMN IF NOT EXISTS organization_id TEXT;
+
+-- PROCESSING_FEE_RECORDS (4 columns)
+ALTER TABLE processing_fee_records
+  ADD COLUMN IF NOT EXISTS organization_id TEXT,
+  ADD COLUMN IF NOT EXISTS amount DECIMAL(15,2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS waived_by TEXT,
+  ADD COLUMN IF NOT EXISTS waived_reason TEXT;
+
+-- BANK_ACCOUNTS (2 columns)
+ALTER TABLE bank_accounts
+  ADD COLUMN IF NOT EXISTS organization_id TEXT,
+  ADD COLUMN IF NOT EXISTS account_name TEXT;
+
+-- TICKETS (7 columns)
+ALTER TABLE tickets
+  ADD COLUMN IF NOT EXISTS ticket_number TEXT,
+  ADD COLUMN IF NOT EXISTS client_id TEXT,
+  ADD COLUMN IF NOT EXISTS client_name TEXT,
+  ADD COLUMN IF NOT EXISTS subject TEXT,
+  ADD COLUMN IF NOT EXISTS channel TEXT,
+  ADD COLUMN IF NOT EXISTS updated_date TEXT,
+  ADD COLUMN IF NOT EXISTS resolution TEXT;
+
+-- EXPENSES (7 columns)
+ALTER TABLE expenses
+  ADD COLUMN IF NOT EXISTS organization_id TEXT,
+  ADD COLUMN IF NOT EXISTS expense_id TEXT,
+  ADD COLUMN IF NOT EXISTS subcategory TEXT,
+  ADD COLUMN IF NOT EXISTS payment_reference TEXT,
+  ADD COLUMN IF NOT EXISTS payment_date TEXT,
+  ADD COLUMN IF NOT EXISTS attachments JSONB,
+  ADD COLUMN IF NOT EXISTS payment_type TEXT;
+
+-- KYC_RECORDS (10 columns)
+ALTER TABLE kyc_records
+  ADD COLUMN IF NOT EXISTS client_name TEXT,
+  ADD COLUMN IF NOT EXISTS risk_rating TEXT,
+  ADD COLUMN IF NOT EXISTS last_review_date TEXT,
+  ADD COLUMN IF NOT EXISTS next_review_date TEXT,
+  ADD COLUMN IF NOT EXISTS national_id_verified BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS address_verified BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS biometrics_collected BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS documents_on_file JSONB,
+  ADD COLUMN IF NOT EXISTS reviewed_by TEXT;
+
+-- PAYEES (7 columns)
+ALTER TABLE payees
+  ADD COLUMN IF NOT EXISTS organization_id TEXT,
+  ADD COLUMN IF NOT EXISTS bank_account TEXT,
+  ADD COLUMN IF NOT EXISTS mpesa_number TEXT,
+  ADD COLUMN IF NOT EXISTS tax_pin TEXT,
+  ADD COLUMN IF NOT EXISTS kra_pin TEXT,
+  ADD COLUMN IF NOT EXISTS contact_person TEXT,
+  ADD COLUMN IF NOT EXISTS last_payment_date TEXT;
+
+-- AUDIT_LOGS (3 columns)
+ALTER TABLE audit_logs
+  ADD COLUMN IF NOT EXISTS organization_id TEXT,
+  ADD COLUMN IF NOT EXISTS performed_by TEXT,
+  ADD COLUMN IF NOT EXISTS details JSONB;
+
+-- GROUPS (12 columns)
+ALTER TABLE groups
+  ADD COLUMN IF NOT EXISTS organization_id TEXT,
+  ADD COLUMN IF NOT EXISTS group_id TEXT,
+  ADD COLUMN IF NOT EXISTS location TEXT,
+  ADD COLUMN IF NOT EXISTS meeting_time TEXT,
+  ADD COLUMN IF NOT EXISTS chairperson TEXT,
+  ADD COLUMN IF NOT EXISTS chairperson_phone TEXT,
+  ADD COLUMN IF NOT EXISTS secretary TEXT,
+  ADD COLUMN IF NOT EXISTS treasurer TEXT,
+  ADD COLUMN IF NOT EXISTS total_members INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS active_members INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS group_status TEXT,
+  ADD COLUMN IF NOT EXISTS default_rate DECIMAL(5,2) DEFAULT 0;
+
+-- TASKS (6 columns)
+ALTER TABLE tasks
+  ADD COLUMN IF NOT EXISTS assigned_by TEXT,
+  ADD COLUMN IF NOT EXISTS created_date TEXT,
+  ADD COLUMN IF NOT EXISTS completed_date TEXT,
+  ADD COLUMN IF NOT EXISTS related_entity_type TEXT,
+  ADD COLUMN IF NOT EXISTS related_entity_id TEXT,
+  ADD COLUMN IF NOT EXISTS notes TEXT;
+
+-- PAYROLL_RUNS (12 columns)
+ALTER TABLE payroll_runs
+  ADD COLUMN IF NOT EXISTS period TEXT,
+  ADD COLUMN IF NOT EXISTS pay_date TEXT,
+  ADD COLUMN IF NOT EXISTS employees JSONB,
+  ADD COLUMN IF NOT EXISTS total_gross_pay DECIMAL(15,2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_net_pay DECIMAL(15,2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS created_by TEXT,
+  ADD COLUMN IF NOT EXISTS created_date TEXT,
+  ADD COLUMN IF NOT EXISTS approved_by TEXT,
+  ADD COLUMN IF NOT EXISTS approved_date TEXT,
+  ADD COLUMN IF NOT EXISTS paid_date TEXT,
+  ADD COLUMN IF NOT EXISTS bank_account_id TEXT,
+  ADD COLUMN IF NOT EXISTS notes TEXT;
+
+-- FUNDING_TRANSACTIONS (3 columns)
+ALTER TABLE funding_transactions
+  ADD COLUMN IF NOT EXISTS organization_id TEXT,
+  ADD COLUMN IF NOT EXISTS transaction_id TEXT,
+  ADD COLUMN IF NOT EXISTS transaction_date TEXT;
+
+-- DISBURSEMENTS (14 columns)
+ALTER TABLE disbursements
+  ADD COLUMN IF NOT EXISTS client_id TEXT,
+  ADD COLUMN IF NOT EXISTS client_name TEXT,
+  ADD COLUMN IF NOT EXISTS scheduled_date TEXT,
+  ADD COLUMN IF NOT EXISTS actual_date TEXT,
+  ADD COLUMN IF NOT EXISTS channel TEXT,
+  ADD COLUMN IF NOT EXISTS mpesa_number TEXT,
+  ADD COLUMN IF NOT EXISTS bank_name TEXT,
+  ADD COLUMN IF NOT EXISTS account_number TEXT,
+  ADD COLUMN IF NOT EXISTS reference TEXT,
+  ADD COLUMN IF NOT EXISTS status TEXT,
+  ADD COLUMN IF NOT EXISTS processed_by TEXT,
+  ADD COLUMN IF NOT EXISTS notes TEXT,
+  ADD COLUMN IF NOT EXISTS created_date TEXT,
+  ADD COLUMN IF NOT EXISTS created_by TEXT;
+
+-- ============================================
+-- DONE! All 119 columns added
+-- ============================================
