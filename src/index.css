@@ -999,6 +999,10 @@
     margin-block: 15px;
   }
 
+  .my-auto {
+    margin-block: auto;
+  }
+
   .mt-0\.5 {
     margin-top: calc(var(--spacing) * .5);
   }
@@ -1383,10 +1387,6 @@
     height: calc(var(--spacing) * 64);
   }
 
-  .h-\[16em\] {
-    height: 16em;
-  }
-
   .h-\[42px\] {
     height: 42px;
   }
@@ -1459,10 +1459,6 @@
     max-height: 90vh;
   }
 
-  .max-h-\[92vh\] {
-    max-height: 92vh;
-  }
-
   .max-h-\[95vh\] {
     max-height: 95vh;
   }
@@ -1521,6 +1517,10 @@
 
   .min-h-\[2rem\] {
     min-height: 2rem;
+  }
+
+  .min-h-\[14em\] {
+    min-height: 14em;
   }
 
   .min-h-\[420px\] {
@@ -6258,6 +6258,13 @@
     }
   }
 
+  .active\:scale-95:active {
+    --tw-scale-x: 95%;
+    --tw-scale-y: 95%;
+    --tw-scale-z: 95%;
+    scale: var(--tw-scale-x) var(--tw-scale-y);
+  }
+
   .disabled\:pointer-events-none:disabled {
     pointer-events: none;
   }
@@ -6421,6 +6428,12 @@
   }
 
   @media (width >= 40rem) {
+    .sm\:h-\[16em\] {
+      height: 16em;
+    }
+  }
+
+  @media (width >= 40rem) {
     .sm\:h-auto {
       height: auto;
     }
@@ -6429,6 +6442,12 @@
   @media (width >= 40rem) {
     .sm\:max-h-\[90vh\] {
       max-height: 90vh;
+    }
+  }
+
+  @media (width >= 40rem) {
+    .sm\:max-h-\[92vh\] {
+      max-height: 92vh;
     }
   }
 
@@ -6499,8 +6518,20 @@
   }
 
   @media (width >= 40rem) {
+    .sm\:rounded-xl {
+      border-radius: calc(var(--radius)  + 4px);
+    }
+  }
+
+  @media (width >= 40rem) {
     .sm\:p-4 {
       padding: calc(var(--spacing) * 4);
+    }
+  }
+
+  @media (width >= 40rem) {
+    .sm\:p-5 {
+      padding: calc(var(--spacing) * 5);
     }
   }
 
@@ -6523,8 +6554,26 @@
   }
 
   @media (width >= 40rem) {
+    .sm\:px-5 {
+      padding-inline: calc(var(--spacing) * 5);
+    }
+  }
+
+  @media (width >= 40rem) {
     .sm\:px-6 {
       padding-inline: calc(var(--spacing) * 6);
+    }
+  }
+
+  @media (width >= 40rem) {
+    .sm\:py-3\.5 {
+      padding-block: calc(var(--spacing) * 3.5);
+    }
+  }
+
+  @media (width >= 40rem) {
+    .sm\:py-4 {
+      padding-block: calc(var(--spacing) * 4);
     }
   }
 

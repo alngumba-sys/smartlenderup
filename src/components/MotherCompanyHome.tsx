@@ -558,20 +558,20 @@ export function MotherCompanyHome({ onSelectPlatform }: MotherCompanyHomeProps) 
           boxShadow: '0 -4px 20px rgba(0,0,0,0.3)'
         }}
       >
-        <div className="max-w-7xl mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
-            <span style={{ color: '#e8d1c9', fontSize: '14px', fontWeight: 'bold' }}>Quick Access:</span>
-            <div className="flex gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 sm:py-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4">
+            <span className="hidden sm:block" style={{ color: '#e8d1c9', fontSize: '12px', sm: '14px', fontWeight: 'bold' }}>Quick Access:</span>
+            <div className="flex flex-wrap justify-center sm:justify-end gap-2 sm:gap-4 w-full sm:w-auto">
               {platforms.map((platform) => (
                 <button
                   key={platform.id}
                   onClick={() => handlePlatformClick(platform.id)}
-                  className="px-6 py-2 rounded-lg transition-all duration-200 hover:scale-105"
+                  className="px-4 sm:px-6 py-2 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 text-xs sm:text-sm"
                   style={{
                     backgroundColor: platform.color,
                     color: '#ffffff',
-                    fontSize: '14px',
-                    fontWeight: '600'
+                    fontWeight: '600',
+                    minWidth: '100px'
                   }}
                 >
                   {platform.name}
@@ -582,12 +582,12 @@ export function MotherCompanyHome({ onSelectPlatform }: MotherCompanyHomeProps) 
         </div>
       </div>
 
-      {/* Live Activity Feed (Feature #12) */}
+      {/* Live Activity Feed (Feature #12) - MOBILE RESPONSIVE */}
       <div
-        className="fixed left-6 bottom-6 z-30 overflow-hidden rounded-lg shadow-2xl"
+        className="hidden lg:block fixed left-4 lg:left-6 bottom-4 lg:bottom-6 z-30 overflow-hidden rounded-lg shadow-2xl"
         style={{
           backgroundColor: 'rgba(60, 31, 27, 0.7)',
-          width: '200px',
+          width: 'clamp(150px, 20vw, 200px)',
           border: '1px solid rgba(232, 209, 201, 0.2)'
         }}
       >
@@ -1117,46 +1117,71 @@ export function MotherCompanyHome({ onSelectPlatform }: MotherCompanyHomeProps) 
             </nav>
             
             {/* Right side - Search, Free trial, Login */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <button 
                 onClick={() => setShowSearchModal(true)}
-                className="hover:opacity-70 transition-opacity"
+                className="hover:opacity-70 transition-opacity p-2"
                 style={{ color: '#e8d1c9' }}
+                aria-label="Search"
               >
                 <Search className="size-5" />
+              </button>
+              
+              {/* Sign Up Button - Mobile Friendly */}
+              <button
+                onClick={() => handlePlatformClick('smartlenderup')}
+                className="px-3 sm:px-5 py-2 rounded-lg transition-all duration-200 hover:opacity-90 active:scale-95 text-xs sm:text-sm"
+                style={{
+                  backgroundColor: '#ec7347',
+                  color: '#ffffff',
+                  fontWeight: '600'
+                }}
+              >
+                Sign Up
+              </button>
+              
+              {/* Login Button - Mobile Friendly */}
+              <button
+                onClick={() => handlePlatformClick('smartlenderup')}
+                className="px-3 sm:px-5 py-2 rounded-lg transition-all duration-200 hover:bg-opacity-20 hover:bg-white active:scale-95 text-xs sm:text-sm"
+                style={{
+                  border: '1px solid #ec7347',
+                  color: '#ec7347',
+                  fontWeight: '600'
+                }}
+              >
+                Login
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="pt-10 pb-20 px-6 relative">
-        <div className="max-w-7xl mx-auto text-center px-[0px] py-[-5px]">
-          {/* New tagline with Bentham font */}
-          <p 
-            className="mb-8"
+      {/* Hero Section - MOBILE RESPONSIVE */}
+      <section className="pt-6 sm:pt-10 pb-12 sm:pb-20 px-4 sm:px-6 relative">
+        <div className="max-w-7xl mx-auto text-center">
+          {/* New tagline with Bentham font - RESPONSIVE */}
+          <div className="mb-6 sm:mb-8"
             style={{ 
-              fontSize: '24px',
               fontFamily: 'Bentham, serif',
-              lineHeight: '0.9'
+              lineHeight: '1.1'
             }}
           >
-            <span style={{ color: '#ec7347', fontSize: '72px' }}>Cutting-edge</span>
+            <span className="block sm:inline" style={{ color: '#ec7347', fontSize: 'clamp(32px, 10vw, 72px)' }}>Cutting-edge</span>
             {' '}
-            <span style={{ color: '#e8d1c9', fontSize: '72px' }}>platforms tailored</span>
-            <br />
-            <span style={{ color: '#e8d1c9', fontSize: '72px' }}>to</span>
+            <span className="block sm:inline" style={{ color: '#e8d1c9', fontSize: 'clamp(32px, 10vw, 72px)' }}>platforms tailored</span>
+            <br className="hidden sm:block" />
+            <span className="block sm:inline" style={{ color: '#e8d1c9', fontSize: 'clamp(32px, 10vw, 72px)' }}>to</span>
             {' '}
-            <span style={{ color: '#ec7347', fontSize: '72px' }}>transform your operations</span>
-          </p>
+            <span className="block sm:inline" style={{ color: '#ec7347', fontSize: 'clamp(32px, 10vw, 72px)' }}>transform your operations</span>
+          </div>
         </div>
       </section>
 
-      {/* Platforms Grid */}
-      <section className="pb-20 px-6 -mt-16" ref={cardsRef}>
-        <div className="mx-auto" style={{ maxWidth: '856.8px' }}>
-          <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: '4px' }}>
+      {/* Platforms Grid - MOBILE RESPONSIVE */}
+      <section className="pb-12 sm:pb-20 px-4 sm:px-6 -mt-8 sm:-mt-16" ref={cardsRef}>
+        <div className="mx-auto w-full max-w-[856.8px]">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-1">
             {platforms.map((platform) => {
               const Icon = platform.icon;
               // Define background colors for each platform
@@ -1172,13 +1197,14 @@ export function MotherCompanyHome({ onSelectPlatform }: MotherCompanyHomeProps) 
                   onClick={() => handlePlatformClick(platform.id)}
                   onMouseEnter={() => setHoveredPlatform(platform.id)}
                   onMouseLeave={() => setHoveredPlatform(null)}
-                  className="group relative overflow-hidden rounded-2xl border transition-all duration-300 cursor-pointer hover:shadow-2xl hover:scale-105"
+                  className="group relative overflow-hidden rounded-xl sm:rounded-2xl border transition-all duration-300 cursor-pointer hover:shadow-2xl sm:hover:scale-105 active:scale-95"
                   style={{
                     borderColor: '#ffffff',
-                    transform: 'scale(0.81)',
+                    transform: window.innerWidth < 1024 ? 'scale(1)' : 'scale(0.81)',
                     boxShadow: '0 20px 40px rgba(0,0,0,0.3), 0 10px 20px rgba(0,0,0,0.2)',
                     transformStyle: 'preserve-3d',
-                    perspective: '1000px'
+                    perspective: '1000px',
+                    minHeight: '250px'
                   }}
                 >
                   {/* Gradient Overlay on Hover */}

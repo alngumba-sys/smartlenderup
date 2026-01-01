@@ -400,7 +400,7 @@ export function OrganizationSignUpModal({ isOpen, onClose, onSignUp, accountType
   const currentAccountTitle = accountTitles[accountType];
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-[200] p-4" style={{ backgroundColor: 'rgba(2, 8, 56, 0.95)' }}>
+    <div className="fixed inset-0 flex items-center justify-center z-[9999] p-2 sm:p-4 overflow-y-auto" style={{ backgroundColor: 'rgba(2, 8, 56, 0.95)' }}>
       <style>{`
         .org-input,
         input.org-input,
@@ -463,11 +463,11 @@ export function OrganizationSignUpModal({ isOpen, onClose, onSignUp, accountType
       `}</style>
       
       <div 
-        className="w-full max-w-5xl max-h-[92vh] rounded-xl shadow-2xl overflow-hidden flex flex-col"
+        className="w-full max-w-5xl max-h-[95vh] sm:max-h-[92vh] rounded-lg sm:rounded-xl shadow-2xl overflow-hidden flex flex-col my-auto"
         style={{ backgroundColor: '#020838' }}
       >
-        {/* Header */}
-        <div className="px-5 py-3.5 flex items-center justify-between" style={{ backgroundColor: '#154F73', borderBottom: '1px solid rgba(236, 115, 71, 0.2)' }}>
+        {/* Header - MOBILE RESPONSIVE */}
+        <div className="px-3 sm:px-5 py-3 sm:py-3.5 flex items-center justify-between" style={{ backgroundColor: '#154F73', borderBottom: '1px solid rgba(236, 115, 71, 0.2)' }}>
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg" style={{ backgroundColor: 'rgba(236, 115, 71, 0.15)' }}>
               <Building2 className="size-4.5" style={{ color: '#ec7347' }} />
@@ -488,8 +488,8 @@ export function OrganizationSignUpModal({ isOpen, onClose, onSignUp, accountType
           </button>
         </div>
 
-        {/* Form Content - Scrollable */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 py-4" style={{ backgroundColor: '#032b43' }}>
+        {/* Form Content - Scrollable - MOBILE RESPONSIVE */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-3 sm:px-5 py-3 sm:py-4" style={{ backgroundColor: '#032b43' }}>
           <div className="max-w-full mx-auto">
             
             {/* Logo Upload Section */}

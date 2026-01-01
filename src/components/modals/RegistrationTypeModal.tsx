@@ -43,18 +43,18 @@ export function RegistrationTypeModal({ isOpen, onClose, onSelectType }: Registr
 
   return (
     <div className={isDark ? 'dark' : ''}>
-      {/* Backdrop */}
+      {/* Backdrop - MOBILE OPTIMIZED */}
       <div 
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
         style={{
           backdropFilter: 'blur(8px)',
-          backgroundColor: 'rgba(0, 0, 0, 0.7)'
+          backgroundColor: 'rgba(0, 0, 0, 0.85)'
         }}
         onClick={onClose}
       >
-        {/* Modal */}
+        {/* Modal - MOBILE RESPONSIVE */}
         <div 
-          className="relative w-full max-w-4xl"
+          className="relative w-full max-w-4xl my-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -77,17 +77,18 @@ export function RegistrationTypeModal({ isOpen, onClose, onSelectType }: Registr
             </p>
           </div>
 
-          {/* Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Cards Grid - MOBILE RESPONSIVE */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {registrationTypes.map((regType) => (
               <div
                 key={regType.type}
                 onMouseEnter={() => setHoveredType(regType.type)}
                 onMouseLeave={() => setHoveredType(null)}
-                className="h-[16em] border-2 rounded-[1.2em] p-5 flex flex-col transition-all duration-300 cursor-pointer bg-gray-900/50 dark:bg-gray-800/50 backdrop-blur-sm"
+                onTouchStart={() => setHoveredType(regType.type)}
+                className="min-h-[14em] sm:h-[16em] border-2 rounded-[1.2em] p-4 sm:p-5 flex flex-col transition-all duration-300 cursor-pointer bg-gray-900/50 dark:bg-gray-800/50 backdrop-blur-sm active:scale-95"
                 style={{
                   borderColor: hoveredType === regType.type ? regType.iconColor : 'rgba(255, 255, 255, 0.15)',
-                  transform: hoveredType === regType.type ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
+                  transform: hoveredType === regType.type ? 'translateY(-4px) scale(1.01)' : 'translateY(0) scale(1)',
                   boxShadow: hoveredType === regType.type ? `0 16px 32px rgba(0, 0, 0, 0.4)` : `0 4px 8px rgba(0, 0, 0, 0.2)`
                 }}
                 onClick={() => onSelectType(regType.type)}
