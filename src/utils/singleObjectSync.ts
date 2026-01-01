@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner@2.0.3';
+import { syncAllEntitiesToTables } from './dualStorageSync';
 
 /**
  * ============================================
@@ -17,6 +18,8 @@ import { toast } from 'sonner@2.0.3';
  * - Simplified state management
  * - Reduced network overhead
  * - Faster app initialization
+ * 
+ * PLUS: We also sync to individual tables for Super Admin queries
  */
 
 // ============================================
@@ -108,7 +111,8 @@ const STATE_KEY_PREFIX = 'org_state_';
  */
 export async function saveProjectState(
   organizationId: string,
-  state: Partial<ProjectState>
+  state: Partial<ProjectState>,
+  userId?: string
 ): Promise<boolean> {
   try {
     console.log('💾 Saving entire project state to Supabase...');
@@ -183,6 +187,12 @@ export async function saveProjectState(
     const stateSize = JSON.stringify(projectState).length;
     const sizeKB = (stateSize / 1024).toFixed(2);
     console.log(`📦 State size: ${sizeKB} KB`);
+    
+    // ✅ DUAL STORAGE: Also sync to individual tables for Super Admin
+    if (userId) {
+      console.log('🔄 Syncing to individual tables for Super Admin...');
+      await syncAllEntitiesToTables(userId, organizationId, projectState);
+    }
     
     return true;
   } catch (error) {

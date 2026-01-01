@@ -959,7 +959,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           loanDocuments,
         };
         
-        await saveProjectState(currentUser.organizationId, projectState);
+        await saveProjectState(currentUser.organizationId, projectState, currentUser.id);
       } catch (error) {
         console.error('❌ Error syncing to Supabase:', error);
       } finally {

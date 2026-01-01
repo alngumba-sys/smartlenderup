@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Save, Globe, DollarSign, Shield, Bell, Mail, Database, Clock } from 'lucide-react';
+import { Save, Globe, DollarSign, Shield, Bell, Mail, Database, Clock, RefreshCw } from 'lucide-react';
 import { db } from '../../utils/database';
 import { SchemaMigrationPanel } from '../SchemaMigrationPanel';
+import { migrateAllOrganizations } from '../../utils/migrateProjectStatesToTables';
+import { toast } from 'sonner@2.0.3';
 
 export function SettingsTab() {
   const [platformName, setPlatformName] = useState('SmartLenderUp');
@@ -20,6 +22,11 @@ export function SettingsTab() {
     // In a real app, this would save to the database
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+  };
+
+  const handleMigrate = () => {
+    migrateAllOrganizations();
+    toast.success('Organizations migrated successfully!');
   };
 
   return (
@@ -276,6 +283,24 @@ export function SettingsTab() {
               </div>
               <p className="text-sm" style={{ color: '#e8d1c9' }}>December 24, 2025 at 3:00 AM</p>
               <p className="text-xs mt-1" style={{ color: 'rgba(232, 209, 201, 0.5)' }}>Next scheduled: December 25, 2025 at 3:00 AM</p>
+            </div>
+
+            {/* Data Migration Section */}
+            <div className="p-4 rounded-lg" style={{ backgroundColor: '#020838', border: '1px solid rgba(52, 211, 153, 0.2)' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <RefreshCw className="size-4" style={{ color: '#34d399' }} />
+                <p className="text-xs font-medium" style={{ color: '#34d399' }}>Data Migration</p>
+              </div>
+              <p className="text-sm mb-3" style={{ color: '#e8d1c9' }}>Sync all organization data from project_states to individual tables</p>
+              <button
+                onClick={handleMigrate}
+                className="w-full px-4 py-2.5 rounded-lg font-medium transition-all flex items-center justify-center gap-2"
+                style={{ backgroundColor: '#34d399', color: '#111120' }}
+              >
+                <RefreshCw className="size-4" />
+                Migrate All Organizations Now
+              </button>
+              <p className="text-xs mt-2" style={{ color: 'rgba(232, 209, 201, 0.5)' }}>This will enable Super Admin to see all data across organizations</p>
             </div>
           </div>
         </div>
