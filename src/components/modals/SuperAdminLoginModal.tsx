@@ -40,7 +40,7 @@ export function SuperAdminLoginModal({ isOpen, onClose, onLogin }: SuperAdminLog
               <Shield className="size-6" style={{ color: '#3b82f6' }} />
             </div>
             <div>
-              <h2 className="text-xl font-semibold" style={{ color: '#ffffff' }}>Super Admin Access</h2>
+              <h2 className="text-xl font-semibold" style={{ color: '#ffffff' }}>Super Admin Access v 2.0</h2>
               <p className="text-xs mt-1" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Restricted area - Authorized personnel only</p>
             </div>
           </div>
