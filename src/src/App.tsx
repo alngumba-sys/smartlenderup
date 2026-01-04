@@ -627,7 +627,8 @@ export default function App() {
               <AppContent />
               <Toaster position="top-right" theme="dark" richColors />
               <DatabaseSetupNotice />
-              <DatabaseErrorOverlay />
+              {/* DatabaseErrorOverlay disabled - database is properly configured */}
+              {/* <DatabaseErrorOverlay /> */}
             </NavigationProvider>
           </DataProvider>
         </AuthProvider>
