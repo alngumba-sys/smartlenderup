@@ -1,0 +1,97 @@
+========================================
+🚀 SINGLE QUERY - COPY AND RUN ONCE
+========================================
+
+DO $$ 
+DECLARE
+  product_uuid UUID;
+  loans_updated INTEGER;
+BEGIN
+  -- Find first available product
+  SELECT id INTO product_uuid FROM loan_products LIMIT 1;
+  
+  -- Check if product exists
+  IF product_uuid IS NULL THEN
+    RAISE NOTICE '❌ ERROR: No products found in loan_products table!';
+    RAISE NOTICE '📝 ACTION REQUIRED: Create a product in your app first, then run this again.';
+  ELSE
+    RAISE NOTICE '✅ Found product: %', product_uuid;
+    
+    -- Update all loans with invalid product_id
+    UPDATE loans
+    SET product_id = product_uuid,
+        updated_at = NOW()
+    WHERE product_id IS NULL 
+       OR NOT EXISTS (
+         SELECT 1 FROM loan_products WHERE id = loans.product_id
+       );
+    
+    GET DIAGNOSTICS loans_updated = ROW_COUNT;
+    
+    RAISE NOTICE '✅ Updated % loans to use product: %', loans_updated, product_uuid;
+    RAISE NOTICE '🎉 SUCCESS! Refresh your app now (Ctrl+Shift+R)';
+  END IF;
+END $$;
+
+-- Verification query
+SELECT 
+  'Total loans' as metric,
+  COUNT(*) as count
+FROM loans
+UNION ALL
+SELECT 
+  'Loans with valid product' as metric,
+  COUNT(*) as count
+FROM loans
+WHERE product_id IN (SELECT id FROM loan_products)
+UNION ALL
+SELECT 
+  'Loans with NULL product' as metric,
+  COUNT(*) as count
+FROM loans
+WHERE product_id IS NULL;
+
+========================================
+📋 HOW TO USE:
+========================================
+1. Copy EVERYTHING above (all the SQL)
+2. Supabase Dashboard → SQL Editor → New Query
+3. Paste and click "Run"
+4. Check the results - should see success messages
+5. Refresh SmartLenderUp app (Ctrl+Shift+R)
+6. Done! ✅
+
+========================================
+✅ EXPECTED OUTPUT:
+========================================
+You'll see messages like:
+✅ Found product: 11794d71-e44c-4b16-8c84-1b06b54d0938
+✅ Updated 15 loans to use product: 11794d71...
+🎉 SUCCESS! Refresh your app now
+
+Then a table showing:
+| metric                    | count |
+|---------------------------|-------|
+| Total loans              | 15    |
+| Loans with valid product | 15    |
+| Loans with NULL product  | 0     |
+
+========================================
+⚠️ IF IT FAILS:
+========================================
+If you see "No products found" message:
+1. Go to SmartLenderUp app
+2. Navigate to Loan Products
+3. Create at least one product
+4. Come back and run this SQL again
+
+========================================
+🎯 WHAT THIS FIXES:
+========================================
+✅ All loans get valid product_id
+✅ Portfolio by Product chart shows data
+✅ Loan Products statistics accurate
+✅ No more PRODUCT ID MISMATCH errors
+
+ONE QUERY - ONE CLICK - DONE! 🚀
+========================================

@@ -284,6 +284,20 @@ const transformClientForSupabase = (client: any): any => {
     transformed.date_registered = new Date().toISOString().split('T')[0];
   }
   
+  // FINAL SAFETY CHECK: Remove any fields that absolutely shouldn't be in Supabase
+  delete transformed.branch;
+  delete transformed.creditScore;
+  delete transformed.credit_score;
+  delete transformed.creditTier;
+  delete transformed.credit_tier;
+  delete transformed.riskRating;  // Only risk_rating (snake_case) is valid
+  delete transformed.clientType;  // Only client_type (snake_case) is valid
+  delete transformed.groupName;   // Only group_name (snake_case) is valid
+  delete transformed.businessName; // Filtered out until migration
+  delete transformed.businessType; // Filtered out until migration
+  delete transformed.business_name; // Filtered out until migration
+  delete transformed.business_type; // Filtered out until migration
+  
   return transformed;
 };
 
@@ -472,14 +486,17 @@ const transformLoanForSupabase = (loan: any): any => {
     'organization_id': 'organization_id',
     'clientId': 'client_id',
     'client_id': 'client_id',
-    'productId': 'loan_product_id',
-    'loan_product_id': 'loan_product_id',
+    'productId': 'product_id', // ✅ Changed from loan_product_id to product_id to match COMPLETE_DATABASE_RESET.sql
+    'loan_product_id': 'product_id', // ✅ Changed from loan_product_id to product_id
+    'product_id': 'product_id',
     'principalAmount': 'amount',
     'amount': 'amount',
     'interestRate': 'interest_rate',
     'interest_rate': 'interest_rate',
-    'term': 'term_months',
-    'term_months': 'term_months',
+    'term': 'term_period', // ✅ Changed from term_months to term_period to match COMPLETE_DATABASE_RESET.sql
+    'term_months': 'term_period', // ✅ Changed from term_months to term_period
+    'term_period': 'term_period',
+    'loanTerm': 'term_period',
     'purpose': 'purpose',
     'status': 'status',
     'applicationDate': 'application_date',
@@ -488,16 +505,19 @@ const transformLoanForSupabase = (loan: any): any => {
     'approval_date': 'approval_date',
     'disbursementDate': 'disbursement_date',
     'disbursement_date': 'disbursement_date',
-    'firstRepaymentDate': 'first_payment_date',
-    'first_payment_date': 'first_payment_date',
-    'totalRepayable': 'total_payable',
-    'total_payable': 'total_payable',
+    'firstRepaymentDate': 'expected_repayment_date', // ✅ Changed from first_payment_date to expected_repayment_date
+    'first_payment_date': 'expected_repayment_date',
+    'expected_repayment_date': 'expected_repayment_date',
+    'totalRepayable': 'total_amount', // ✅ Changed from total_payable to total_amount to match COMPLETE_DATABASE_RESET.sql
+    'total_payable': 'total_amount',
+    'total_amount': 'total_amount',
     'installmentAmount': 'monthly_payment',
     'monthly_payment': 'monthly_payment',
     'outstandingBalance': 'balance',
     'balance': 'balance',
-    'paidAmount': 'principal_paid',
-    'principal_paid': 'principal_paid',
+    'paidAmount': 'amount_paid', // ✅ Changed from principal_paid to amount_paid to match COMPLETE_DATABASE_RESET.sql
+    'principal_paid': 'amount_paid',
+    'amount_paid': 'amount_paid',
     'interestPaid': 'interest_paid',
     'interest_paid': 'interest_paid',
     'paymentMethod': 'payment_method',
@@ -551,9 +571,9 @@ const transformLoanForSupabase = (loan: any): any => {
     transformed._needsClientLookup = true;
   }
   
-  if (transformed.loan_product_id && !isValidUUID(transformed.loan_product_id)) {
+  if (transformed.product_id && !isValidUUID(transformed.product_id)) {
     // Silently flag for lookup - this is expected behavior when syncing to Supabase
-    transformed._originalProductId = transformed.loan_product_id;
+    transformed._originalProductId = transformed.product_id;
     transformed._needsProductLookup = true;
   }
   
@@ -607,7 +627,7 @@ const transformLoanFromSupabase = (loan: any): any => {
     id: loan.id,
     clientId: loan.client_id,
     clientName: loan.client_name || 'Unknown', // We'll need to join this or look it up
-    productId: loan.loan_product_id,
+    productId: loan.product_id, // ✅ Changed from loan_product_id to product_id
     productName: loan.product_name || 'Unknown', // We'll need to join this or look it up
     principalAmount: loan.amount || 0,
     interestRate: loan.interest_rate || 0,
@@ -976,6 +996,11 @@ export const createClient = async (client: Client): Promise<boolean> => {
   
   const transformedClient = transformClientForSupabase(client);
   
+  // EXTRA SAFETY: Remove any fields that shouldn't be sent to Supabase
+  delete transformedClient.branch;
+  delete transformedClient.creditScore;
+  delete transformedClient.credit_score;
+  
   console.log('📤 Creating client in Supabase:');
   console.log('📦 Full transformed client:', JSON.stringify({ ...transformedClient, organization_id: orgId }, null, 2));
   
@@ -1087,7 +1112,7 @@ export const fetchLoans = async (): Promise<Loan[]> => {
         first_name,
         last_name
       ),
-      loan_products:loan_product_id (
+      loan_products:product_id (
         id,
         name
       )
@@ -1163,13 +1188,13 @@ export const createLoan = async (loan: Loan): Promise<boolean> => {
       .single();
     
     if (productData) {
-      transformedLoan.loan_product_id = productData.id;
+      transformedLoan.product_id = productData.id; // ✅ Changed from loan_product_id to product_id
       console.log(`✅ Found loan product UUID: ${productData.id}`);
       delete transformedLoan._needsProductLookup;
       delete transformedLoan._originalProductId;
     } else {
       console.error(`❌ Could not find loan product in Supabase: ${loan.productName}`);
-      delete transformedLoan.loan_product_id;
+      delete transformedLoan.product_id; // ✅ Changed from loan_product_id to product_id
       delete transformedLoan._needsProductLookup;
       delete transformedLoan._originalProductId;
     }
@@ -1187,8 +1212,8 @@ export const createLoan = async (loan: Loan): Promise<boolean> => {
     return false;
   }
   
-  if (!transformedLoan.loan_product_id) {
-    console.error('❌ Cannot create loan: loan_product_id is required');
+  if (!transformedLoan.product_id) { // ✅ Changed from loan_product_id to product_id
+    console.error('❌ Cannot create loan: product_id is required');
     return false;
   }
   
@@ -1196,7 +1221,7 @@ export const createLoan = async (loan: Loan): Promise<boolean> => {
   const { data: productExists } = await supabase
     .from('loan_products')
     .select('id')
-    .eq('id', transformedLoan.loan_product_id)
+    .eq('id', transformedLoan.product_id) // ✅ Changed from loan_product_id to product_id
     .eq('organization_id', orgId)
     .single();
   
@@ -2461,7 +2486,7 @@ export const syncAllDataToSupabase = async (data: any): Promise<boolean> => {
     if (data.clients?.length > 0) {
       operations.push(
         supabase.from('clients').upsert(
-          data.clients.map((c: Client) => ({ ...c, organization_id: orgId }))
+          data.clients.map((c: Client) => ({ ...transformClientForSupabase(c), organization_id: orgId }))
         )
       );
     }
@@ -2472,9 +2497,9 @@ export const syncAllDataToSupabase = async (data: any): Promise<boolean> => {
       const transformedLoans = data.loans
         .map((l: Loan) => ({ ...transformLoanForSupabase(l), organization_id: orgId }))
         .filter((l: any) => {
-          // Skip loans without valid client_id or loan_product_id
-          if (!l.client_id || !l.loan_product_id) {
-            console.warn(`⚠️ Skipping loan without required foreign keys. Client ID: ${l.client_id}, Product ID: ${l.loan_product_id}`);
+          // Skip loans without valid client_id or product_id
+          if (!l.client_id || !l.product_id) { // ✅ Changed from loan_product_id to product_id
+            console.warn(`⚠️ Skipping loan without required foreign keys. Client ID: ${l.client_id}, Product ID: ${l.product_id}`);
             return false;
           }
           return true;

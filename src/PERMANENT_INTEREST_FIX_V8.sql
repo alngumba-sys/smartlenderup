@@ -1,0 +1,121 @@
+-- =====================================================
+-- PERMANENT INTEREST FIX V8
+-- Update only the specific organization with data
+-- =====================================================
+
+DO $$
+DECLARE
+  current_state jsonb;
+  updated_loans jsonb;
+  total_loans int := 0;
+  loan_record jsonb;
+  target_org_id text;
+  rows_updated int := 0;
+BEGIN
+  RAISE NOTICE '🔧 PERMANENT INTEREST FIX V8 STARTING...';
+  RAISE NOTICE '================================';
+  
+  -- ============================================
+  -- STEP 1: Get current project_states
+  -- ============================================
+  RAISE NOTICE '';
+  RAISE NOTICE '📦 STEP 1: Loading project_states...';
+  
+  -- Get the organization_id and state from the row that has actual data
+  SELECT organization_id::text, state 
+  INTO target_org_id, current_state
+  FROM project_states
+  WHERE state IS NOT NULL 
+    AND state->'loans' IS NOT NULL
+    AND jsonb_array_length(state->'loans') > 0
+  LIMIT 1;
+  
+  IF current_state IS NULL THEN
+    RAISE NOTICE '❌ No project_states found with loan data';
+    RETURN;
+  END IF;
+  
+  total_loans := jsonb_array_length(current_state->'loans');
+  RAISE NOTICE '  ✓ Found % loans in organization %', total_loans, target_org_id;
+  
+  -- ============================================
+  -- STEP 2: Update interest values in JSON
+  -- ============================================
+  RAISE NOTICE '';
+  RAISE NOTICE '📊 STEP 2: Calculating correct interest...';
+  
+  -- Build updated loans array with correct interest
+  SELECT jsonb_agg(
+    jsonb_set(
+      jsonb_set(
+        loan_data,
+        '{totalInterest}',
+        to_jsonb(COALESCE((loan_data->>'totalRepayable')::numeric, 0) - COALESCE((loan_data->>'amount')::numeric, 0))
+      ),
+      '{interestOutstanding}',
+      to_jsonb(
+        GREATEST(
+          0,
+          COALESCE((loan_data->>'totalRepayable')::numeric, 0) - 
+          COALESCE((loan_data->>'amount')::numeric, 0) - 
+          COALESCE((loan_data->>'interestPaid')::numeric, 0)
+        )
+      )
+    )
+  ) INTO updated_loans
+  FROM jsonb_array_elements(current_state->'loans') AS loan_data;
+  
+  -- ============================================
+  -- STEP 3: Save to database
+  -- ============================================
+  RAISE NOTICE '';
+  RAISE NOTICE '💾 STEP 3: Updating project_states...';
+  
+  -- Only update the specific organization we selected
+  UPDATE project_states
+  SET 
+    state = jsonb_set(state, '{loans}', updated_loans),
+    updated_at = now()
+  WHERE organization_id::text = target_org_id;
+  
+  GET DIAGNOSTICS rows_updated = ROW_COUNT;
+  RAISE NOTICE '  ✓ Updated % row(s)', rows_updated;
+  
+  -- ============================================
+  -- STEP 4: Verification
+  -- ============================================
+  RAISE NOTICE '';
+  RAISE NOTICE '✅ VERIFICATION:';
+  RAISE NOTICE '================================';
+  RAISE NOTICE '';
+  RAISE NOTICE 'Loan Number       | Principal  | Interest   | Total      | Balance';
+  RAISE NOTICE '------------------|------------|------------|------------|------------';
+  
+  FOR loan_record IN
+    SELECT loan_data
+    FROM jsonb_array_elements((
+      SELECT state->'loans' 
+      FROM project_states 
+      WHERE organization_id::text = target_org_id
+    )) AS loan_data
+    LIMIT 10
+  LOOP
+    RAISE NOTICE '%-17s | %-10s | %-10s | %-10s | %-10s',
+      COALESCE(loan_record->>'loanNumber', 'N/A'),
+      COALESCE((loan_record->>'amount')::text, '0'),
+      COALESCE((loan_record->>'totalInterest')::text, '0'),
+      COALESCE((loan_record->>'totalRepayable')::text, '0'),
+      COALESCE((loan_record->>'balance')::text, '0');
+  END LOOP;
+  
+  RAISE NOTICE '';
+  RAISE NOTICE '🎉 PERMANENT FIX COMPLETE!';
+  RAISE NOTICE '';
+  RAISE NOTICE '📌 NEXT STEPS:';
+  RAISE NOTICE '   1. Hard refresh browser (Ctrl+Shift+R)';
+  RAISE NOTICE '   2. Navigate to Loans tab';
+  RAISE NOTICE '   3. Verify interest values display correctly';
+  RAISE NOTICE '';
+  RAISE NOTICE '================================';
+  
+END $$;

@@ -12,7 +12,9 @@ import {
   createFundingEntry,
 } from '../utils/journalEntryHelpers';
 import { initializeAutoBackup } from '../utils/dataBackup';
-// ✅ NEW: Use Single-Object Sync Pattern (replacing individual entity sync)
+// ✅ NEW: Supabase-First Architecture
+import { supabaseDataService } from '../services/supabaseDataService';
+// ✅ DEPRECATED: Old sync patterns (keeping for backwards compatibility during transition)
 import { saveProjectState, loadProjectState, type ProjectState } from '../utils/singleObjectSync';
 import { ensureSupabaseSync, type SyncResult } from '../utils/ensureSupabaseSync';
 import { migrateClientIds, applyMigration } from '../utils/migrateClientIds';
@@ -28,7 +30,11 @@ import {
 
 export interface Client {
   id: string;
+  clientNumber?: string; // CL001 format
+  client_number?: string; // snake_case alias from Supabase
   name: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   phone: string;
   idNumber: string;
@@ -87,7 +93,9 @@ export interface Client {
 
 export interface Loan {
   id: string;
+  loanNumber?: string; // Loan number like LN001, LN002, etc.
   clientId: string;
+  clientUuid?: string; // Actual client UUID for Supabase operations
   clientName: string;
   productId: string;
   productName: string;
@@ -483,6 +491,7 @@ export interface Group {
 
 export interface Approval {
   id: string;
+  supabaseId?: string; // UUID from Supabase database
   type: 'loan_application' | 'loan_restructure' | 'loan_writeoff' | 'client_onboarding' | 'disbursement' | 'savings_withdrawal';
   title: string;
   description: string;
@@ -678,7 +687,7 @@ interface DataContextType {
   loans: Loan[];
   addLoan: (loan: Omit<Loan, 'id' | 'applicationDate'>) => string;
   updateLoan: (id: string, updates: Partial<Loan>) => void;
-  deleteLoan: (id: string) => void;
+  deleteLoan: (id: string) => Promise<void>;
   getLoan: (id: string) => Loan | undefined;
   settleLoanEarly: (id: string, settlementDate: string, paymentMethod: string, settlementAmount: number) => void;
   restructureLoan: (restructureData: {
@@ -726,7 +735,7 @@ interface DataContextType {
   loanProducts: LoanProduct[];
   addLoanProduct: (product: Omit<LoanProduct, 'id' | 'createdDate' | 'lastUpdated'>) => Promise<void>;
   updateLoanProduct: (id: string, updates: Partial<LoanProduct>) => Promise<void>;
-  deleteLoanProduct: (id: string) => void;
+  deleteLoanProduct: (id: string) => Promise<void>;
   getLoanProduct: (id: string) => LoanProduct | undefined;
   
   // Shareholders
@@ -735,6 +744,7 @@ interface DataContextType {
   updateShareholder: (id: string, updates: Partial<Shareholder>) => void;
   deleteShareholder: (id: string) => void;
   getShareholder: (id: string) => Shareholder | undefined;
+  refreshShareholders: () => Promise<void>; // ✅ NEW: Fetch fresh shareholders from database
   
   // Shareholder Transactions
   shareholderTransactions: ShareholderTransaction[];
@@ -932,17 +942,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
         isSyncingRef.current = true;
         
         const projectState: Partial<ProjectState> = {
-          clients,
-          loans,
+          // ⚠️ SKIP: Don't sync clients to project_states - they're in individual table
+          // clients,
+          // ⚠️ SKIP: Don't sync loans to project_states - they're in individual table
+          // loans,
           loanProducts,
           repayments,
           savingsAccounts,
           savingsTransactions,
-          shareholders,
+          // ⚠️ SKIP: Don't sync shareholders to project_states - they're in individual table
+          // shareholders,
           shareholderTransactions,
           expenses,
-          payees,
-          bankAccounts,
+          // ⚠️ SKIP: Don't sync payees to project_states - they're in individual table
+          // payees,
+          // ⚠️ SKIP: Don't sync bank accounts to project_states - they're in individual table
+          // bankAccounts,
           fundingTransactions,
           tasks,
           approvals,
@@ -959,7 +974,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
           loanDocuments,
         };
         
+        console.log('💾 SYNCING TO SUPABASE project_states...');
+        console.log('   🏦 Funding Transactions to sync:', fundingTransactions.length);
+        console.log('   ⚠️ Clients NOT synced here - managed in individual table');
+        console.log('   ⚠️ Loans NOT synced here - managed in individual table');
+        console.log('   ⚠️ Bank Accounts NOT synced here - managed in individual table');
+        console.log('   ��️ Shareholders NOT synced here - managed in individual table');
+        
         await saveProjectState(currentUser.organizationId, projectState, currentUser.id);
+        
+        console.log('✅ SYNC COMPLETE to project_states table');
+        console.log('   ✓ Clients, Loans, Funding Transactions all saved to database');
       } catch (error) {
         console.error('❌ Error syncing to Supabase:', error);
       } finally {
@@ -968,17 +993,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }, 1000); // Wait 1 second after last change
   }, [
     currentUser?.organizationId,
-    clients,
-    loans,
+    // ⚠️ SKIP: clients managed in individual table, not project_states
+    // clients,
+    // ⚠️ SKIP: loans managed in individual table, not project_states
+    // loans,
     loanProducts,
     repayments,
     savingsAccounts,
     savingsTransactions,
-    shareholders,
+    // ⚠️ SKIP: shareholders managed in individual table, not project_states
+    // shareholders,
     shareholderTransactions,
     expenses,
     payees,
-    bankAccounts,
+    // ⚠️ SKIP: bankAccounts managed in individual table, not project_states
+    // bankAccounts,
     fundingTransactions,
     tasks,
     approvals,
@@ -1000,20 +1029,125 @@ export function DataProvider({ children }: { children: ReactNode }) {
     debouncedSyncToSupabase();
   }, [debouncedSyncToSupabase]);
   
+  // ✅ CRITICAL: Force save data before page unload/refresh to prevent data loss
+  useEffect(() => {
+    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+      // Cancel any pending debounced sync
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+      
+      // Force immediate sync before page closes
+      if (currentUser?.organizationId && !isSyncingRef.current) {
+        try {
+          isSyncingRef.current = true;
+          
+          const projectState: Partial<ProjectState> = {
+            // ⚠️ SKIP: Don't sync clients to project_states - they're in individual table
+            // clients,
+            // ⚠️ SKIP: Don't sync loans to project_states - they're in individual table
+            // loans,
+            loanProducts,
+            repayments,
+            savingsAccounts,
+            savingsTransactions,
+            shareholderTransactions,
+            expenses,
+            // ⚠️ SKIP: Don't sync payees to project_states - they're in individual table
+            // payees,
+            fundingTransactions,
+            tasks,
+            approvals,
+            disbursements,
+            tickets,
+            kycRecords,
+            processingFeeRecords,
+            payrollRuns,
+            journalEntries,
+            auditLogs,
+            groups,
+            guarantors,
+            collaterals,
+            loanDocuments,
+          };
+          
+          console.log('💾 FORCE SAVING before page unload...');
+          await saveProjectState(currentUser.organizationId, projectState, currentUser.id);
+          console.log('✅ Data saved successfully before unload');
+        } catch (error) {
+          console.error('❌ Error saving before unload:', error);
+        } finally {
+          isSyncingRef.current = false;
+        }
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [
+    currentUser?.organizationId,
+    // ⚠️ SKIP: clients managed in individual table, not project_states
+    // clients,
+    // ⚠️ SKIP: loans managed in individual table, not project_states
+    // loans,
+    loanProducts,
+    repayments,
+    savingsAccounts,
+    savingsTransactions,
+    shareholderTransactions,
+    expenses,
+    // ⚠️ SKIP: payees managed in individual table, not project_states
+    // payees,
+    fundingTransactions,
+    tasks,
+    approvals,
+    disbursements,
+    tickets,
+    kycRecords,
+    processingFeeRecords,
+    payrollRuns,
+    journalEntries,
+    auditLogs,
+    groups,
+    guarantors,
+    collaterals,
+    loanDocuments,
+  ]);
+  
   // Load data from Supabase when user is ready (PRIMARY DATA SOURCE - Single-Object Sync)
   useEffect(() => {
     // Only load data if we have a logged-in user with an organization ID
     if (!currentUser?.organizationId) {
       console.log('⏳ Waiting for user authentication...');
+      console.log('   currentUser:', currentUser);
+      console.log('   organizationId:', currentUser?.organizationId);
       return;
     }
     
     const loadData = async () => {
+      console.log('');
+      console.log('═══════════════════════════════════════════════');
+      console.log('🚀 LOADDATA() FUNCTION STARTED');
+      console.log('═══════════════════════════════════════════════');
+      console.log('   Organization ID:', currentUser.organizationId);
+      console.log('   User:', currentUser.name);
+      console.log('');
+      
       try {
         console.log('🔄 Loading entire project state from Supabase...');
+        console.log('   Organization ID:', currentUser.organizationId);
         
         // ✅ Load entire state in ONE API call
         const projectState = await loadProjectState(currentUser.organizationId);
+        
+        console.log('📦 Project State loaded:');
+        console.log('   Is truthy:', !!projectState);
+        console.log('   Type:', typeof projectState);
+        console.log('   Has data:', projectState ? Object.keys(projectState).length : 0);
+        console.log('');
         
         if (projectState) {
           // Successfully loaded from Supabase
@@ -1042,21 +1176,56 @@ export function DataProvider({ children }: { children: ReactNode }) {
             toast.success(`Migrated ${migrationResult.migratedCount} client ID(s) to new format`);
           }
           
+          // 🔄 Normalize clients - ensure they have a 'name' field
+          finalClients = finalClients.map(client => {
+            // If client already has a name field, use it
+            // Otherwise, construct from firstName/lastName
+            if (!client.name || client.name.trim() === '') {
+              const firstName = client.firstName || client.first_name || '';
+              const lastName = client.lastName || client.last_name || '';
+              client.name = `${firstName} ${lastName}`.trim() || 'Unknown';
+            }
+            return client;
+          });
+          
+          // 🔄 Normalize bank accounts - ensure they have required fields
+          const normalizedBankAccounts = (projectState.bankAccounts || []).map((account: any) => ({
+            ...account,
+            status: account.status || 'Active', // ✅ Default to Active if missing
+            balance: account.balance ?? 0,
+            openingBalance: account.openingBalance ?? 0,
+            currency: account.currency || getCurrencyCode(),
+            createdDate: account.createdDate || new Date().toISOString().split('T')[0],
+            lastUpdated: account.lastUpdated || new Date().toISOString().split('T')[0],
+          }));
+          
+          console.log('✅ Normalized bank accounts:', normalizedBankAccounts.length);
+          console.log('   Active accounts:', normalizedBankAccounts.filter((a: any) => a.status === 'Active').length);
+          if (normalizedBankAccounts.length > 0) {
+            console.log('   First account status:', normalizedBankAccounts[0].status);
+          }
+          
           // ✅ Set ALL state from the single project state object
-          setClients(finalClients);
-          setLoans(finalLoans);
-          setLoanProducts(projectState.loanProducts || []);
+          // ⚠️ SKIP: Don't load clients from project_states - will load from individual table below
+          // setClients(finalClients);
+          // ⚠️ SKIP: Don't load loans from project_states - will load from individual table below
+          // setLoans(finalLoans);
+          // ⚠️ Don't set loan products yet - will load from individual table below
           setRepayments(projectState.repayments || []);
           setSavingsAccounts(projectState.savingsAccounts || []);
           setSavingsTransactions(projectState.savingsTransactions || []);
-          setShareholders(projectState.shareholders || []);
+          // ⚠️ SKIP: Don't load shareholders from project_states - will load from individual table below
+          // setShareholders(projectState.shareholders || []);
           setShareholderTransactions(projectState.shareholderTransactions || []);
           setExpenses(projectState.expenses || []);
-          setPayees(projectState.payees || []);
-          setBankAccounts(projectState.bankAccounts || []);
+          // ⚠️ SKIP: Don't load payees from project_states - will load from individual table below
+          // setPayees(projectState.payees || []);
+          // ⚠️ SKIP: Don't load bank accounts from project_states - will load from individual table below
+          // setBankAccounts(normalizedBankAccounts);
           setTasks(projectState.tasks || []);
           setKYCRecords(projectState.kycRecords || []);
-          setApprovals(projectState.approvals || []);
+          // ⚠️ SKIP: Don't load approvals from project_states - will load from individual table below
+          // setApprovals(projectState.approvals || []);
           setFundingTransactions(projectState.fundingTransactions || []);
           setProcessingFeeRecords(projectState.processingFeeRecords || []);
           setDisbursements(projectState.disbursements || []);
@@ -1069,21 +1238,710 @@ export function DataProvider({ children }: { children: ReactNode }) {
           setCollaterals(projectState.collaterals || []);
           setLoanDocuments(projectState.loanDocuments || []);
           
-          console.log('✅ All data loaded from Single-Object Sync successfully');
-          toast.success('Data loaded from cloud database');
+          console.log('✅ DATA LOADED FROM DATABASE (project_states):');
+          console.log('   🏦 Funding Transactions:', (projectState.fundingTransactions || []).length);
+          console.log('   ⚠️  Clients NOT loaded from project_states - will load from individual table');
+          console.log('   ⚠️  Loans NOT loaded from project_states - will load from individual table');
+          console.log('   ⚠️  Approvals NOT loaded from project_states - will load from individual table');
+          console.log('   ℹ️  All data loaded and persisted from Supabase project_states');
+          
+          console.log('🔍 DEBUG: About to load individual tables...');
+          console.log('🔍 DEBUG: Current user org ID:', currentUser.organizationId);
+          
+          // ✅ NEW: Fetch loan products from individual table (Supabase-first)
+          try {
+            console.log('🔄 Loading loan products from individual table...');
+            const supabaseLoanProducts = await supabaseDataService.loanProducts.getAll(currentUser.organizationId);
+            
+            if (supabaseLoanProducts && supabaseLoanProducts.length > 0) {
+              console.log(`✅ Loaded ${supabaseLoanProducts.length} loan products from individual table`);
+              
+              // Map Supabase schema to frontend LoanProduct type
+              const mappedProducts = supabaseLoanProducts.map((p: any) => ({
+                id: p.id, // Use actual database UUID for updates
+                productCode: p.product_code,
+                name: p.name,
+                code: p.product_code || '',
+                description: p.description || '',
+                minAmount: p.min_amount || 0,
+                maxAmount: p.max_amount || 0,
+                defaultAmount: 0,
+                minTerm: p.min_term || 1,
+                maxTerm: p.max_term || 12,
+                defaultTerm: p.max_term || 12,
+                termUnit: p.term_unit || 'Months',
+                interestRate: p.interest_rate || 0,
+                interestType: p.interest_type || 'Flat',
+                repaymentFrequency: p.repayment_frequency || 'Monthly',
+                processingFee: p.processing_fee_percentage || p.processing_fee_fixed || 0,
+                processingFeeType: p.processing_fee_percentage > 0 ? 'Percentage' : 'Fixed',
+                insuranceFee: p.insurance_fee_fixed || 0,
+                insuranceFeeType: 'Fixed',
+                penaltyRate: 0,
+                gracePeriod: 0,
+                collateralRequired: p.collateral_required || false,
+                guarantorsRequired: p.guarantor_required ? 1 : 0,
+                status: p.status === 'active' ? 'Active' : 'Inactive',
+                createdDate: p.created_at?.split('T')[0] || '',
+                lastUpdated: p.updated_at?.split('T')[0] || '',
+                // Aliases for backwards compatibility
+                minTenor: p.min_term || 1,
+                maxTenor: p.max_term || 12,
+                tenorMonths: p.max_term || 12,
+                requiresCollateral: p.collateral_required || false
+              }));
+              
+              setLoanProducts(mappedProducts);
+            } else {
+              console.log('ℹ️ No loan products found in individual table');
+              setLoanProducts([]);
+            }
+          } catch (error) {
+            console.error('❌ Error loading loan products from Supabase:', error);
+            toast.error('Database not reachable. Check your internet connection.');
+            setLoanProducts([]);
+          }
+          
+          // ✅ CRITICAL: Load bank accounts from individual table ONLY (NOT from project_states)
+          try {
+            console.log('');
+            console.log('🏦 ========================================');
+            console.log('🏦 LOADING BANK ACCOUNTS FROM INDIVIDUAL TABLE');
+            console.log('🏦 ========================================');
+            console.log('   Organization ID:', currentUser.organizationId);
+            console.log('   Table: bank_accounts');
+            console.log('   Calling: supabaseDataService.bankAccounts.getAll()');
+            
+            const supabaseBankAccounts = await supabaseDataService.bankAccounts.getAll(currentUser.organizationId);
+            
+            console.log('   ✅ Query complete!');
+            console.log('   Raw response:', supabaseBankAccounts);
+            console.log('   Type:', typeof supabaseBankAccounts);
+            console.log('   Is Array:', Array.isArray(supabaseBankAccounts));
+            console.log('   Length:', supabaseBankAccounts?.length);
+            
+            if (supabaseBankAccounts && supabaseBankAccounts.length > 0) {
+              console.log(`✅ Loaded ${supabaseBankAccounts.length} bank accounts from individual table`);
+              
+              // Map Supabase schema to frontend BankAccount type
+              const mappedBankAccounts = supabaseBankAccounts.map((b: any) => ({
+                id: b.id,
+                name: b.account_name || b.bank_name || b.name || 'Unnamed Account', // ✅ Fallback chain for name
+                accountNumber: b.account_number || '',
+                bankName: b.bank_name || '',
+                branch: b.branch || '',
+                accountType: b.account_type || 'Bank', // ✅ Fixed: use valid type 'Bank' not 'Checking'
+                currency: b.currency || 'KES',
+                openingBalance: b.opening_balance || b.balance || 0,
+                balance: b.balance || b.current_balance || 0,
+                openingDate: b.opening_date?.split('T')[0] || b.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+                status: b.status || 'Active',
+                createdDate: b.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+                createdBy: b.created_by || 'System',
+                lastUpdated: b.updated_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+              }));
+              
+              console.log('   Mapped accounts:', mappedBankAccounts);
+              console.log('   Account names:', mappedBankAccounts.map((a: any) => ({ id: a.id, name: a.name, bankName: a.bankName, status: a.status })));
+              console.log('   Setting bank accounts state...');
+              setBankAccounts(mappedBankAccounts);
+              console.log('   ✅ State updated!');
+            } else {
+              console.log('ℹ️ No bank accounts found in individual table');
+              setBankAccounts([]);
+            }
+          } catch (error) {
+            console.error('❌ Error loading bank accounts from Supabase:', error);
+            toast.error('Database not reachable. Check your internet connection.');
+            setBankAccounts([]);
+          }
+          
+          // ✅ CRITICAL: Load shareholders from individual table ONLY (NOT from project_states)
+          try {
+            console.log('');
+            console.log('👥 ========================================');
+            console.log('👥 LOADING SHAREHOLDERS FROM INDIVIDUAL TABLE');
+            console.log('👥 ========================================');
+            console.log('   Organization ID:', currentUser.organizationId);
+            console.log('   Table: shareholders');
+            console.log('   Calling: supabaseDataService.shareholders.getAll()');
+            
+            const supabaseShareholders = await supabaseDataService.shareholders.getAll(currentUser.organizationId);
+            
+            console.log('   ✅ Query complete!');
+            console.log('   Raw response:', supabaseShareholders);
+            console.log('   Type:', typeof supabaseShareholders);
+            console.log('   Is Array:', Array.isArray(supabaseShareholders));
+            console.log('   Length:', supabaseShareholders?.length);
+            
+            if (supabaseShareholders && supabaseShareholders.length > 0) {
+              console.log(`✅ Loaded ${supabaseShareholders.length} shareholders from individual table`);
+              
+              // Map Supabase schema to frontend Shareholder type
+              const mappedShareholders = supabaseShareholders.map((s: any) => ({
+                id: s.id,
+                name: s.shareholder_name || s.name || 'Unknown',
+                idNumber: s.id_number || '',
+                phone: s.phone || '',
+                email: s.email || '',
+                address: s.address || '',
+                sharesOwned: s.total_shares || 0,
+                sharePercentage: s.share_percentage || 0,
+                investmentAmount: s.share_value || 0,
+                investmentDate: s.investment_date || s.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+                status: s.status || 'active',
+                totalDividends: s.total_dividends || 0,
+                shareCapital: s.share_capital || 0
+              }));
+              
+              setShareholders(mappedShareholders);
+            } else {
+              console.log('ℹ️ No shareholders found in individual table');
+              setShareholders([]);
+            }
+          } catch (error) {
+            console.error('❌ Error loading shareholders from Supabase:', error);
+            toast.error('Database not reachable. Check your internet connection.');
+            setShareholders([]);
+          }
+          
+          // ✅ CRITICAL: Load funding transactions from individual table ONLY (NOT from project_states)
+          try {
+            console.log('');
+            console.log('💰 ========================================');
+            console.log('💰 LOADING FUNDING TRANSACTIONS FROM INDIVIDUAL TABLE');
+            console.log('💰 ========================================');
+            console.log('   Organization ID:', currentUser.organizationId);
+            console.log('   Table: funding_transactions');
+            console.log('   Calling: supabaseDataService.fundingTransactions.getAll()');
+            
+            const supabaseFundingTransactions = await supabaseDataService.fundingTransactions.getAll(currentUser.organizationId);
+            
+            console.log('   ✅ Query complete!');
+            console.log('   Raw response:', supabaseFundingTransactions);
+            console.log('   Type:', typeof supabaseFundingTransactions);
+            console.log('   Is Array:', Array.isArray(supabaseFundingTransactions));
+            console.log('   Length:', supabaseFundingTransactions?.length);
+            
+            if (supabaseFundingTransactions && supabaseFundingTransactions.length > 0) {
+              console.log(`✅ Loaded ${supabaseFundingTransactions.length} funding transactions from individual table`);
+              
+              // Map Supabase schema to frontend FundingTransaction type
+              const mappedTransactions = supabaseFundingTransactions.map((ft: any) => ({
+                id: ft.id,
+                bankAccountId: ft.bank_account_id,
+                amount: ft.amount,
+                date: ft.date?.split('T')[0] || new Date().toISOString().split('T')[0],
+                reference: ft.reference || '',
+                description: ft.description || '',
+                source: ft.source || 'External Deposit',
+                shareholderId: ft.shareholder_id || undefined,
+                shareholderName: ft.shareholder_name || undefined,
+                paymentMethod: ft.payment_method || 'Bank Transfer',
+                depositorName: ft.depositor_name || undefined,
+                transactionType: ft.transaction_type || 'Credit',
+                relatedLoanId: ft.related_loan_id || undefined
+              }));
+              
+              setFundingTransactions(mappedTransactions);
+            } else {
+              console.log('ℹ️ No funding transactions found in individual table');
+              setFundingTransactions([]);
+            }
+          } catch (error) {
+            console.error('❌ Error loading funding transactions from Supabase:', error);
+            toast.error('Database not reachable. Check your internet connection.');
+            setFundingTransactions([]);
+          }
+          
+          // ✅ NEW: Fetch expenses from individual table (Supabase-first)
+          try {
+            console.log('🔄 Loading expenses from individual table...');
+            const supabaseExpenses = await supabaseDataService.expenses.getAll(currentUser.organizationId);
+            
+            if (supabaseExpenses && supabaseExpenses.length > 0) {
+              console.log(`✅ Loaded ${supabaseExpenses.length} expenses from individual table`);
+              
+              // Map Supabase schema to frontend Expense type
+              const mappedExpenses = supabaseExpenses.map((e: any) => ({
+                id: e.id,
+                category: e.expense_category || e.category || 'General',
+                subcategory: e.subcategory || '',
+                description: e.description || '',
+                amount: e.amount || 0,
+                paymentMethod: e.payment_method || 'Cash',
+                paymentReference: e.payment_reference || '',
+                paymentType: e.payment_type || '',
+                status: e.status || 'Pending',
+                expenseDate: e.expense_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+                createdDate: e.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+                createdBy: e.created_by || 'System',
+                payeeId: e.payee_id || '',
+                payeeName: e.payee_name || '',
+                bankAccountId: e.bank_account_id || '',
+                receiptNumber: e.receipt_number || '',
+                notes: e.notes || '',
+                approvedBy: e.approved_by || null,
+                approvedDate: e.approved_date?.split('T')[0] || null,
+                paidBy: e.paid_by || null,
+                paidDate: e.paid_date?.split('T')[0] || null,
+              }));
+              
+              setExpenses(mappedExpenses);
+            } else {
+              console.log('ℹ️ No expenses found in individual table');
+              setExpenses([]);
+            }
+          } catch (error) {
+            console.error('❌ Error loading expenses from Supabase:', error);
+            toast.error('Database not reachable. Check your internet connection.');
+            setExpenses([]);
+          }
+          
+          // ✅ CRITICAL: Load clients from individual table (Supabase-first)
+          try {
+            console.log('');
+            console.log('👥 ========================================');
+            console.log('👥 LOADING CLIENTS FROM INDIVIDUAL TABLE');
+            console.log('👥 ========================================');
+            console.log('   Organization ID:', currentUser.organizationId);
+            console.log('   Table: clients');
+            console.log('   Calling: supabaseDataService.clients.getAll()');
+            
+            const supabaseClients = await supabaseDataService.clients.getAll(currentUser.organizationId);
+            
+            console.log('   ✅ Query complete!');
+            console.log('   Raw response:', supabaseClients);
+            console.log('   Type:', typeof supabaseClients);
+            console.log('   Is Array:', Array.isArray(supabaseClients));
+            console.log('   Length:', supabaseClients?.length);
+            
+            if (supabaseClients && supabaseClients.length > 0) {
+              console.log(`✅ Loaded ${supabaseClients.length} clients from individual table`);
+              
+              // Map Supabase schema to frontend Client type
+              const mappedClients = supabaseClients.map((c: any) => ({
+                id: c.id,
+                clientNumber: c.client_number, // CL001 format
+                client_number: c.client_number, // snake_case alias
+                clientId: c.client_number || c.client_id || c.id,
+                name: c.client_type === 'group' 
+                  ? c.group_name 
+                  : `${c.first_name || ''} ${c.last_name || ''}`.trim(),
+                firstName: c.first_name || '',
+                lastName: c.last_name || '',
+                businessName: c.business_name || '',
+                groupName: c.group_name || '',
+                email: c.email || '',
+                phone: c.phone || '',
+                idNumber: c.id_number || c.registration_number || '',
+                address: c.address || '',
+                city: c.city || '',
+                county: c.county || '',
+                occupation: c.occupation || '',
+                employer: c.employer || '',
+                monthlyIncome: c.monthly_income || 0,
+                dateOfBirth: c.date_of_birth || '',
+                gender: c.gender || '',
+                maritalStatus: c.marital_status || '',
+                registrationDate: c.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+                status: c.status || 'Active',
+                creditScore: c.credit_score || 0,
+                riskRating: c.risk_rating || 'Medium',
+                clientType: c.client_type || 'individual',
+                kycStatus: c.kyc_status || 'Pending',
+                kycVerifiedDate: c.kyc_verified_date || '',
+                kycVerifiedBy: c.kyc_verified_by || '',
+                notes: c.notes || '',
+                attachments: c.attachments || [],
+                businessType: c.business_type || '',
+                registrationNumber: c.registration_number || '',
+                taxPin: c.tax_pin || '',
+                mpesaNumber: c.mpesa_number || '',
+                bankAccount: c.bank_account ? {
+                  bankName: c.bank_account.bank_name || c.bank_account.bankName || '',
+                  accountNumber: c.bank_account.account_number || c.bank_account.accountNumber || '',
+                  accountName: c.bank_account.account_name || c.bank_account.accountName || ''
+                } : undefined,
+                // Group-specific fields
+                numberOfMembers: c.number_of_members || 0,
+                chairpersonName: c.chairperson_name || '',
+                chairpersonPhone: c.chairperson_phone || '',
+                secretaryName: c.secretary_name || '',
+                secretaryPhone: c.secretary_phone || '',
+                treasurerName: c.treasurer_name || '',
+                treasurerPhone: c.treasurer_phone || '',
+                registrationCertificate: c.registration_certificate || '',
+                groupConstitution: c.group_constitution || '',
+                meetingMinutes: c.meeting_minutes || '',
+                memberList: c.member_list || []
+              }));
+              
+              setClients(mappedClients);
+              console.log('   ✅ Clients state updated with', mappedClients.length, 'clients');
+            } else {
+              console.log('ℹ️ No clients found in individual table');
+              setClients([]);
+              console.log('   ✅ Clients state set to empty array');
+            }
+          } catch (error) {
+            console.error('❌ Error loading clients from Supabase:', error);
+            toast.error('Database not reachable. Check your internet connection.');
+            setClients([]);
+            console.log('   ⚠️  Clients state set to empty array due to error');
+          }
+          
+          // ✅ CRITICAL: Load loans from individual table (Supabase-first)
+          try {
+            console.log('');
+            console.log('💰 ========================================');
+            console.log('💰 LOADING LOANS FROM INDIVIDUAL TABLE');
+            console.log('💰 ========================================');
+            console.log('   Organization ID:', currentUser.organizationId);
+            console.log('   Table: loans');
+            console.log('   Calling: supabaseDataService.loans.getAll()');
+            
+            const supabaseLoans = await supabaseDataService.loans.getAll(currentUser.organizationId);
+            
+            console.log('   ✅ Query complete!');
+            console.log('   Raw response:', supabaseLoans);
+            console.log('   Type:', typeof supabaseLoans);
+            console.log('   Is Array:', Array.isArray(supabaseLoans));
+            console.log('   Length:', supabaseLoans?.length);
+            
+            if (supabaseLoans && supabaseLoans.length > 0) {
+              console.log(`✅ Loaded ${supabaseLoans.length} loans from individual table`);
+              
+              // Map Supabase schema to frontend Loan type
+              const mappedLoans = supabaseLoans.map((l: any) => {
+                // Capitalize status properly
+                const capitalizeStatus = (status: string) => {
+                  if (!status) return 'Pending';
+                  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+                };
+                
+                // ✅ CALCULATE totalInterest from database values
+                const principalAmount = l.amount || 0;
+                const totalRepayable = l.total_amount || 0;
+                const calculatedInterest = totalRepayable - principalAmount;
+                
+                // ✅ CALCULATE outstandingBalance from database values
+                const paidAmount = l.amount_paid || 0;
+                const calculatedOutstanding = totalRepayable - paidAmount;
+                
+                return {
+                  id: l.id, // ✅ Use UUID for operations
+                  loanNumber: l.loan_number || l.id, // User-friendly loan ID (LN00001)
+                  loanId: l.loan_number || l.id, // ✅ Alias for loanNumber for consistency
+                  loan_id: l.loan_number || l.id, // ✅ Snake_case alias
+                  clientId: l.client?.client_number || l.client_id || '',
+                  clientUuid: l.client_id || '', // ✅ Store the actual UUID for Supabase operations
+                  clientName: l.client ? `${l.client.first_name} ${l.client.last_name}` : l.client_name || '',
+                  productId: l.product_id || '', // ✅ Use product_id (UUID) not product_code
+                  productName: l.product?.product_name || l.product_name || '',
+                  principalAmount: principalAmount,
+                  interestRate: l.interest_rate || l.product?.interest_rate || 0,
+                  interestType: 'Flat',
+                  term: l.term_period || 0,
+                  termUnit: l.term_period_unit ? (l.term_period_unit.charAt(0).toUpperCase() + l.term_period_unit.slice(1)) : 'Months',
+                  repaymentFrequency: l.repayment_frequency ? (l.repayment_frequency.charAt(0).toUpperCase() + l.repayment_frequency.slice(1)) : 'Monthly',
+                  applicationDate: l.application_date?.split('T')[0] || l.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+                  approvedDate: l.approval_date?.split('T')[0] || '',
+                  disbursementDate: l.disbursement_date?.split('T')[0] || '',
+                  firstRepaymentDate: '',
+                  maturityDate: '',
+                  status: capitalizeStatus(l.status),
+                  installmentAmount: 0,
+                  monthlyPayment: 0,
+                  totalInterest: calculatedInterest, // ✅ FIXED: Calculate from total_amount - amount
+                  totalRepayable: totalRepayable,
+                  totalRepayment: totalRepayable,
+                  numberOfInstallments: 0,
+                  paidAmount: paidAmount,
+                  outstandingBalance: calculatedOutstanding,
+                  principalOutstanding: calculatedOutstanding,
+                  interestOutstanding: 0,
+                  createdBy: '',
+                  loanOfficer: '',
+                  purpose: l.purpose || '',
+                  notes: '',
+                  interestMethod: 'Flat Rate',
+                  guarantorRequired: false,
+                  collateralRequired: false,
+                  paymentSource: '',
+                  gracePeriod: 0,
+                  latePaymentPenalty: 0,
+                  daysInArrears: 0,
+                  arrearsAmount: 0,
+                  overdueAmount: 0,
+                  penaltyAmount: 0,
+                  collateral: [],
+                  guarantors: []
+                };
+              });
+              
+              setLoans(mappedLoans);
+              console.log('   ✅ Loans state updated with', mappedLoans.length, 'loans');
+            } else {
+              console.log('ℹ️ No loans found in individual table');
+              setLoans([]);
+              console.log('   ✅ Loans state set to empty array');
+            }
+          } catch (error) {
+            console.error('❌ Error loading loans from Supabase:', error);
+            toast.error('Database not reachable. Check your internet connection.');
+            setLoans([]);
+            console.log('   ⚠️  Loans state set to empty array due to error');
+          }
+          
+          // ✅ CRITICAL: Load approvals from individual table (Supabase-first)
+          try {
+            console.log('');
+            console.log('✅ ========================================');
+            console.log('✅ LOADING APPROVALS FROM INDIVIDUAL TABLE');
+            console.log('✅ ========================================');
+            console.log('   Organization ID:', currentUser.organizationId);
+            console.log('   Table: approvals');
+            console.log('   Calling: supabaseDataService.approvals.getAll()');
+            
+            const supabaseApprovals = await supabaseDataService.approvals.getAll(currentUser.organizationId);
+            
+            console.log('   ✅ Query complete!');
+            console.log('   Raw response:', supabaseApprovals);
+            console.log('   Type:', typeof supabaseApprovals);
+            console.log('   Is Array:', Array.isArray(supabaseApprovals));
+            console.log('   Length:', supabaseApprovals?.length);
+            
+            if (supabaseApprovals && supabaseApprovals.length > 0) {
+              console.log(`✅ Loaded ${supabaseApprovals.length} approvals from individual table`);
+              
+              // Map Supabase schema to frontend Approval type
+              const mappedApprovals = supabaseApprovals.map((a: any) => ({
+                id: a.id,
+                supabaseId: a.id, // Store Supabase UUID for future updates
+                type: a.type || 'loan_application',
+                title: a.title || '',
+                description: a.description || '',
+                requestedBy: a.requested_by || '',
+                requestDate: a.request_date?.split('T')[0] || a.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+                amount: a.amount || undefined,
+                clientId: a.client_id || '',
+                clientName: a.client_name || '',
+                status: a.status || 'pending',
+                priority: a.priority || 'medium',
+                approver: a.approver || a.approver_name || undefined,
+                approvalDate: a.approval_date?.split('T')[0] || undefined,
+                rejectionReason: a.rejection_reason || undefined,
+                relatedId: a.related_id || a.loan_id || '',
+                phase: a.phase || 1,
+                disbursementData: a.disbursement_data || undefined,
+                stage: a.stage || undefined,
+                approverRole: a.approver_role || undefined,
+                date: a.created_at?.split('T')[0] || undefined,
+                comments: a.comments || undefined
+              }));
+              
+              setApprovals(mappedApprovals);
+              console.log('   ✅ Approvals state updated with', mappedApprovals.length, 'approvals');
+            } else {
+              console.log('ℹ️ No approvals found in individual table');
+              setApprovals([]);
+              console.log('   ✅ Approvals state set to empty array');
+            }
+          } catch (error) {
+            console.error('❌ Error loading approvals from Supabase:', error);
+            toast.error('Database not reachable. Check your internet connection.');
+            setApprovals([]);
+            console.log('   ⚠️  Approvals state set to empty array due to error');
+          }
+          
+          // ✅ CRITICAL: Load repayments from individual table (Supabase-first)
+          try {
+            console.log('');
+            console.log('💰 ========================================');
+            console.log('💰 LOADING REPAYMENTS FROM INDIVIDUAL TABLE');
+            console.log('💰 ========================================');
+            console.log('   Organization ID:', currentUser.organizationId);
+            console.log('   Table: repayments');
+            console.log('   Calling: supabaseDataService.repayments.getAll()');
+            
+            const supabaseRepayments = await supabaseDataService.repayments.getAll(currentUser.organizationId);
+            
+            console.log('   ✅ Query complete!');
+            console.log('   Raw response:', supabaseRepayments);
+            console.log('   Type:', typeof supabaseRepayments);
+            console.log('   Is Array:', Array.isArray(supabaseRepayments));
+            console.log('   Length:', supabaseRepayments?.length);
+            
+            if (supabaseRepayments && supabaseRepayments.length > 0) {
+              console.log(`✅ Loaded ${supabaseRepayments.length} repayments from individual table`);
+              console.log('   First repayment:', supabaseRepayments[0]);
+              
+              // Map Supabase schema to frontend Repayment type (NO joining - just field mapping)
+              const mappedRepayments = supabaseRepayments.map((r: any) => {
+                return {
+                  id: r.id,
+                  loanId: r.loan_id, // Keep UUID for joining later in components
+                  loan_id: r.loan_id, // Snake_case alias
+                  clientId: r.client_id, // Keep UUID for joining later in components
+                  client_id: r.client_id, // Snake_case alias
+                  amount: r.amount || 0,
+                  principal: r.principal_amount || 0,
+                  interest: r.interest_amount || 0,
+                  penalty: r.penalty_amount || 0,
+                  paymentMethod: r.payment_method || 'Cash',
+                  payment_method: r.payment_method, // Snake_case alias
+                  transactionRef: r.transaction_ref || '',
+                  paymentReference: r.transaction_ref || '',
+                  paymentDate: r.payment_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+                  payment_date: r.payment_date?.split('T')[0], // Snake_case alias
+                  receiptNumber: r.receipt_number || '',
+                  receivedBy: r.received_by || 'System',
+                  recordedBy: r.received_by || 'System', // Alternative field name
+                  recorded_by: r.received_by, // Snake_case alias
+                  notes: r.notes || '',
+                  status: r.status === 'completed' ? 'Approved' : (r.status || 'Pending'),
+                  bankAccountId: r.bank_account_id || '',
+                  bank_account_id: r.bank_account_id, // Snake_case alias
+                  createdDate: r.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+                  created_at: r.created_at,
+                };
+              });
+              
+              setRepayments(mappedRepayments);
+              console.log('   ✅ Repayments state updated with', mappedRepayments.length, 'repayments');
+              console.log('   Sample mapped repayment:', mappedRepayments[0]);
+            } else {
+              console.log('ℹ️ No repayments found in individual table');
+              setRepayments([]);
+              console.log('   ✅ Repayments state set to empty array');
+            }
+          } catch (error) {
+            console.error('❌ Error loading repayments from Supabase:', error);
+            toast.error('Database not reachable. Check your internet connection.');
+            setRepayments([]);
+            console.log('   ⚠️  Repayments state set to empty array due to error');
+          }
+          
+          // ✅ CRITICAL: Load payees from individual table ONLY (NOT from project_states)
+          try {
+            console.log('');
+            console.log('👥 ========================================');
+            console.log('👥 LOADING PAYEES FROM INDIVIDUAL TABLE');
+            console.log('👥 ========================================');
+            console.log('   Organization ID:', currentUser.organizationId);
+            console.log('   Table: payees');
+            console.log('   Calling: supabaseDataService.payees.getAll()');
+            
+            const supabasePayees = await supabaseDataService.payees.getAll(currentUser.organizationId);
+            
+            console.log('   ✅ Query complete!');
+            console.log('   Raw response:', supabasePayees);
+            console.log('   Type:', typeof supabasePayees);
+            console.log('   Is Array:', Array.isArray(supabasePayees));
+            console.log('   Length:', supabasePayees?.length);
+            
+            if (supabasePayees && supabasePayees.length > 0) {
+              console.log(`✅ Loaded ${supabasePayees.length} payees from individual table`);
+              
+              // Map Supabase schema to frontend Payee type
+              const mappedPayees = supabasePayees.map((p: any) => ({
+                id: p.id,
+                name: p.payee_name || p.name || '',
+                type: p.payee_type || p.type || '',
+                phone: p.phone || '',
+                email: p.email || '',
+                category: p.category || 'Other',
+                status: p.status === 'active' ? 'Active' : (p.status || 'Active'),
+                totalPaid: p.total_paid || 0,
+                createdDate: p.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+                // Additional fields that may exist
+                contactPerson: p.contact_person || '',
+                physicalAddress: p.address || '',
+                bankName: p.bank_name || '',
+                accountNumber: p.account_number || ''
+              }));
+              
+              console.log('   Mapped payees:', mappedPayees);
+              console.log('   Setting payees state...');
+              setPayees(mappedPayees);
+              console.log('   ✅ Payees state updated with', mappedPayees.length, 'payees');
+            } else {
+              console.log('ℹ️ No payees found in individual table');
+              setPayees([]);
+              console.log('   ✅ Payees state set to empty array');
+            }
+          } catch (error) {
+            console.error('❌ Error loading payees from Supabase:', error);
+            toast.error('Database not reachable. Check your internet connection.');
+            setPayees([]);
+            console.log('   ⚠️  Payees state set to empty array due to error');
+          }
+          
+          console.log('✅ All data loaded from Supabase successfully');
+          // Remove toast notification on data load to avoid duplicate notifications on login
         } else {
-          // Load failed - start with empty data
-          console.warn('⚠️ Could not load project state - starting fresh');
-          toast.info('Starting with fresh data');
+          // ❌ NO FALLBACK - Supabase connection required
+          console.error('❌ Could not load project state from Supabase');
+          toast.error('Database not reachable. Check your internet connection.');
+          
+          // Set empty arrays - NO mock data, NO localStorage fallback
+          setClients([]);
+          setLoans([]);
+          setLoanProducts([]);
+          setRepayments([]);
+          setSavingsAccounts([]);
+          setSavingsTransactions([]);
+          setShareholders([]);
+          setShareholderTransactions([]);
+          setExpenses([]);
+          setPayees([]);
+          setBankAccounts([]);
+          setTasks([]);
+          setKYCRecords([]);
+          setApprovals([]);
+          setFundingTransactions([]);
+          setProcessingFeeRecords([]);
+          setDisbursements([]);
+          setPayrollRuns([]);
+          setJournalEntries([]);
+          setAuditLogs([]);
+          setTickets([]);
+          setGroups([]);
+          setGuarantors([]);
+          setCollaterals([]);
+          setLoanDocuments([]);
         }
       } catch (error) {
-        console.error('Error loading data from Supabase:', error);
-        // If there's an error, start with empty data
+        console.error('❌ Error loading data from Supabase:', error);
+        toast.error('Database not reachable. Check your internet connection.');
+        
+        // ❌ NO FALLBACK - Set empty arrays, NO mock data
         setClients([]);
+        setLoans([]);
         setLoanProducts([]);
+        setRepayments([]);
+        setSavingsAccounts([]);
+        setSavingsTransactions([]);
         setShareholders([]);
+        setShareholderTransactions([]);
+        setExpenses([]);
         setPayees([]);
-        toast.error('Error loading data. Please refresh the page.');
+        setBankAccounts([]);
+        setTasks([]);
+        setKYCRecords([]);
+        setApprovals([]);
+        setFundingTransactions([]);
+        setProcessingFeeRecords([]);
+        setDisbursements([]);
+        setPayrollRuns([]);
+        setJournalEntries([]);
+        setAuditLogs([]);
+        setTickets([]);
+        setGroups([]);
+        setGuarantors([]);
+        setCollaterals([]);
+        setLoanDocuments([]);
       }
     };
 
@@ -1273,67 +2131,178 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // ============= CLIENT FUNCTIONS =============
 
   const addClient = async (clientData: Omit<Client, 'id' | 'joinDate' | 'lastUpdated'>) => {
-    // Generate 5-character ID: CL + 3-digit number (max 5 alphanumeric characters)
-    const maxId = clients.reduce((max, client) => {
-      const match = client.id.match(/^CL(\d{3})$/);
-      return match ? Math.max(max, parseInt(match[1])) : max;
-    }, 0);
-    const newId = `CL${String(maxId + 1).padStart(3, '0')}`;
-    
-    const newClient: Client = {
-      ...clientData,
-      id: newId,
-      joinDate: new Date().toISOString().split('T')[0],
-      lastUpdated: new Date().toISOString().split('T')[0],
-    };
-    
-    // ✅ Update local state (debounced sync will handle Supabase automatically)
-    setClients([...clients, newClient]);
-    
-    // Add audit log
-    addAuditLog({
-      userId: currentUser?.id || 'system',
-      userName: currentUser?.name || 'System',
-      action: 'Create Client',
-      module: 'Client',
-      entityType: 'Client',
-      entityId: newId,
-      changes: `New client "${newClient.name}" created`,
-      ipAddress: '0.0.0.0',
-      status: 'Success'
-    });
-    
-    toast.success('Client created successfully');
-  };
-
-  const updateClient = (id: string, updates: Partial<Client>) => {
-    const client = clients.find(c => c.id === id);
-    
-    // ✅ Update local state (debounced sync handles Supabase)
-    setClients(clients.map(c => 
-      c.id === id ? { ...c, ...updates, lastUpdated: new Date().toISOString().split('T')[0] } : c
-    ));
-    
-    // Add audit log
-    if (client) {
+    try {
+      console.log('🔵 Creating client with Supabase-first approach...');
+      console.log('📋 Client data received in DataContext.addClient:', clientData);
+      console.log('  → firstName:', clientData.firstName);
+      console.log('  → lastName:', clientData.lastName);
+      console.log('  → name:', clientData.name);
+      
+      // ✅ 1. WRITE TO SUPABASE FIRST
+      const supabaseClient = await supabaseDataService.clients.create(
+        clientData,
+        currentUser?.organizationId || ''
+      );
+      
+      console.log('✅ Client created in Supabase:', supabaseClient);
+      
+      // ✅ 2. UPDATE REACT STATE (for fast UI)
+      // Map Supabase schema to frontend Client type
+      const newClient: Client = {
+        id: supabaseClient.client_number || supabaseClient.id,
+        clientNumber: supabaseClient.client_number, // CL001 format
+        client_number: supabaseClient.client_number, // snake_case alias
+        name: supabaseClient.business_name || `${supabaseClient.first_name} ${supabaseClient.last_name}`.trim(),
+        firstName: supabaseClient.first_name || '',
+        lastName: supabaseClient.last_name || '',
+        email: supabaseClient.email || '',
+        phone: supabaseClient.phone || '',
+        idNumber: supabaseClient.id_number || '',
+        address: supabaseClient.address || '',
+        city: supabaseClient.town || '',
+        county: supabaseClient.county || '',
+        occupation: supabaseClient.occupation || '',
+        employer: supabaseClient.employer || '',
+        monthlyIncome: supabaseClient.monthly_income || 0,
+        dateOfBirth: supabaseClient.date_of_birth || '',
+        gender: supabaseClient.gender || 'Other',
+        maritalStatus: supabaseClient.marital_status || '',
+        nextOfKin: {
+          name: supabaseClient.next_of_kin_name || '',
+          relationship: supabaseClient.next_of_kin_relationship || '',
+          phone: supabaseClient.next_of_kin_phone || ''
+        },
+        status: supabaseClient.status || 'Active',
+        clientType: supabaseClient.client_type || 'individual',
+        businessName: supabaseClient.business_name || '',
+        businessType: supabaseClient.business_type || '',
+        joinDate: supabaseClient.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        lastUpdated: supabaseClient.updated_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        createdBy: currentUser?.id || 'system',
+        branch: clientData.branch || 'Main Branch'
+      };
+      
+      setClients([...clients, newClient]);
+      
+      // ✅ 3. ADD AUDIT LOG
       addAuditLog({
         userId: currentUser?.id || 'system',
         userName: currentUser?.name || 'System',
-        action: 'Update Client',
+        action: 'Create Client',
         module: 'Client',
         entityType: 'Client',
-        entityId: id,
-        changes: `Updated client "${client.name}": ${Object.keys(updates).join(', ')}`,
+        entityId: newClient.id,
+        changes: `New client "${newClient.name}" created`,
         ipAddress: '0.0.0.0',
         status: 'Success'
       });
+      
+      toast.success('✅ Client created successfully in Supabase');
+      return newClient;
+      
+    } catch (error: any) {
+      console.error('❌ Error creating client:', error);
+      toast.error(`Failed to create client: ${error.message}`);
+      throw error;
     }
-    // ✅ No manual sync needed - debounced sync handles it
   };
 
-  const deleteClient = (id: string) => {
-    // ✅ Update local state (debounced sync handles Supabase)
-    setClients(clients.filter(c => c.id !== id));
+  const updateClient = async (id: string, updates: Partial<Client>, options?: { silent?: boolean }) => {
+    try {
+      const client = clients.find(c => c.id === id);
+      
+      console.log('🔵 Updating client with Supabase-first approach...');
+      
+      // ✅ 1. WRITE TO SUPABASE FIRST
+      // Map frontend updates to Supabase schema
+      const supabaseUpdates: any = {};
+      if (updates.name) {
+        const nameParts = updates.name.split(' ');
+        supabaseUpdates.first_name = nameParts[0] || '';
+        supabaseUpdates.last_name = nameParts.slice(1).join(' ') || '';
+      }
+      if (updates.email !== undefined) supabaseUpdates.email = updates.email;
+      if (updates.phone !== undefined) supabaseUpdates.phone = updates.phone;
+      if (updates.status !== undefined) supabaseUpdates.status = updates.status.toLowerCase();
+      if (updates.monthlyIncome !== undefined) supabaseUpdates.monthly_income = updates.monthlyIncome;
+      if (updates.address !== undefined) supabaseUpdates.address = updates.address;
+      if (updates.city !== undefined) supabaseUpdates.town = updates.city;
+      if (updates.county !== undefined) supabaseUpdates.county = updates.county;
+      if (updates.occupation !== undefined) supabaseUpdates.occupation = updates.occupation;
+      if (updates.employer !== undefined) supabaseUpdates.employer = updates.employer;
+      // Skip creditScore - not in Supabase schema (frontend only)
+      // if (updates.creditScore !== undefined) supabaseUpdates.credit_score = updates.creditScore;
+      
+      // Only update if there are changes
+      if (Object.keys(supabaseUpdates).length > 0) {
+        await supabaseDataService.clients.update(
+          id,
+          supabaseUpdates,
+          currentUser?.organizationId || ''
+        );
+        
+        console.log('✅ Client updated in Supabase');
+      }
+      
+      // ✅ 2. UPDATE REACT STATE (for fast UI)
+      setClients(clients.map(c => 
+        c.id === id ? { ...c, ...updates, lastUpdated: new Date().toISOString().split('T')[0] } : c
+      ));
+      
+      // ✅ 3. ADD AUDIT LOG
+      if (client) {
+        addAuditLog({
+          userId: currentUser?.id || 'system',
+          userName: currentUser?.name || 'System',
+          action: 'Update Client',
+          module: 'Client',
+          entityType: 'Client',
+          entityId: id,
+          changes: `Updated client "${client.name}": ${Object.keys(updates).join(', ')}`,
+          ipAddress: '0.0.0.0',
+          status: 'Success'
+        });
+      }
+      
+      // Only show toast if not silent (e.g., not automatic credit score updates)
+      if (!options?.silent) {
+        toast.success('✅ Client updated successfully');
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Error updating client:', error);
+      // Don't show error toast or throw if it's just a "not found" error
+      if (error.message && error.message.includes('0 rows')) {
+        console.warn('⚠️  Client not found in Supabase, but continuing...');
+        return; // Don't throw, just return
+      }
+      toast.error(`Failed to update client: ${error.message}`);
+      throw error;
+    }
+  };
+
+  const deleteClient = async (id: string) => {
+    try {
+      console.log('🔵 Deleting client with Supabase-first approach...');
+      
+      // ✅ 1. DELETE FROM SUPABASE FIRST
+      await supabaseDataService.clients.delete(
+        id,
+        currentUser?.organizationId || ''
+      );
+      
+      console.log('✅ Client deleted from Supabase');
+      
+      // ✅ 2. UPDATE REACT STATE (for fast UI)
+      setClients(clients.filter(c => c.id !== id));
+      
+      toast.success('✅ Client deleted successfully');
+      
+    } catch (error: any) {
+      console.error('❌ Error deleting client:', error);
+      toast.error(`Failed to delete client: ${error.message}`);
+      throw error;
+    }
   };
 
   const getClient = (id: string) => {
@@ -1343,20 +2312,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // ============= LOAN FUNCTIONS =============
 
   const addLoan = async (loanData: Omit<Loan, 'id' | 'applicationDate'>) => {
-    // Generate unique ID with timestamp to prevent collisions
-    const maxId = loans.reduce((max, loan) => {
-      const match = loan.id.match(/^L(\d{3})/);
-      return match ? Math.max(max, parseInt(match[1])) : max;
-    }, 0);
-    const timestamp = Date.now().toString().slice(-6); // Last 6 digits for uniqueness
-    const newId = `L${String(maxId + 1).padStart(3, '0')}-${timestamp}`;
-    
-    const newLoan: Loan = {
-      ...loanData,
-      id: newId,
-      applicationDate: new Date().toISOString().split('T')[0],
-    };
-    setLoans([...loans, newLoan]);
+    try {
+      console.log('🔵 Creating loan with Supabase-first approach...');
+      
+      // ✅ 1. WRITE TO SUPABASE FIRST
+      const supabaseLoan = await supabaseDataService.loans.create(
+        loanData,
+        currentUser?.organizationId || ''
+      );
+      
+      console.log('✅ Loan created in Supabase:', supabaseLoan);
+      
+      // ✅ 2. UPDATE REACT STATE (for fast UI)
+      const newLoan: Loan = {
+        ...loanData,
+        id: supabaseLoan.id, // ✅ Use UUID for operations
+        loanNumber: supabaseLoan.loan_number || supabaseLoan.id, // Add loan number as separate field
+        applicationDate: supabaseLoan.application_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+      };
+      setLoans([...loans, newLoan]);
+      
+      const newId = newLoan.id;
     
     // Automatically create an approval for this loan application
     const approvalMaxId = approvals.reduce((max, approval) => {
@@ -1392,7 +2368,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
       phase: 1 // Application Review phase
     };
     
-    setApprovals([...approvals, newApproval]);
+    // ✅ Save approval to Supabase FIRST
+    let supabaseUuid: string | undefined;
+    try {
+      const supabaseApproval = await supabaseDataService.approvals.create(
+        newApproval,
+        currentUser?.organizationId || ''
+      );
+      supabaseUuid = supabaseApproval.id;
+      console.log('�� Approval created in Supabase:', supabaseApproval);
+    } catch (error: any) {
+      console.error('❌ Error creating approval in Supabase:', error);
+      // Don't fail the loan creation if approval fails
+    }
+    
+    // ✅ Update React state with Supabase UUID
+    setApprovals([...approvals, { ...newApproval, supabaseId: supabaseUuid }]);
     
     // Calculate and record processing fee
     const product = loanProducts.find(p => p.id === loanData.productId);
@@ -1418,21 +2409,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
       // ✅ No manual sync needed - debounced sync handles all entities automatically
     }
     
-    // Add audit log
-    addAuditLog({
-      userId: currentUser?.id || 'system',
-      userName: currentUser?.name || 'System',
-      action: 'Create Loan Application',
-      module: 'Loan',
-      entityType: 'Loan',
-      entityId: newId,
-      changes: `New loan application for ${loanData.clientName} - KES ${loanData.principalAmount.toLocaleString()}`,
-      ipAddress: '0.0.0.0',
-      status: 'Success'
-    });
-    
-    // Return the generated loan ID
-    return newId;
+      // Add audit log
+      addAuditLog({
+        userId: currentUser?.id || 'system',
+        userName: currentUser?.name || 'System',
+        action: 'Create Loan Application',
+        module: 'Loan',
+        entityType: 'Loan',
+        entityId: newId,
+        changes: `New loan application for ${loanData.clientName} - KES ${loanData.principalAmount.toLocaleString()}`,
+        ipAddress: '0.0.0.0',
+        status: 'Success'
+      });
+      
+      toast.success('✅ Loan created successfully in Supabase');
+      
+      // Return the generated loan ID
+      return newId;
+      
+    } catch (error: any) {
+      console.error('❌ Error creating loan:', error);
+      toast.error(`Failed to create loan: ${error.message}`);
+      throw error;
+    }
   };
 
   const updateLoan = (id: string, updates: Partial<Loan>) => {
@@ -1444,6 +2443,200 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     
     const fullUpdatedLoan = { ...updatedLoan, ...updates };
+    
+    // ✅ UPDATE APPROVALS TABLE WHEN STATUS CHANGES
+    if (updates.status && updates.status !== updatedLoan.status) {
+      const relatedApproval = approvals.find(a => a.relatedId === id);
+      
+      if (relatedApproval) {
+        const statusLower = updates.status.toLowerCase();
+        let newPhase = relatedApproval.phase;
+        let newStatus = relatedApproval.status;
+        
+        // Map loan status to approval phase and status
+        if (statusLower === 'pending' || statusLower === 'under review') {
+          newPhase = 1; // Step 1: Auto-Assessment
+          newStatus = 'pending';
+        } else if (statusLower === 'need approval') {
+          newPhase = 2; // Step 2: Manager Approval
+          newStatus = 'pending';
+        } else if (statusLower === 'approved') {
+          newPhase = 3; // Step 3: Disbursement (Approved for Disbursement)
+          newStatus = 'pending';
+        } else if (statusLower === 'disbursed' || statusLower === 'active') {
+          newPhase = 5; // Active Loans
+          newStatus = 'approved';
+        } else if (statusLower === 'rejected') {
+          newStatus = 'rejected';
+        }
+        
+        // Update the approval record
+        setApprovals(approvals.map(a => 
+          a.relatedId === id 
+            ? { 
+                ...a, 
+                phase: newPhase, 
+                status: newStatus,
+                ...(newStatus === 'approved' && { approvalDate: new Date().toISOString() }),
+                ...(updates.status === 'Disbursed' && { approver: currentUser?.name || 'System' })
+              }
+            : a
+        ));
+        
+        console.log(`✅ Updated approval record for loan ${id}: Phase ${newPhase}, Status ${newStatus}`);
+        
+        // ✅ SYNC TO SUPABASE - IMMEDIATE AND ROBUST
+        if (currentUser?.organizationId) {
+          // Get the Supabase UUID from the approval record
+          const supabaseApprovalId = (relatedApproval as any).supabaseId || relatedApproval.id;
+          
+          // ✅ CRITICAL: Ensure database update with better error handling
+          const updateApprovalInDB = async () => {
+            try {
+              const updateData = {
+                step: newPhase,
+                phase: newPhase, // Update both old and new workflow fields
+                approval_status: newStatus, // Old workflow field
+                status: newStatus, // New workflow field - CRITICAL FOR DB SYNC
+                loan_id: id,
+                ...(newStatus === 'approved' && { 
+                  approval_date: new Date().toISOString(),
+                  approved_at: new Date().toISOString()
+                }),
+                ...(updates.status === 'Disbursed' && { 
+                  // ✅ Don't set approver_id - it causes foreign key constraint errors
+                  // approver_id should only be set if user exists in users table
+                  approver: currentUser.name 
+                })
+              };
+              
+              console.log('🔄 [DB UPDATE] Updating approval status in Supabase:', {
+                approvalId: supabaseApprovalId,
+                loanId: id,
+                newPhase,
+                newStatus,
+                updateData
+              });
+              
+              const result = await supabaseDataService.approvals.update(
+                supabaseApprovalId, 
+                updateData, 
+                currentUser.organizationId
+              );
+              
+              console.log('✅ [DB UPDATE] Approval status successfully synced to Supabase database');
+              console.log('   📊 Updated approval fields:', Object.keys(updateData));
+              console.log('   ✓ Phase:', newPhase);
+              console.log('   ✓ Status:', newStatus);
+              
+              return result;
+            } catch (error: any) {
+              console.error('❌ CRITICAL: Error syncing approval status to Supabase database:', error);
+              console.error('   Approval ID:', supabaseApprovalId);
+              console.error('   Loan ID:', id);
+              console.error('   Organization ID:', currentUser.organizationId);
+              console.error('   Error message:', error.message);
+              console.error('   Error details:', error);
+              
+              // Show error to user
+              toast.error(`Failed to update approval status in database: ${error.message}`);
+              throw error;
+            }
+          };
+          
+          // Execute the update immediately (non-blocking but with comprehensive logging)
+          updateApprovalInDB();
+        }
+      } else {
+        // If no approval exists, create one
+        const priority: 'low' | 'medium' | 'high' | 'urgent' = 
+          fullUpdatedLoan.principalAmount > 500000 ? 'urgent' :
+          fullUpdatedLoan.principalAmount > 200000 ? 'high' :
+          fullUpdatedLoan.principalAmount < 50000 ? 'low' : 'medium';
+        
+        const approvalMaxId = approvals.reduce((max, approval) => {
+          const match = approval.id.match(/^APR(\d+)$/);
+          return match ? Math.max(max, parseInt(match[1])) : max;
+        }, 0);
+        const approvalId = `APR${String(approvalMaxId + 1).padStart(3, '0')}`;
+        
+        const statusLower = updates.status.toLowerCase();
+        let phase = 1;
+        let status: 'pending' | 'approved' | 'rejected' = 'pending';
+        
+        if (statusLower === 'need approval') phase = 2;
+        else if (statusLower === 'approved') phase = 3;
+        else if (statusLower === 'disbursed' || statusLower === 'active') {
+          phase = 5;
+          status = 'approved';
+        } else if (statusLower === 'rejected') status = 'rejected';
+        
+        const newApproval: Approval = {
+          id: approvalId,
+          type: 'loan_application',
+          title: `Loan Application - ${fullUpdatedLoan.clientName || 'Unknown Client'}`,
+          description: `${fullUpdatedLoan.productName || 'Loan'} loan application for KES ${(fullUpdatedLoan.principalAmount || 0).toLocaleString()} over ${fullUpdatedLoan.term || 0} ${(fullUpdatedLoan.termUnit || 'months').toLowerCase()}`,
+          requestedBy: fullUpdatedLoan.createdBy,
+          requestDate: fullUpdatedLoan.applicationDate + ' ' + new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+          amount: fullUpdatedLoan.principalAmount,
+          clientId: fullUpdatedLoan.clientId,
+          clientName: fullUpdatedLoan.clientName,
+          status: status,
+          priority: priority,
+          relatedId: id,
+          phase: phase
+        };
+        
+        setApprovals([...approvals, newApproval]);
+        console.log(`✅ Created new approval record for loan ${id}: Phase ${phase}, Status ${status}`);
+        
+        // ✅ SYNC TO SUPABASE - IMMEDIATE AND ROBUST
+        if (currentUser?.organizationId) {
+          const createApprovalInDB = async () => {
+            try {
+              console.log('🔄 [DB CREATE] Creating new approval in Supabase database');
+              
+              const supabaseApproval = await supabaseDataService.approvals.create({
+                loan_id: id,
+                step: phase,
+                phase: phase, // Set both old and new workflow fields
+                approval_status: status, // Old workflow field
+                status: status, // New workflow field - CRITICAL FOR DB SYNC
+                approver_id: currentUser.id,
+                ...(status === 'approved' && { 
+                  approval_date: new Date().toISOString(),
+                  approved_at: new Date().toISOString()
+                })
+              }, currentUser.organizationId);
+              
+              console.log('✅ [DB CREATE] New approval successfully created in Supabase database');
+              console.log('   📝 Approval ID:', supabaseApproval.id);
+              console.log('   ✓ Phase:', phase);
+              console.log('   ✓ Status:', status);
+              
+              // Store the Supabase UUID in the local approval for future updates
+              setApprovals(prev => prev.map(a => 
+                a.relatedId === id ? { ...a, supabaseId: supabaseApproval.id } : a
+              ));
+              
+              return supabaseApproval;
+            } catch (error: any) {
+              console.error('❌ CRITICAL: Error creating approval in Supabase database:', error);
+              console.error('   Loan ID:', id);
+              console.error('   Organization ID:', currentUser.organizationId);
+              console.error('   Error message:', error.message);
+              console.error('   Error details:', error);
+              
+              toast.error(`Failed to create approval in database: ${error.message}`);
+              throw error;
+            }
+          };
+          
+          // Execute the creation immediately (non-blocking but with comprehensive logging)
+          createApprovalInDB();
+        }
+      }
+    }
     
     // Check if loan is being disbursed
     const isBeingDisbursed = updates.status === 'Disbursed' && updatedLoan.status !== 'Disbursed';
@@ -1467,7 +2660,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           bankAccountId: updates.paymentSource,
           amount: updatedLoan.principalAmount,
           date: updates.disbursementDate || new Date().toISOString().split('T')[0],
-          reference: `Loan Disbursement - ${id}`,
+          reference: `Loan Disbursement - ${id.split('-')[0]}`, // ✅ Shorten UUID to first segment
           description: `Loan disbursed to ${updatedLoan.clientName} (${updatedLoan.clientId})`,
           source: 'Loan Disbursement',
           transactionType: 'Debit',
@@ -1504,12 +2697,70 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     
     setLoans(loans.map(l => l.id === id ? fullUpdatedLoan : l));
-    // ✅ Debounced sync handles Supabase automatically
+    
+    // ✅ UPDATE SUPABASE - IMMEDIATE AND ROBUST
+    if (currentUser?.organizationId) {
+      const updateLoanInDB = async () => {
+        try {
+          console.log('🔄 [DB UPDATE] Updating loan in Supabase database:', {
+            loanId: id,
+            updates: updates,
+            organizationId: currentUser.organizationId
+          });
+          
+          await supabaseDataService.loans.update(id, updates, currentUser.organizationId);
+          
+          console.log('✅ [DB UPDATE] Loan successfully updated in Supabase database');
+          console.log('   📝 Loan ID:', id);
+          console.log('   📊 Updated fields:', Object.keys(updates));
+          if (updates.status) {
+            console.log('   ✓ Status updated to:', updates.status);
+          }
+        } catch (error: any) {
+          console.error('❌ CRITICAL: Error updating loan in Supabase database:', error);
+          console.error('   Loan ID:', id);
+          console.error('   Organization ID:', currentUser.organizationId);
+          console.error('   Updates:', updates);
+          console.error('   Error message:', error.message);
+          console.error('   Error details:', error);
+          
+          toast.error(`Failed to update loan in database: ${error.message}`);
+        }
+      };
+      
+      // Execute the update immediately (non-blocking but with comprehensive logging)
+      updateLoanInDB();
+    }
   };
 
-  const deleteLoan = (id: string) => {
-    setLoans(loans.filter(l => l.id !== id));
-    // ✅ Debounced sync handles Supabase automatically
+  const deleteLoan = async (id: string) => {
+    try {
+      console.log('[DB DELETE] 🗑️ Deleting loan from Supabase:', id);
+      
+      // ✅ 1. DELETE FROM SUPABASE FIRST
+      if (!currentUser?.organizationId) {
+        throw new Error('No organization selected');
+      }
+      
+      await supabaseDataService.loans.delete(id, currentUser.organizationId);
+      console.log('[DB DELETE] ✅ Successfully deleted loan from database');
+      
+      // ✅ 2. UPDATE LOCAL STATE (for fast UI)
+      setLoans(loans.filter(l => l.id !== id));
+      
+      toast.success('Loan deleted successfully');
+    } catch (error: any) {
+      console.error('[DB DELETE] ❌ Error deleting loan:', error);
+      
+      // Show user-facing error notification
+      if (error.message?.includes('offline') || error.message?.includes('network')) {
+        toast.error('Database not reachable. Check your internet connection.');
+      } else {
+        toast.error(`Failed to delete loan: ${error.message}`);
+      }
+      
+      throw error;
+    }
   };
 
   const getLoan = (id: string) => {
@@ -1708,16 +2959,49 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // ============= REPAYMENT FUNCTIONS =============
 
-  const addRepayment = (repaymentData: Omit<Repayment, 'id' | 'createdDate'>) => {
-    const newRepayment: Repayment = {
-      ...repaymentData,
-      id: `RPY${Date.now()}`,
-      createdDate: new Date().toISOString().split('T')[0],
-    };
-    setRepayments([...repayments, newRepayment]);
+  const addRepayment = async (repaymentData: Omit<Repayment, 'id' | 'createdDate'>) => {
+    try {
+      console.log('🔵 Creating repayment with Supabase-first approach...');
+      
+      // Get the loan to find the client UUID
+      const loan = loans.find(l => l.id === repaymentData.loanId);
+      const clientUuid = (loan as any)?.clientUuid || repaymentData.clientId;
+      
+      console.log('📊 Repayment Data:', {
+        loanId: repaymentData.loanId,
+        clientId: repaymentData.clientId,
+        clientUuid: clientUuid,
+        amount: repaymentData.amount
+      });
+      
+      // ✅ 1. WRITE TO SUPABASE FIRST
+      const supabaseRepayment = await supabaseDataService.repayments.create(
+        {
+          loanId: repaymentData.loanId,
+          clientId: clientUuid, // Use the actual UUID for Supabase
+          amount: repaymentData.amount,
+          paymentDate: repaymentData.paymentDate,
+          paymentMethod: repaymentData.paymentMethod,
+          transactionRef: repaymentData.paymentReference,
+          principalAmount: repaymentData.principal || 0,
+          interestAmount: repaymentData.interest || 0,
+          penaltyAmount: repaymentData.penalty || 0,
+          receivedBy: repaymentData.receivedBy || currentUser?.name || 'System'
+        },
+        currentUser?.organizationId || ''
+      );
+      
+      console.log('✅ Repayment created in Supabase:', supabaseRepayment);
+      
+      // ✅ 2. UPDATE REACT STATE (for fast UI)
+      const newRepayment: Repayment = {
+        ...repaymentData,
+        id: supabaseRepayment.id || `RPY${Date.now()}`,
+        createdDate: supabaseRepayment.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+      };
+      setRepayments([...repayments, newRepayment]);
 
-    // Update loan balance and bank account
-    const loan = loans.find(l => l.id === repaymentData.loanId);
+    // Update loan balance and bank account (loan already declared above)
     if (loan && newRepayment.status === 'Approved') {
       updateLoan(loan.id, {
         paidAmount: loan.paidAmount + repaymentData.amount,
@@ -1762,19 +3046,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }, 100);
     }
     
-    // Add audit log
-    if (loan) {
-      addAuditLog({
-        userId: currentUser?.id || 'system',
-        userName: currentUser?.name || 'System',
-        action: 'Record Loan Payment',
-        module: 'Payment',
-        entityType: 'Repayment',
-        entityId: newRepayment.id,
-        changes: `Payment of KES ${repaymentData.amount.toLocaleString()} for loan ${loan.id} - ${loan.clientName}`,
-        ipAddress: '0.0.0.0',
-        status: 'Success'
-      });
+      // Add audit log
+      if (loan) {
+        addAuditLog({
+          userId: currentUser?.id || 'system',
+          userName: currentUser?.name || 'System',
+          action: 'Record Loan Payment',
+          module: 'Payment',
+          entityType: 'Repayment',
+          entityId: newRepayment.id,
+          changes: `Payment of KES ${repaymentData.amount.toLocaleString()} for loan ${loan.id} - ${loan.clientName}`,
+          ipAddress: '0.0.0.0',
+          status: 'Success'
+        });
+      }
+      
+      toast.success('✅ Repayment recorded successfully in Supabase');
+      
+    } catch (error: any) {
+      console.error('❌ Error creating repayment:', error);
+      toast.error(`Failed to record repayment: ${error.message}`);
+      throw error;
     }
   };
 
@@ -2068,27 +3360,117 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // ============= LOAN PRODUCT FUNCTIONS =============
 
   const addLoanProduct = async (productData: Omit<LoanProduct, 'id' | 'createdDate' | 'lastUpdated'>) => {
-    const newProduct: LoanProduct = {
-      ...productData,
-      id: `PRD${Date.now()}`,
-      createdDate: new Date().toISOString().split('T')[0],
-      lastUpdated: new Date().toISOString().split('T')[0],
-    };
-    
-    // ✅ Update local state (debounced sync handles Supabase)
-    setLoanProducts([...loanProducts, newProduct]);
-    toast.success('Loan product created successfully');
+    try {
+      console.log('🔵 Creating loan product with Supabase-first approach...');
+      
+      // ✅ 1. WRITE TO SUPABASE FIRST
+      const supabaseProduct = await supabaseDataService.loanProducts.create(
+        productData,
+        currentUser?.organizationId || ''
+      );
+      
+      console.log('✅ Loan product created in Supabase:', supabaseProduct);
+      
+      // ✅ 2. UPDATE REACT STATE (for fast UI)
+      const newProduct: LoanProduct = {
+        ...productData,
+        id: supabaseProduct.id || `PRD${Date.now()}`,
+        code: supabaseProduct.product_code || '',
+        productCode: supabaseProduct.product_code,
+        createdDate: supabaseProduct.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        lastUpdated: supabaseProduct.updated_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+      };
+      
+      setLoanProducts([...loanProducts, newProduct]);
+      toast.success('✅ Loan product created successfully in Supabase');
+      
+    } catch (error: any) {
+      console.error('❌ Error creating loan product:', error);
+      toast.error(`Failed to create loan product: ${error.message}`);
+      throw error;
+    }
   };
 
-  const updateLoanProduct = (id: string, updates: Partial<LoanProduct>) => {
-    // ✅ Update local state (debounced sync handles Supabase)
-    setLoanProducts(loanProducts.map(p => 
-      p.id === id ? { ...p, ...updates, lastUpdated: new Date().toISOString().split('T')[0] } : p
-    ));
+  const updateLoanProduct = async (id: string, updates: Partial<LoanProduct>) => {
+    try {
+      console.log('🔵 Updating loan product with Supabase-first approach...');
+      
+      // ✅ 1. UPDATE IN SUPABASE FIRST
+      if (currentUser?.organizationId) {
+        // Map frontend field names to database field names
+        const dbUpdates: any = {
+          updated_at: new Date().toISOString()
+        };
+        
+        if (updates.name !== undefined) dbUpdates.name = updates.name;
+        if (updates.description !== undefined) dbUpdates.description = updates.description;
+        if (updates.minAmount !== undefined) dbUpdates.min_amount = updates.minAmount;
+        if (updates.maxAmount !== undefined) dbUpdates.max_amount = updates.maxAmount;
+        if (updates.minTerm !== undefined) dbUpdates.min_term = updates.minTerm;
+        if (updates.maxTerm !== undefined) dbUpdates.max_term = updates.maxTerm;
+        if (updates.interestRate !== undefined) dbUpdates.interest_rate = updates.interestRate;
+        if (updates.interestType !== undefined) dbUpdates.interest_type = updates.interestType;
+        if (updates.repaymentFrequency !== undefined) dbUpdates.repayment_frequency = updates.repaymentFrequency;
+        if (updates.processingFee !== undefined) {
+          if (updates.processingFeeType === 'Percentage') {
+            dbUpdates.processing_fee_percentage = updates.processingFee;
+            dbUpdates.processing_fee_fixed = 0;
+          } else {
+            dbUpdates.processing_fee_fixed = updates.processingFee;
+            dbUpdates.processing_fee_percentage = 0;
+          }
+        }
+        if (updates.status !== undefined) dbUpdates.status = updates.status.toLowerCase();
+        
+        await supabaseDataService.loanProducts.update(
+          id,
+          dbUpdates,
+          currentUser.organizationId
+        );
+        
+        console.log('✅ Loan product updated in Supabase');
+      }
+      
+      // ✅ 2. UPDATE LOCAL STATE (for fast UI)
+      setLoanProducts(loanProducts.map(p => 
+        p.id === id ? { ...p, ...updates, lastUpdated: new Date().toISOString().split('T')[0] } : p
+      ));
+      
+    } catch (error: any) {
+      console.error('❌ Error updating loan product:', error);
+      toast.error(`Failed to update loan product: ${error.message}`);
+      throw error;
+    }
   };
 
-  const deleteLoanProduct = (id: string) => {
-    setLoanProducts(loanProducts.filter(p => p.id !== id));
+  const deleteLoanProduct = async (id: string) => {
+    try {
+      console.log('[DB DELETE] 🗑️ Deleting loan product from Supabase:', id);
+      
+      // ✅ 1. DELETE FROM SUPABASE FIRST
+      if (!currentUser?.organizationId) {
+        throw new Error('No organization selected');
+      }
+      
+      await supabaseDataService.loanProducts.delete(id, currentUser.organizationId);
+      console.log('[DB DELETE] ✅ Successfully deleted loan product from database');
+      
+      // ✅ 2. UPDATE LOCAL STATE (for fast UI)
+      setLoanProducts(loanProducts.filter(p => p.id !== id));
+      
+      toast.success('Loan product deleted successfully');
+    } catch (error: any) {
+      console.error('[DB DELETE] ❌ Error deleting loan product:', error);
+      
+      // Show user-facing error notification
+      if (error.message?.includes('offline') || error.message?.includes('network')) {
+        toast.error('Database not reachable. Check your internet connection.');
+      } else {
+        toast.error(`Failed to delete loan product: ${error.message}`);
+      }
+      
+      throw error;
+    }
   };
 
   const getLoanProduct = (id: string) => {
@@ -2097,13 +3479,50 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // ============= SHAREHOLDER FUNCTIONS =============
 
-  const addShareholder = (shareholderData: Omit<Shareholder, 'id' | 'totalDividends'>) => {
-    const newShareholder: Shareholder = {
-      ...shareholderData,
-      id: `SH${Date.now()}`,
-      totalDividends: 0,
-    };
-    setShareholders([...shareholders, newShareholder]);
+  const addShareholder = async (shareholderData: Omit<Shareholder, 'id' | 'totalDividends'>) => {
+    try {
+      console.log('👥 Creating shareholder with Supabase-first approach...');
+      
+      // ✅ 1. WRITE TO SUPABASE FIRST (using actual schema columns)
+      const supabaseShareholder = await supabaseDataService.shareholders.create(
+        {
+          shareholder_name: shareholderData.name,
+          shareholder_type: 'individual', // Default type
+          id_number: shareholderData.idNumber || '',
+          phone: shareholderData.phone || '',
+          email: shareholderData.email || '',
+          total_shares: shareholderData.sharesOwned || 0,
+          share_value: shareholderData.investmentAmount || 0,
+          status: shareholderData.status || 'active'
+        },
+        currentUser?.organizationId || ''
+      );
+      
+      console.log('✅ Shareholder created in Supabase:', supabaseShareholder);
+      
+      // ✅ 2. UPDATE REACT STATE
+      const newShareholder: Shareholder = {
+        id: supabaseShareholder.id,
+        name: supabaseShareholder.shareholder_name,
+        idNumber: supabaseShareholder.id_number || '',
+        phone: supabaseShareholder.phone || '',
+        email: supabaseShareholder.email || '',
+        address: '', // Address field not in database
+        sharesOwned: supabaseShareholder.total_shares || 0,
+        sharePercentage: shareholderData.sharePercentage || 0, // Not in DB, use frontend value
+        investmentAmount: supabaseShareholder.share_value || 0,
+        investmentDate: shareholderData.investmentDate || new Date().toISOString().split('T')[0],
+        status: supabaseShareholder.status,
+        totalDividends: 0
+      };
+      
+      setShareholders([...shareholders, newShareholder]);
+      toast.success('Shareholder created successfully!');
+      
+    } catch (error) {
+      console.error('❌ Error creating shareholder:', error);
+      toast.error('Database not reachable. Check your internet connection.');
+    }
   };
 
   const updateShareholder = (id: string, updates: Partial<Shareholder>) => {
@@ -2116,6 +3535,54 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const getShareholder = (id: string) => {
     return shareholders.find(s => s.id === id);
+  };
+
+  // ✅ NEW: Refresh shareholders from database
+  const refreshShareholders = async () => {
+    try {
+      console.log('��� Refreshing shareholders from database...');
+      
+      if (!currentUser?.organizationId) {
+        console.warn('⚠️ No organization ID available for refreshing shareholders');
+        toast.error('No organization ID available');
+        return;
+      }
+      
+      // ✅ Load shareholders from individual shareholders table (NOT project_states)
+      const supabaseShareholders = await supabaseDataService.shareholders.getAll(currentUser.organizationId);
+      
+      console.log('📊 Raw shareholders from Supabase:', supabaseShareholders);
+      
+      if (supabaseShareholders && supabaseShareholders.length > 0) {
+        // Map Supabase schema to frontend Shareholder type
+        const mappedShareholders = supabaseShareholders.map((s: any) => ({
+          id: s.id,
+          name: s.shareholder_name || s.name || 'Unknown',
+          idNumber: s.id_number || '',
+          phone: s.phone || '',
+          email: s.email || '',
+          address: s.address || '',
+          sharesOwned: s.total_shares || 0,
+          sharePercentage: s.share_percentage || 0,
+          investmentAmount: s.share_value || 0,
+          investmentDate: s.investment_date || s.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+          status: s.status || 'active',
+          totalDividends: s.total_dividends || 0,
+          shareCapital: s.share_capital || 0
+        }));
+        
+        console.log(`✅ Refreshed ${mappedShareholders.length} shareholders from database`);
+        setShareholders(mappedShareholders);
+        // Remove toast notification to avoid duplicate toasts on login
+      } else {
+        console.log('ℹ️ No shareholders found in database');
+        setShareholders([]);
+        // Remove toast notification to avoid duplicate toasts on login
+      }
+    } catch (error: any) {
+      console.error('❌ Error refreshing shareholders:', error);
+      toast.error('Database not reachable. Check your internet connection.');
+    }
   };
 
   // ============= SHAREHOLDER TRANSACTION FUNCTIONS =============
@@ -2179,13 +3646,58 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // ============= EXPENSE FUNCTIONS =============
 
-  const addExpense = (expenseData: Omit<Expense, 'id' | 'createdDate'>) => {
-    const newExpense: Expense = {
-      ...expenseData,
-      id: `EXP${Date.now()}`,
-      createdDate: new Date().toISOString().split('T')[0],
-    };
-    setExpenses([...expenses, newExpense]);
+  const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdDate'>) => {
+    try {
+      console.log('💸 Creating expense with Supabase-first approach...');
+      console.log('📋 Expense data:', expenseData);
+      
+      // ✅ 1. WRITE TO SUPABASE FIRST (with all fields)
+      const supabaseExpense = await supabaseDataService.expenses.create(
+        {
+          category: expenseData.category,
+          description: expenseData.description,
+          amount: expenseData.amount,
+          expense_date: expenseData.expenseDate,
+          payment_method: expenseData.paymentMethod,
+          payee_id: expenseData.payeeId || null,
+          payment_reference: expenseData.paymentReference || null,
+          bank_account_id: expenseData.bankAccountId || null,
+          subcategory: expenseData.subcategory || null,
+          payment_type: expenseData.paymentType || null,
+          created_by: expenseData.createdBy || 'System',
+          status: expenseData.status || 'Approved'
+        },
+        currentUser?.organizationId || ''
+      );
+      
+      console.log('✅ Expense created in Supabase:', supabaseExpense);
+      
+      // ✅ 2. UPDATE REACT STATE (for fast UI)
+      // Note: Additional fields (payeeName, bankAccountId, receiptNumber, etc.)
+      // are stored in React state only until the schema is updated
+      const newExpense: Expense = {
+        id: supabaseExpense.id,
+        category: supabaseExpense.category,
+        description: supabaseExpense.description,
+        amount: supabaseExpense.amount,
+        expenseDate: supabaseExpense.payment_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+        paymentMethod: supabaseExpense.payment_method,
+        paymentReference: expenseData.paymentReference || '',
+        payeeId: supabaseExpense.payee_id,
+        payeeName: expenseData.payeeName || '',
+        bankAccountId: expenseData.bankAccountId || '',
+        receiptNumber: expenseData.receiptNumber || '',
+        status: (supabaseExpense.status || 'Approved') as 'Pending' | 'Approved' | 'Paid' | 'Rejected',
+        createdBy: expenseData.createdBy,
+        createdDate: supabaseExpense.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        approvedBy: expenseData.approvedBy || null,
+        approvedDate: expenseData.approvedDate || null,
+        paidBy: expenseData.paidBy || null,
+        paidDate: expenseData.paidDate || null,
+        notes: expenseData.notes || ''
+      };
+      
+      setExpenses([...expenses, newExpense]);
 
     // If expense is Paid and has a bankAccountId, deduct from bank account
     if (newExpense.status === 'Paid' && newExpense.bankAccountId) {
@@ -2228,10 +3740,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Create journal entry for expense (when status is Paid or if auto-approved)
-    if (newExpense.status === 'Paid' || newExpense.status === 'Approved') {
-      const journalEntryData = createExpenseEntry(newExpense, expenseData.createdBy);
-      addJournalEntry(journalEntryData);
+      // Create journal entry for expense (when status is Paid or if auto-approved)
+      if (newExpense.status === 'Paid' || newExpense.status === 'Approved') {
+        const journalEntryData = createExpenseEntry(newExpense, expenseData.createdBy);
+        addJournalEntry(journalEntryData);
+      }
+      
+      toast.success('Expense created successfully!');
+      
+    } catch (error) {
+      console.error('❌ Error creating expense:', error);
+      toast.error('Database not reachable. Check your internet connection.');
+      throw error;
     }
   };
 
@@ -2317,14 +3837,86 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // ============= PAYEE FUNCTIONS =============
 
-  const addPayee = (payeeData: Omit<Payee, 'id' | 'totalPaid' | 'createdDate'>) => {
-    const newPayee: Payee = {
-      ...payeeData,
-      id: `PYE${Date.now()}`,
-      totalPaid: 0,
-      createdDate: new Date().toISOString().split('T')[0],
-    };
-    setPayees([...payees, newPayee]);
+  const addPayee = async (payeeData: Omit<Payee, 'id' | 'totalPaid' | 'createdDate'>) => {
+    try {
+      console.log('💰 Creating payee with Supabase-first approach...');
+      console.log('   Payee data:', payeeData);
+      
+      // ✅ 1. WRITE TO SUPABASE FIRST - Map all fields correctly
+      const supabasePayee = await supabaseDataService.payees.create(
+        {
+          payee_name: payeeData.name,
+          payee_type: payeeData.type,
+          phone: payeeData.phone || '',
+          email: payeeData.email || '',
+          address: (payeeData as any).physicalAddress || (payeeData as any).address || '',
+          bank_name: (payeeData as any).bankName || '',
+          account_number: (payeeData as any).accountNumber || '',
+          category: (payeeData as any).category || 'Other'
+        },
+        currentUser?.organizationId || ''
+      );
+      
+      console.log('✅ Payee created in Supabase:', supabasePayee);
+      
+      // ✅ 2. If type is Employee, also save to employees table
+      if (payeeData.type === 'Employee') {
+        console.log('👤 Creating employee record for Employee type payee...');
+        try {
+          // Split name into first_name and last_name
+          const nameParts = payeeData.name.split(' ');
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+          
+          const employeeData = {
+            first_name: firstName,
+            last_name: lastName,
+            phone: payeeData.phone || '',
+            email: payeeData.email || '',
+            bank_name: (payeeData as any).bankName || '',
+            account_number: (payeeData as any).accountNumber || '',
+            // Store additional info in allowances JSONB field
+            allowances: {
+              kra_pin: (payeeData as any).kraPin || '',
+              physical_address: (payeeData as any).physicalAddress || (payeeData as any).address || '',
+              mpesa_number: (payeeData as any).mpesaNumber || '',
+              contact_person: (payeeData as any).contactPerson || '',
+              notes: (payeeData as any).notes || '',
+              payee_id: supabasePayee.id // Link to payee record
+            }
+          };
+          
+          const supabaseEmployee = await supabaseDataService.employees.create(
+            employeeData,
+            currentUser?.organizationId || ''
+          );
+          
+          console.log('✅ Employee record created in Supabase:', supabaseEmployee);
+        } catch (employeeError) {
+          console.error('⚠️ Warning: Failed to create employee record:', employeeError);
+        }
+      }
+      
+      // ✅ 3. UPDATE REACT STATE
+      const newPayee: Payee = {
+        id: supabasePayee.id,
+        name: supabasePayee.payee_name,
+        type: supabasePayee.payee_type,
+        phone: supabasePayee.phone || '',
+        email: supabasePayee.email || '',
+        category: supabasePayee.category || (payeeData as any).category || 'Other',
+        status: supabasePayee.status || 'Active',
+        totalPaid: 0,
+        createdDate: supabasePayee.created_at?.split('T')[0] || new Date().toISOString().split('T')[0]
+      } as Payee;
+      
+      setPayees([...payees, newPayee]);
+      toast.success(payeeData.type === 'Employee' ? 'Employee created successfully!' : 'Payee created successfully!');
+      
+    } catch (error) {
+      console.error('❌ Error creating payee:', error);
+      toast.error('Database not reachable. Check your internet connection.');
+    }
   };
 
   const updatePayee = (id: string, updates: Partial<Payee>) => {
@@ -2341,13 +3933,45 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // ============= PAYROLL FUNCTIONS =============
 
-  const addPayrollRun = (payrollData: Omit<PayrollRun, 'id' | 'createdDate'>) => {
-    const newPayroll: PayrollRun = {
-      ...payrollData,
-      id: `PAY${Date.now()}`,
-      createdDate: new Date().toISOString().split('T')[0],
-    };
-    setPayrollRuns([...payrollRuns, newPayroll]);
+  const addPayrollRun = async (payrollData: Omit<PayrollRun, 'id' | 'createdDate'>) => {
+    try {
+      // ✅ 1. CREATE PAYROLL RUN IN SUPABASE
+      const supabaseRun = await supabaseDataService.payroll.createRun(
+        {
+          payroll_period: payrollData.period,
+          payroll_date: payrollData.payDate,
+          total_gross: payrollData.totalGrossPay,
+          total_deductions: payrollData.totalDeductions,
+          total_net: payrollData.totalNetPay,
+          status: payrollData.status?.toLowerCase() || 'draft'
+        },
+        currentUser?.organizationId || ''
+      );
+      
+      console.log('✅ Payroll run created in Supabase:', supabaseRun);
+      
+      // ✅ 2. UPDATE REACT STATE
+      const newPayroll: PayrollRun = {
+        id: supabaseRun.id,
+        period: supabaseRun.payroll_period,
+        payDate: supabaseRun.payroll_date?.split('T')[0] || payrollData.payDate,
+        employees: payrollData.employees,
+        totalGrossPay: supabaseRun.total_gross,
+        totalDeductions: supabaseRun.total_deductions,
+        totalNetPay: supabaseRun.total_net,
+        status: (supabaseRun.status.charAt(0).toUpperCase() + supabaseRun.status.slice(1)) as any,
+        createdBy: payrollData.createdBy,
+        createdDate: supabaseRun.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        notes: payrollData.notes || ''
+      };
+      
+      setPayrollRuns([...payrollRuns, newPayroll]);
+      
+    } catch (error) {
+      console.error('❌ Error creating payroll run:', error);
+      toast.error('Database not reachable. Check your internet connection.');
+      throw error;
+    }
   };
 
   const updatePayrollRun = (id: string, updates: Partial<PayrollRun>) => {
@@ -2383,7 +4007,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             description: `Payroll Payment: ${payroll.period}`,
             source: 'Payroll Payment',
             paymentMethod: 'Bank Transfer',
-            depositorName: JSON.parse(localStorage.getItem('current_user') || '{}').name || 'System',
+            depositorName: currentUser?.name || 'System',
             transactionType: 'Debit'
           });
         }
@@ -2426,9 +4050,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
           paymentReference: emp.paymentReference || `PAY-${id.slice(-6)}`,
           receiptNumber: '',
           status: 'Paid',
-          paidBy: JSON.parse(localStorage.getItem('current_user') || '{}').name || 'System',
+          paidBy: currentUser?.name || 'System',
           paidDate: paidDate,
-          approvedBy: JSON.parse(localStorage.getItem('current_user') || '{}').name || 'System',
+          approvedBy: currentUser?.name || 'System',
           approvedDate: paidDate,
           createdBy: payroll.createdBy,
           bankAccountId: bankAccountId
@@ -2528,26 +4152,85 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // ============= BANK ACCOUNT FUNCTIONS =============
 
-  const addBankAccount = (accountData: Omit<BankAccount, 'id' | 'balance' | 'createdDate' | 'lastUpdated'>) => {
-    const newAccount: BankAccount = {
-      ...accountData,
-      id: `BANK${Date.now()}`,
-      balance: accountData.openingBalance,
-      createdDate: new Date().toISOString().split('T')[0],
-      lastUpdated: new Date().toISOString().split('T')[0],
-    };
-    setBankAccounts([...bankAccounts, newAccount]);
+  const addBankAccount = async (accountData: Omit<BankAccount, 'id' | 'balance' | 'createdDate' | 'lastUpdated'>) => {
+    try {
+      console.log('🏦 Creating bank account with Supabase-first approach...');
+      console.log('📋 Bank account data:', accountData);
+      
+      // ✅ 1. WRITE TO SUPABASE FIRST - Use only columns that exist
+      const supabaseBankAccount = await supabaseDataService.bankAccounts.create(
+        {
+          account_name: accountData.name, // ✅ Fixed: use accountData.name
+          account_number: accountData.accountNumber,
+          bank_name: accountData.bankName,
+          branch: accountData.branch || '',
+          account_type: accountData.accountType
+          // NOTE: balance, currency, status NOT stored in DB (columns don't exist)
+        },
+        currentUser?.organizationId || ''
+      );
+      
+      console.log('✅ Bank account created in Supabase:', supabaseBankAccount);
+      
+      // ✅ 2. UPDATE REACT STATE (for fast UI)
+      const newAccount: BankAccount = {
+        id: supabaseBankAccount.id,
+        name: supabaseBankAccount.account_name, // ✅ Fixed: set as 'name' not 'accountName'
+        accountNumber: supabaseBankAccount.account_number || '',
+        bankName: supabaseBankAccount.bank_name || '',
+        branch: supabaseBankAccount.branch || '',
+        accountType: supabaseBankAccount.account_type || 'Bank',
+        currency: accountData.currency || getCurrencyCode(),
+        openingBalance: accountData.openingBalance || 0,
+        balance: accountData.openingBalance || 0,
+        openingDate: accountData.openingDate || new Date().toISOString().split('T')[0],
+        status: accountData.status || 'Active',
+        description: accountData.description,
+        createdDate: supabaseBankAccount.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        createdBy: accountData.createdBy || 'System',
+        lastUpdated: supabaseBankAccount.updated_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+      };
+      
+      console.log('🔄 Current bankAccounts count:', bankAccounts.length);
+      setBankAccounts([...bankAccounts, newAccount]);
+      console.log('✅ Bank account added to React state. New count will be:', bankAccounts.length + 1);
+      console.log('⏰ Debounced sync will trigger in 1 second...');
+      
+      toast.success('Bank account created successfully!');
+      
+    } catch (error) {
+      console.error('❌ Error creating bank account:', error);
+      toast.error('Database not reachable. Check your internet connection.');
+    }
   };
 
-  const updateBankAccount = (id: string, updates: Partial<BankAccount>) => {
+  const updateBankAccount = async (id: string, updates: Partial<BankAccount>) => {
+    if (!currentUser?.organizationId) {
+      toast.error('No organization found');
+      return;
+    }
+
     const updatedAccount = {
       ...updates,
       lastUpdated: new Date().toISOString().split('T')[0]
     };
     
+    // Update local state immediately
     setBankAccounts(bankAccounts.map(acc => 
       acc.id === id ? { ...acc, ...updatedAccount } : acc
     ));
+
+    // Save to Supabase
+    try {
+      console.log('💾 Updating bank account in Supabase:', { id, updates: updatedAccount });
+      await supabaseDataService.bankAccounts.update(id, updatedAccount, currentUser.organizationId);
+      console.log('✅ Bank account updated in Supabase');
+    } catch (error) {
+      console.error('❌ Error updating bank account in Supabase:', error);
+      toast.error('Failed to update bank account in database');
+      // Revert local state
+      setBankAccounts(bankAccounts);
+    }
   };
 
   const deleteBankAccount = (id: string) => {
@@ -2560,12 +4243,43 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // ============= FUNDING TRANSACTION FUNCTIONS =============
 
-  const addFundingTransaction = (transactionData: Omit<FundingTransaction, 'id'>) => {
+  const addFundingTransaction = async (transactionData: Omit<FundingTransaction, 'id'>) => {
+    if (!currentUser?.organizationId || !currentUser?.id) {
+      toast.error('No organization found');
+      return;
+    }
+
     const newTransaction: FundingTransaction = {
       ...transactionData,
       id: `FT${Date.now()}`,
     };
+    
+    // Update local state immediately
     setFundingTransactions([...fundingTransactions, newTransaction]);
+
+    // Save to Supabase
+    try {
+      console.log('💾 Saving funding transaction to Supabase:', newTransaction);
+      const savedTransaction = await supabaseDataService.fundingTransactions.create(
+        transactionData,
+        currentUser.organizationId,
+        currentUser.id
+      );
+      console.log('✅ Funding transaction saved to Supabase:', savedTransaction);
+      
+      // Update local state with Supabase ID
+      setFundingTransactions(prev => 
+        prev.map(t => t.id === newTransaction.id 
+          ? { ...t, id: savedTransaction.id } 
+          : t
+        )
+      );
+    } catch (error) {
+      console.error('❌ Error saving funding transaction to Supabase:', error);
+      toast.error('Database not reachable. Check your internet connection.');
+      // Revert local state
+      setFundingTransactions(fundingTransactions);
+    }
   };
 
   const getFundingTransactions = (bankAccountId?: string) => {
@@ -2688,7 +4402,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setApprovals([...approvals, newApproval]);
   };
 
-  const updateApproval = (id: string, updates: Partial<Approval>) => {
+  const updateApproval = async (id: string, updates: Partial<Approval>) => {
+    try {
+      // ✅ Find the approval with Supabase UUID
+      const approval = approvals.find(a => a.id === id);
+      
+      if (approval && approval.supabaseId) {
+        // If we have a Supabase UUID, update in Supabase
+        await supabaseDataService.approvals.update(
+          approval.supabaseId,
+          updates,
+          currentUser?.organizationId || ''
+        );
+        console.log('✅ Approval updated in Supabase');
+      }
+    } catch (error: any) {
+      console.error('❌ Error updating approval in Supabase:', error);
+      // Don't fail the update if Supabase fails
+    }
+    
+    // ✅ Update React state
     setApprovals(approvals.map(a => a.id === id ? { ...a, ...updates } : a));
   };
 
@@ -2700,7 +4433,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return approvals.find(a => a.id === id);
   };
 
-  const approveApproval = (id: string, approver: string, disbursementData?: { releaseDate: string; disbursementMethod: string; sourceOfFunds: string; accountNumber: string; notes?: string }) => {
+  const approveApproval = async (id: string, approver: string, disbursementData?: { releaseDate: string; disbursementMethod: string; sourceOfFunds: string; accountNumber: string; notes?: string }) => {
     const approval = approvals.find(a => a.id === id);
     
     // For phase 1, 2, 3 advance to next phase and keep as pending
@@ -2710,6 +4443,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const nextPhase = currentPhase < 5 ? (currentPhase + 1) as (1 | 2 | 3 | 4 | 5) : 5;
     const newStatus = currentPhase < 4 ? 'pending' : 'approved';
     
+    // ✅ Update approval in Supabase if we have a UUID
+    if (approval && approval.supabaseId) {
+      try {
+        await supabaseDataService.approvals.update(
+          approval.supabaseId,
+          {
+            status: newStatus,
+            approver: currentPhase >= 2 ? approver : undefined,
+            approvalDate: currentPhase >= 2 ? new Date().toISOString().split('T')[0] : undefined,
+            phase: nextPhase,
+            disbursementData: currentPhase === 3 && disbursementData ? disbursementData : approval.disbursementData
+          },
+          currentUser?.organizationId || ''
+        );
+        console.log('✅ Approval advanced in Supabase');
+      } catch (error: any) {
+        console.error('❌ Error updating approval in Supabase:', error);
+      }
+    }
+    
+    // ✅ Update React state
     setApprovals(approvals.map(a => 
       a.id === id ? {
         ...a,
@@ -2793,7 +4547,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               bankAccountId: accountToDebit.id,
               amount: netDisbursementAmount,
               date: savedDisbursementData.releaseDate || new Date().toISOString().split('T')[0],
-              reference: `LOAN-DISB-${approval.relatedId}`,
+              reference: `LOAN-DISB-${approval.relatedId.split('-')[0]}`, // ✅ Shorten UUID to first segment
               description: `Loan Disbursement - ${approval.clientName} (Net: ${netDisbursementAmount.toLocaleString()}, Processing Fee: ${processingFeeAmount.toLocaleString()} retained as revenue)`,
               source: 'Loan Disbursement',
               paymentMethod: savedDisbursementData.disbursementMethod as 'Bank Transfer' | 'M-Pesa' | 'Cash' | 'Cheque',
@@ -2827,7 +4581,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const rejectApproval = (id: string, rejectionReason: string) => {
+  const rejectApproval = async (id: string, rejectionReason: string) => {
+    const approval = approvals.find(a => a.id === id);
+    
+    // ✅ Update approval in Supabase if we have a UUID
+    if (approval && approval.supabaseId) {
+      try {
+        await supabaseDataService.approvals.update(
+          approval.supabaseId,
+          {
+            status: 'rejected',
+            rejectionReason,
+            approvalDate: new Date().toISOString().split('T')[0]
+          },
+          currentUser?.organizationId || ''
+        );
+        console.log('✅ Approval rejected in Supabase');
+      } catch (error: any) {
+        console.error('❌ Error rejecting approval in Supabase:', error);
+      }
+    }
+    
+    // ✅ Update React state
     setApprovals(approvals.map(a => 
       a.id === id ? {
         ...a,
@@ -3229,6 +5004,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     updateShareholder,
     deleteShareholder,
     getShareholder,
+    refreshShareholders,
     
     shareholderTransactions,
     addShareholderTransaction,

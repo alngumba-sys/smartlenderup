@@ -12,7 +12,7 @@ A sophisticated microfinance platform built for the Kenyan market with role-base
 - **Real-time Data Sync**: Single-object sync pattern with Supabase
 
 ### Financial Management
-- **Loan Management**: Complete loan lifecycle management with CL001-style client IDs
+- **Loan Management**: Complete loan lifecycle management with CL00001-style client IDs (5-digit format)
 - **Payment Processing**: Track payments, collections, and reconciliation
 - **Payroll System**: Comprehensive employee payroll management
 - **Journal Entries**: Double-entry bookkeeping system
@@ -144,8 +144,8 @@ Click the SmartLenderUp logo **5 times** on the login page to access the Super A
 ## 📊 Data Structure
 
 ### Client ID Format
-- Format: `CL###` (e.g., CL001, CL002)
-- Maximum: 5 alphanumeric characters
+- Format: `CL#####` (e.g., CL00001, CL00002)
+- 5-digit alphanumeric format
 - Auto-generated and unique
 
 ### Currency Support

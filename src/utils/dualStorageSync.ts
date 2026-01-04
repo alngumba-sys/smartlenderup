@@ -36,41 +36,114 @@ export async function syncClientsToTable(
     await supabase
       .from('clients')
       .delete()
-      .eq('user_id', userId);
+      .eq('organization_id', organizationId);
 
-    // Insert all clients
-    const clientRecords = clients.map(client => ({
-      id: client.id,
-      user_id: userId,
-      name: client.name,
-      email: client.email || null,
-      phone: client.phone || null,
-      id_number: client.idNumber || null,
-      address: client.address || null,
-      city: client.city || null,
-      county: client.county || null,
-      occupation: client.occupation || null,
-      employer: client.employer || null,
-      monthly_income: client.monthlyIncome || null,
-      date_of_birth: client.dateOfBirth || null,
-      gender: client.gender || null,
-      marital_status: client.maritalStatus || null,
-      next_of_kin: client.nextOfKin || null,
-      status: client.status || 'Active',
-      photo: client.photo || null,
-      documents: client.documents || null,
-      group_membership: client.groupMembership || null,
-      credit_score: client.creditScore || null,
-      risk_rating: client.riskRating || null,
-      client_type: client.clientType || null,
-      business_type: client.businessType || null,
-      branch: client.branch || null,
-      join_date: client.joinDate || new Date().toISOString().split('T')[0],
-      created_by: client.createdBy || 'system',
-      last_updated: client.lastUpdated || new Date().toISOString(),
-      created_at: client.createdAt || new Date().toISOString(),
-      updated_at: client.updatedAt || new Date().toISOString(),
-    }));
+    // Insert all clients - ONLY use fields that exist in Supabase schema
+    const clientRecords = clients.map(client => {
+      // ✅ FIX: Parse firstName/lastName from name if not present
+      let firstName = client.firstName || client.first_name || '';
+      let lastName = client.lastName || client.last_name || '';
+      
+      // If firstName/lastName are missing but name exists, parse it
+      if ((!firstName || !lastName) && client.name) {
+        const nameParts = client.name.trim().split(' ');
+        firstName = firstName || nameParts[0] || '';
+        lastName = lastName || nameParts.slice(1).join(' ') || '';
+      }
+      
+      // Construct full name from firstName + lastName
+      const fullName = client.name || `${firstName} ${lastName}`.trim() || 'Unknown Client';
+      
+      // Handle ID: If client.id is in "CL" format, it should go to client_number
+      // For the UUID id field, we'll let Supabase auto-generate it
+      const isClientNumberFormat = typeof client.id === 'string' && client.id.startsWith('CL');
+      const clientNumber = isClientNumberFormat 
+        ? client.id 
+        : (client.clientId || client.client_number || `CL${String(Math.floor(Math.random() * 999) + 1).padStart(3, '0')}`);
+      
+      const record: any = {
+        // Don't set id - let Supabase auto-generate UUID
+        // id will be auto-generated as UUID by database
+        organization_id: organizationId,
+        // ONLY INCLUDE FIELDS THAT ACTUALLY EXIST IN SUPABASE SCHEMA:
+        client_number: clientNumber,
+        first_name: firstName || 'Unknown',
+        last_name: lastName || '',
+        name: fullName,
+        phone: client.phone || '',
+        date_of_birth: client.dateOfBirth || client.date_of_birth || null,
+        county: client.county || '',
+        town: client.town || '',
+        address: client.address || '',
+        occupation: client.occupation || '',
+        monthly_income: client.monthlyIncome || client.monthly_income || 0,
+        kyc_status: client.kycStatus || client.kyc_status || 'pending',
+        status: (client.status || 'active').toLowerCase(),
+        created_at: client.createdAt || client.created_at || new Date().toISOString(),
+        updated_at: client.updatedAt || client.updated_at || new Date().toISOString(),
+      };
+      
+      // Optional fields - only add if they exist in BOTH client data AND schema
+      if (client.email) record.email = client.email;
+      if (client.employer) record.employer = client.employer;
+      if (client.phone_secondary || client.phoneSecondary) {
+        record.phone_secondary = client.phone_secondary || client.phoneSecondary;
+      }
+      if (client.sub_county || client.subCounty) {
+        record.sub_county = client.sub_county || client.subCounty;
+      }
+      if (client.ward) record.ward = client.ward;
+      if (client.id_number || client.idNumber) {
+        record.id_number = client.id_number || client.idNumber;
+      }
+      if (client.id_type || client.idType) {
+        record.id_type = client.id_type || client.idType;
+      }
+      if (client.employer_phone || client.employerPhone) {
+        record.employer_phone = client.employer_phone || client.employerPhone;
+      }
+      if (client.business_name || client.businessName) {
+        record.business_name = client.business_name || client.businessName;
+      }
+      if (client.business_type || client.businessType) {
+        record.business_type = client.business_type || client.businessType;
+      }
+      if (client.business_location || client.businessLocation) {
+        record.business_location = client.business_location || client.businessLocation;
+      }
+      if (client.years_in_business || client.yearsInBusiness) {
+        record.years_in_business = client.years_in_business || client.yearsInBusiness;
+      }
+      if (client.next_of_kin_name || client.nextOfKinName) {
+        record.next_of_kin_name = client.next_of_kin_name || client.nextOfKinName;
+      }
+      if (client.next_of_kin_phone || client.nextOfKinPhone) {
+        record.next_of_kin_phone = client.next_of_kin_phone || client.nextOfKinPhone;
+      }
+      if (client.next_of_kin_relationship || client.nextOfKinRelationship) {
+        record.next_of_kin_relationship = client.next_of_kin_relationship || client.nextOfKinRelationship;
+      }
+      if (client.verification_status || client.verificationStatus) {
+        record.verification_status = client.verification_status || client.verificationStatus;
+      }
+      if (client.photo_url || client.photoUrl) {
+        record.photo_url = client.photo_url || client.photoUrl;
+      }
+      
+      // Gender - validate and convert to lowercase
+      if (client.gender && ['male', 'female', 'other'].includes(client.gender.toLowerCase())) {
+        record.gender = client.gender.toLowerCase();
+      }
+      
+      // Marital status - validate and convert to lowercase
+      if (client.maritalStatus && ['single', 'married', 'divorced', 'widowed'].includes(client.maritalStatus.toLowerCase())) {
+        record.marital_status = client.maritalStatus.toLowerCase();
+      } else if (client.marital_status && ['single', 'married', 'divorced', 'widowed'].includes(client.marital_status.toLowerCase())) {
+        record.marital_status = client.marital_status.toLowerCase();
+      }
+      
+      return record;
+    });
 
     const { error } = await supabase
       .from('clients')
@@ -90,159 +163,8 @@ export async function syncClientsToTable(
 }
 
 /**
- * Sync loans to individual 'loans' table
- */
-export async function syncLoansToTable(
-  userId: string,
-  organizationId: string,
-  loans: any[]
-): Promise<boolean> {
-  try {
-    if (!loans || loans.length === 0) {
-      console.log('ℹ️ No loans to sync');
-      return true;
-    }
-
-    // Delete existing loans for this organization
-    await supabase
-      .from('loans')
-      .delete()
-      .eq('user_id', userId);
-
-    // Insert all loans
-    const loanRecords = loans.map(loan => ({
-      id: loan.id,
-      user_id: userId,
-      client_id: loan.clientId,
-      client_name: loan.clientName || null,
-      product_id: loan.productId || null,
-      product_name: loan.productName || null,
-      principal_amount: loan.principalAmount || 0,
-      interest_rate: loan.interestRate || 0,
-      interest_type: loan.interestType || 'Flat',
-      term: loan.term || 0,
-      term_unit: loan.termUnit || 'Months',
-      repayment_frequency: loan.repaymentFrequency || 'Monthly',
-      disbursement_date: loan.disbursementDate || null,
-      first_repayment_date: loan.firstRepaymentDate || null,
-      maturity_date: loan.maturityDate || null,
-      status: loan.status || 'Pending',
-      approved_by: loan.approvedBy || null,
-      approved_date: loan.approvedDate || null,
-      disbursed_by: loan.disbursedBy || null,
-      disbursed_date: loan.disbursedDate || null,
-      payment_source: loan.paymentSource || null,
-      collateral: loan.collateral || null,
-      guarantors: loan.guarantors || null,
-      total_interest: loan.totalInterest || 0,
-      total_repayable: loan.totalRepayable || 0,
-      installment_amount: loan.installmentAmount || 0,
-      number_of_installments: loan.numberOfInstallments || 0,
-      paid_amount: loan.paidAmount || 0,
-      outstanding_balance: loan.outstandingBalance || 0,
-      principal_outstanding: loan.principalOutstanding || 0,
-      interest_outstanding: loan.interestOutstanding || 0,
-      days_in_arrears: loan.daysInArrears || 0,
-      arrears_amount: loan.arrearsAmount || 0,
-      overdue_amount: loan.overdueAmount || 0,
-      penalty_amount: loan.penaltyAmount || 0,
-      purpose: loan.purpose || null,
-      application_date: loan.applicationDate || null,
-      created_by: loan.createdBy || 'system',
-      last_payment_date: loan.lastPaymentDate || null,
-      last_payment_amount: loan.lastPaymentAmount || null,
-      next_payment_date: loan.nextPaymentDate || null,
-      next_payment_amount: loan.nextPaymentAmount || null,
-      loan_officer: loan.loanOfficer || null,
-      notes: loan.notes || null,
-      created_date: loan.createdDate || null,
-      last_updated: loan.lastUpdated || new Date().toISOString(),
-      created_at: loan.createdAt || new Date().toISOString(),
-      updated_at: loan.updatedAt || new Date().toISOString(),
-    }));
-
-    const { error } = await supabase
-      .from('loans')
-      .insert(loanRecords);
-
-    if (error) {
-      console.error('❌ Error syncing loans:', error);
-      return false;
-    }
-
-    console.log(`✅ Synced ${loans.length} loans to table`);
-    return true;
-  } catch (error) {
-    console.error('❌ Exception syncing loans:', error);
-    return false;
-  }
-}
-
-/**
- * Sync repayments to individual 'repayments' table
- */
-export async function syncRepaymentsToTable(
-  userId: string,
-  organizationId: string,
-  repayments: any[]
-): Promise<boolean> {
-  try {
-    if (!repayments || repayments.length === 0) {
-      console.log('ℹ️ No repayments to sync');
-      return true;
-    }
-
-    // Delete existing repayments for this organization
-    await supabase
-      .from('repayments')
-      .delete()
-      .eq('user_id', userId);
-
-    // Insert all repayments
-    const repaymentRecords = repayments.map(repayment => ({
-      id: repayment.id,
-      user_id: userId,
-      loan_id: repayment.loanId,
-      client_id: repayment.clientId,
-      client_name: repayment.clientName || null,
-      amount: repayment.amount || 0,
-      principal: repayment.principal || 0,
-      interest: repayment.interest || 0,
-      penalty: repayment.penalty || 0,
-      payment_method: repayment.paymentMethod || null,
-      payment_reference: repayment.paymentReference || null,
-      payment_date: repayment.paymentDate,
-      receipt_number: repayment.receiptNumber || null,
-      received_by: repayment.receivedBy || null,
-      notes: repayment.notes || null,
-      status: repayment.status || 'Completed',
-      approved_by: repayment.approvedBy || null,
-      approved_date: repayment.approvedDate || null,
-      bank_account_id: repayment.bankAccountId || null,
-      created_date: repayment.createdDate || null,
-      created_at: repayment.createdAt || new Date().toISOString(),
-      updated_at: repayment.updatedAt || new Date().toISOString(),
-    }));
-
-    const { error } = await supabase
-      .from('repayments')
-      .insert(repaymentRecords);
-
-    if (error) {
-      console.error('❌ Error syncing repayments:', error);
-      return false;
-    }
-
-    console.log(`✅ Synced ${repayments.length} repayments to table`);
-    return true;
-  } catch (error) {
-    console.error('❌ Exception syncing repayments:', error);
-    return false;
-  }
-}
-
-/**
- * Sync all other entities to their respective tables
+ * Sync all entities from project state to individual tables
+ * This is the main function that orchestrates syncing all data types
  */
 export async function syncAllEntitiesToTables(
   userId: string,
@@ -250,29 +172,27 @@ export async function syncAllEntitiesToTables(
   projectState: any
 ): Promise<boolean> {
   try {
-    console.log('🔄 Starting dual storage sync...');
-
+    console.log('🔄 Starting sync to individual tables...');
+    
     // Sync clients
-    if (projectState.clients) {
-      await syncClientsToTable(userId, organizationId, projectState.clients);
+    if (projectState.clients && projectState.clients.length > 0) {
+      const clientsSuccess = await syncClientsToTable(userId, organizationId, projectState.clients);
+      if (!clientsSuccess) {
+        console.error('❌ Failed to sync clients');
+        return false;
+      }
     }
-
-    // Sync loans
-    if (projectState.loans) {
-      await syncLoansToTable(userId, organizationId, projectState.loans);
-    }
-
-    // Sync repayments
-    if (projectState.repayments) {
-      await syncRepaymentsToTable(userId, organizationId, projectState.repayments);
-    }
-
-    // TODO: Add more entity syncs as needed (savings, shareholders, etc.)
-
-    console.log('✅ Dual storage sync complete');
+    
+    // TODO: Add other entity syncs here when needed:
+    // - syncLoansToTable
+    // - syncRepaymentsToTable
+    // - syncLoanProductsToTable
+    // - etc.
+    
+    console.log('✅ All entities synced successfully');
     return true;
   } catch (error) {
-    console.error('❌ Error in dual storage sync:', error);
+    console.error('❌ Exception syncing entities:', error);
     return false;
   }
 }

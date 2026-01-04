@@ -5,12 +5,12 @@ export function getOrganizationName(): string {
     const orgData = localStorage.getItem('current_organization');
     if (orgData) {
       const org = JSON.parse(orgData);
-      return org.organization_name || 'SmartLenderUp';
+      return org.organization_name || 'BV Funguo Ltd';
     }
   } catch (error) {
     console.error('Error retrieving organization name:', error);
   }
-  return 'SmartLenderUp';
+  return 'BV Funguo Ltd';
 }
 
 export function getOrganizationId(): string {
@@ -31,12 +31,12 @@ export function getOrganizationEmail(): string {
     const orgData = localStorage.getItem('current_organization');
     if (orgData) {
       const org = JSON.parse(orgData);
-      return org.email || 'info@smartlenderup.com';
+      return org.email || 'victormuthama@gmail.com';
     }
   } catch (error) {
     console.error('Error retrieving organization email:', error);
   }
-  return 'info@smartlenderup.com';
+  return 'victormuthama@gmail.com';
 }
 
 export function getOrganizationCountry(): string {

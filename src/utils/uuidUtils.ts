@@ -124,3 +124,38 @@ export class IDMapper {
  * Singleton ID mapper for global use
  */
 export const globalIDMapper = new IDMapper();
+
+/**
+ * Shortens a UUID to its first segment (8 characters)
+ * Example: "ef42fe9c-5032-4b41-a7a8-0415ea7179e7" becomes "ef42fe9c"
+ * @param uuid - The UUID to shorten
+ * @returns The first 8 characters of the UUID, or the original string if not a valid UUID
+ */
+export const shortenUUID = (uuid: string | undefined | null): string => {
+  if (!uuid) return '';
+  
+  // If it's a valid UUID, return just the first segment (before the first hyphen)
+  if (isValidUUID(uuid)) {
+    return uuid.split('-')[0];
+  }
+  
+  // If not a UUID, return as-is
+  return uuid;
+};
+
+/**
+ * Shortens a reference string that might contain a UUID
+ * Example: "Loan Disbursement - ef42fe9c-5032-4b41-a7a8-0415ea7179e7" 
+ * becomes "Loan Disbursement - ef42fe9c"
+ * @param reference - The reference string to process
+ * @returns The reference with any UUIDs shortened
+ */
+export const shortenReferenceUUID = (reference: string | undefined | null): string => {
+  if (!reference) return '';
+  
+  // Match UUID pattern in the string
+  const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+  
+  // Replace any UUIDs with their shortened version
+  return reference.replace(uuidPattern, (match) => shortenUUID(match));
+};

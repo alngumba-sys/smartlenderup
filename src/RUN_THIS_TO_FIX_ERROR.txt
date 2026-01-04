@@ -1,0 +1,39 @@
+===============================================================
+COPY EVERYTHING BELOW THIS LINE AND RUN IN SUPABASE SQL EDITOR
+===============================================================
+
+UPDATE loans
+SET product_id = '11794d71-e44c-4b16-8c84-1b06b54d0938'
+WHERE product_id = 'PROD-723555';
+
+UPDATE loans
+SET product_id = '11794d71-e44c-4b16-8c84-1b06b54d0938'
+WHERE product_id = '' OR product_id IS NULL;
+
+===============================================================
+STOP COPYING HERE - DON'T COPY THIS LINE
+===============================================================
+
+HOW TO USE:
+1. Select and copy the 2 UPDATE commands above (between the lines)
+2. Go to Supabase Dashboard → SQL Editor → New query
+3. Paste the SQL
+4. Click "Run" 
+5. Wait for "Success" message
+6. Refresh your SmartLenderUp app (Ctrl+Shift+R)
+7. Check console - error should be gone!
+
+WHAT THIS DOES:
+- Changes all loans with "PROD-723555" to "11794d71-e44c-4b16-8c84-1b06b54d0938"
+- Fixes all loans with empty product_id
+- Takes less than 1 second
+
+EXPECTED RESULT IN SUPABASE:
+✅ "Success. Rows affected: X" (where X = number of loans updated)
+
+EXPECTED RESULT IN YOUR APP:
+✅ No more "PRODUCT ID MISMATCH" warning
+✅ Portfolio by Product chart shows data
+✅ Loan Products show accurate statistics
+
+===============================================================

@@ -8,16 +8,20 @@ import { NavigationProvider } from './contexts/NavigationContext';
 import { InternalStaffPortal } from './components/InternalStaffPortal';
 import { ClientPortal } from './components/ClientPortal';
 import { LoginPage } from './components/LoginPage';
+import { RegisterPage } from './pages/Register';
 import { MotherCompanyHome } from './components/MotherCompanyHome';
 import { ThemeToggle } from './components/ThemeToggle';
 import { PaymentCalendar } from './components/PaymentCalendar';
 import { SupabaseSyncStatus } from './components/SupabaseSyncStatus';
 import { MainNavigation } from './components/MainNavigation';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { DatabaseSetupNotice } from './components/DatabaseSetupNotice';
+import { DatabaseErrorOverlay } from './components/DatabaseErrorOverlay';
 const abcLogo = '/logo.svg'; // Replaced figma:asset for deployment
 import './utils/clearLocalStorage'; // Import to register window.clearAppData function
 import './utils/resetDatabase'; // Import to register window.resetDatabase function
-import './utils/populateSampleData'; // Import to register window.populateSampleData function
+// DISABLED: Sample data - use Supabase only
+// import './utils/populateSampleData'; 
 // import './utils/clearDummyData'; // One-time clear of all dummy data - DISABLED to prevent reload loops
 import './utils/clearShareholdersAndBanks'; // Import to register window.clearShareholdersAndBanks function
 import './utils/migrateToSupabase'; // Import to register window.migrateToSupabase function
@@ -26,18 +30,28 @@ import './utils/debugOrganizations'; // Import to register window.debugOrgs func
 import './utils/clearAllFrontendData'; // Import to register window.clearAllFrontendData function
 import './utils/syncExistingDataToSupabase'; // Import to register window.syncExistingDataToSupabase function
 import './utils/fixLocalStorage'; // Import to register window.fixLocalStorage function
+import './utils/fixBankAccountOrgIds'; // Import to register window.fixBankAccountOrgIds function
 import './utils/updateOrganizationPassword'; // Import to register window.updateOrgPassword function
+import './utils/syncProjectStatesToTables'; // Import to register window.migrateToIndividualTables function
 import './utils/addTrialColumns'; // Import to register window.addTrialColumns function
+import './utils/checkSupabaseColumns'; // Import to register window.checkSupabaseColumns function
 import './utils/showTrialMigrationHelp'; // Import to show trial setup help
 import './utils/completeDataReset'; // Import to register window.completeDataReset function
+import './utils/superAdminDataFix'; // Import to register Super Admin data sync utilities
+import './utils/supabaseValidator'; // Import Supabase connection validator
+import './utils/databaseSetupHelper'; // Auto-check database setup on load
+import './utils/showDatabaseFixHelp'; // Show database fix help
+import './utils/showBigWarning'; // Show big warning in console
 // import './utils/clearCurrentShareholders'; // Auto-clear current shareholders - DISABLED to preserve data
 import { getOrganizationName, getCountryDemonym, getOrganizationLogo } from './utils/organizationUtils';
 import { runComprehensiveCleanup } from './utils/databaseCleanup';
 import { getStorageUsage, cleanupAllAutoBackups } from './utils/dataBackup';
+import { BV_FUNGUO_LOGO } from './assets/BVFunguoLogo';
 
 function AppContent() {
   const { currentUser, isAuthenticated, isLoading, logout, login } = useAuth();
-  const [currentPlatform, setCurrentPlatform] = useState<string | null>('smartlenderup');
+  const [currentPlatform, setCurrentPlatform] = useState<string | null>('smartlenderup'); // Start directly with SmartLenderUp
+  const [currentRoute, setCurrentRoute] = useState<string>(window.location.pathname);
   const [portalView, setPortalView] = useState<'staff' | 'client'>('staff');
   const [selectedClientId, setSelectedClientId] = useState('CL001'); // Default client ID
   const [openHeaderDropdown, setOpenHeaderDropdown] = useState<string | null>(null);
@@ -49,7 +63,36 @@ function AppContent() {
   
   const organizationName = getOrganizationName();
   const countryDemonym = getCountryDemonym();
-  const organizationLogo = getOrganizationLogo();
+  const organizationLogo = getOrganizationLogo() || BV_FUNGUO_LOGO;
+
+  // Listen to URL changes
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentRoute(window.location.pathname);
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Navigation helper
+  const navigateTo = (path: string) => {
+    window.history.pushState({}, '', path);
+    setCurrentRoute(path);
+  };
+
+  const handleRegisterSuccess = () => {
+    // Navigate to login page after successful registration
+    navigateTo('/login');
+  };
+
+  const handleBackToLogin = () => {
+    navigateTo('/login');
+  };
+
+  const handleGoToRegister = () => {
+    navigateTo('/register');
+  };
 
   // Debug logging
   useEffect(() => {
@@ -155,6 +198,7 @@ function AppContent() {
     console.log('💡 Manual cleanup: window.cleanupDatabase()');
     console.log('💡 Check storage: window.checkStorage()');
     console.log('💡 Clean backups: window.cleanupBackups()');
+    console.log('💡 Go to register: window.location.href = \"/register\"');
   }, []);
 
   const handleLogin = (userType: 'admin' | 'employee', userData: any) => {
@@ -181,12 +225,28 @@ function AppContent() {
     console.log('Clicked item:', itemText);
   };
 
+  // Show landing page if no platform selected
+  if (!currentPlatform) {
+    return <MotherCompanyHome onSelectPlatform={setCurrentPlatform} />;
+  }
+
+  // Show register page if route is /register
+  if (currentRoute === '/register' && !isAuthenticated) {
+    return (
+      <RegisterPage 
+        onSuccess={handleRegisterSuccess}
+        onBackToLogin={handleBackToLogin}
+      />
+    );
+  }
+
   // Show login page if not authenticated
   if (!isAuthenticated) {
     return (
       <LoginPage 
         onLogin={handleLogin}
         onBack={() => setCurrentPlatform(null)}
+        onGoToRegister={handleGoToRegister}
         platformName={currentPlatform === 'smartlenderup' ? 'SmartLenderUp' : currentPlatform === 'scissorup' ? 'ScissorUp' : 'SalesUp'}
       />
     );
@@ -213,7 +273,7 @@ function AppContent() {
               <img 
                 src={organizationLogo} 
                 alt={organizationName} 
-                className="h-10 sm:h-14 w-auto object-contain flex-shrink-0" 
+                className="h-6 sm:h-8 w-auto object-contain flex-shrink-0" 
               />
             )}
             <div className="min-w-0 flex-1">
@@ -566,6 +626,8 @@ export default function App() {
             <NavigationProvider>
               <AppContent />
               <Toaster position="top-right" theme="dark" richColors />
+              <DatabaseSetupNotice />
+              <DatabaseErrorOverlay />
             </NavigationProvider>
           </DataProvider>
         </AuthProvider>
