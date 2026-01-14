@@ -118,17 +118,29 @@ export function LoanDetailsModal({ loanId, onClose }: LoanDetailsModalProps) {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Active': return 'bg-emerald-100 text-emerald-800';
-      case 'In Arrears': return 'bg-red-100 text-red-800';
-      case 'Fully Paid': return 'bg-blue-100 text-blue-800';
-      case 'Written Off': return 'bg-pink-100 text-pink-800';
-      case 'Pending': return 'bg-slate-100 text-slate-800';
-      case 'Closed': return 'bg-purple-100 text-purple-800';
-      case 'Approved': return 'bg-cyan-100 text-cyan-800';
-      case 'Disbursed': return 'bg-emerald-100 text-emerald-800';
-      case 'Rejected': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+    // Normalize status for comparison
+    const normalizedStatus = status.toLowerCase().trim();
+    
+    if (normalizedStatus === 'active') {
+      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400';
+    } else if (normalizedStatus === 'in arrears') {
+      return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+    } else if (normalizedStatus === 'fully paid') {
+      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+    } else if (normalizedStatus === 'written off') {
+      return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+    } else if (normalizedStatus === 'pending') {
+      return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200';
+    } else if (normalizedStatus === 'closed') {
+      return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
+    } else if (normalizedStatus === 'approved') {
+      return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400';
+    } else if (normalizedStatus === 'disbursed') {
+      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400';
+    } else if (normalizedStatus === 'rejected') {
+      return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+    } else {
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
   };
 

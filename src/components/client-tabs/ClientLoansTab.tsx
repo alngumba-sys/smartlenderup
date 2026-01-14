@@ -137,8 +137,10 @@ export function ClientLoansTab({ clientId }: ClientLoansTabProps) {
                 <p className="text-gray-600 text-sm">Account: {selectedLoan.id}</p>
               </div>
               <div className={`px-3 py-1 rounded ${
-                selectedLoan.status === 'Active' ? 'bg-emerald-100 text-emerald-800' :
-                selectedLoan.status === 'In Arrears' ? 'bg-red-100 text-red-800' :
+                selectedLoan.status.toLowerCase().trim() === 'active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                selectedLoan.status.toLowerCase().trim() === 'in arrears' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
+                selectedLoan.status.toLowerCase().trim() === 'fully paid' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                selectedLoan.status.toLowerCase().trim() === 'pending' ? 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200' :
                 'bg-blue-100 text-blue-800'
               }`}>
                 {selectedLoan.status}

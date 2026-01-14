@@ -1195,8 +1195,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
             balance: account.balance ?? 0,
             openingBalance: account.openingBalance ?? 0,
             currency: account.currency || getCurrencyCode(),
-            createdDate: account.createdDate || new Date().toISOString().split('T')[0],
-            lastUpdated: account.lastUpdated || new Date().toISOString().split('T')[0],
+            createdDate: account.createdDate || new Date().toISOString(),
+            lastUpdated: account.lastUpdated || new Date().toISOString(),
           }));
           
           console.log('✅ Normalized bank accounts:', normalizedBankAccounts.length);
@@ -1334,11 +1334,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 currency: b.currency || 'KES',
                 openingBalance: b.opening_balance || b.balance || 0,
                 balance: b.balance || b.current_balance || 0,
-                openingDate: b.opening_date?.split('T')[0] || b.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+                openingDate: b.opening_date || b.created_at || new Date().toISOString(),
                 status: b.status || 'Active',
-                createdDate: b.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+                createdDate: b.created_at || new Date().toISOString(),
                 createdBy: b.created_by || 'System',
-                lastUpdated: b.updated_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+                lastUpdated: b.updated_at || new Date().toISOString(),
               }));
               
               console.log('   Mapped accounts:', mappedBankAccounts);
@@ -1346,6 +1346,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               console.log('   Setting bank accounts state...');
               setBankAccounts(mappedBankAccounts);
               console.log('   ✅ State updated!');
+              console.log('   ⚠️ Note: Balance will be recalculated after loading transactions and loans');
             } else {
               console.log('ℹ️ No bank accounts found in individual table');
               setBankAccounts([]);
@@ -1431,7 +1432,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 id: ft.id,
                 bankAccountId: ft.bank_account_id,
                 amount: ft.amount,
-                date: ft.date?.split('T')[0] || new Date().toISOString().split('T')[0],
+                date: ft.date || new Date().toISOString(),
                 reference: ft.reference || '',
                 description: ft.description || '',
                 source: ft.source || 'External Deposit',
@@ -1958,33 +1959,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // ✅ SINGLE-OBJECT SYNC PATTERN - ALL data synced automatically
   // Debounced auto-sync handles ALL updates in ONE API call (1 second after last change)
 
-  // Create initial funding transactions for bank accounts with opening balances
-  useEffect(() => {
-    // Only run once when bankAccounts and fundingTransactions are both loaded
-    if (bankAccounts.length > 0 && fundingTransactions.length === 0) {
-      const initialTransactions: FundingTransaction[] = [];
-      
-      bankAccounts.forEach(account => {
-        if (account.openingBalance > 0) {
-          initialTransactions.push({
-            id: `FT-OPENING-${account.id}`,
-            bankAccountId: account.id,
-            amount: account.openingBalance,
-            date: account.openingDate,
-            reference: `OB-${account.id.slice(-6)}`,
-            description: `Opening Balance - ${account.name}`,
-            source: 'Opening Balance',
-            transactionType: 'Credit',
-            paymentMethod: 'Bank Transfer'
-          });
-        }
-      });
-      
-      if (initialTransactions.length > 0) {
-        setFundingTransactions(initialTransactions);
-      }
-    }
-  }, [bankAccounts, fundingTransactions.length]);
+  // ❌ REMOVED: Don't auto-create funding transactions for opening balances
+  // Opening balances are handled separately as "Opening Balance" type, not "Funding"
+  // This prevents double-counting of opening balances in bank statements
 
   // Create journal entries for opening balances
   useEffect(() => {
@@ -2011,6 +1988,62 @@ export function DataProvider({ children }: { children: ReactNode }) {
       });
     }
   }, [bankAccounts.length]);
+
+  // ✅ Recalculate bank account balances on load based on transactions
+  useEffect(() => {
+    // Only run once all data is loaded
+    if (bankAccounts.length > 0 && currentUser?.organizationId) {
+      console.log('💰 Recalculating bank account balances from transactions...');
+      
+      let hasChanges = false;
+      const updatedAccounts = bankAccounts.map(account => {
+        // Calculate total credits (funding transactions)
+        const totalCredits = fundingTransactions
+          .filter(t => t.bankAccountId === account.id && t.transactionType === 'Credit')
+          .reduce((sum, t) => sum + t.amount, 0);
+
+        // Calculate total debits (loan disbursements)
+        const totalDebits = loans
+          .filter(l => 
+            l.bankAccountId === account.id && 
+            l.approvalStatus === 'Approved' && 
+            l.loanStatus !== 'Pending' && 
+            l.disbursementDate
+          )
+          .reduce((sum, l) => sum + (l.approvedAmount || l.requestedAmount), 0);
+
+        // Calculate correct balance
+        const correctBalance = (account.openingBalance || 0) + totalCredits - totalDebits;
+
+        // Update if balance is different
+        if (Math.abs(account.balance - correctBalance) > 0.01) {
+          console.log(`   ⚠️ Balance mismatch for ${account.name}:`);
+          console.log(`      Stored: ${account.balance}`);
+          console.log(`      Calculated: ${correctBalance}`);
+          console.log(`      Opening: ${account.openingBalance}, Credits: ${totalCredits}, Debits: ${totalDebits}`);
+          hasChanges = true;
+          
+          // Update in Supabase
+          supabaseDataService.bankAccounts.update(
+            account.id,
+            { balance: correctBalance },
+            currentUser.organizationId
+          ).catch(err => console.error('Error updating balance:', err));
+          
+          return { ...account, balance: correctBalance };
+        }
+        
+        return account;
+      });
+
+      if (hasChanges) {
+        console.log('   ✅ Bank balances recalculated and updated');
+        setBankAccounts(updatedAccounts);
+      } else {
+        console.log('   ✓ All bank balances are correct');
+      }
+    }
+  }, [bankAccounts.length, fundingTransactions.length, loans.length, currentUser?.organizationId]);
 
   // Create processing fee records for existing active loans that don't have them
   useEffect(() => {
@@ -4157,15 +4190,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
       console.log('🏦 Creating bank account with Supabase-first approach...');
       console.log('📋 Bank account data:', accountData);
       
-      // ✅ 1. WRITE TO SUPABASE FIRST - Use only columns that exist
+      // ✅ 1. WRITE TO SUPABASE FIRST - Only include columns that exist
       const supabaseBankAccount = await supabaseDataService.bankAccounts.create(
         {
           account_name: accountData.name, // ✅ Fixed: use accountData.name
           account_number: accountData.accountNumber,
           bank_name: accountData.bankName,
           branch: accountData.branch || '',
-          account_type: accountData.accountType
-          // NOTE: balance, currency, status NOT stored in DB (columns don't exist)
+          account_type: accountData.accountType,
+          opening_balance: accountData.openingBalance || 0,
+          balance: accountData.openingBalance || 0
+          // Note: currency, status, opening_date, description, created_by not stored (columns don't exist)
         },
         currentUser?.organizationId || ''
       );
@@ -4183,12 +4218,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         currency: accountData.currency || getCurrencyCode(),
         openingBalance: accountData.openingBalance || 0,
         balance: accountData.openingBalance || 0,
-        openingDate: accountData.openingDate || new Date().toISOString().split('T')[0],
+        openingDate: accountData.openingDate || new Date().toISOString(),
         status: accountData.status || 'Active',
         description: accountData.description,
-        createdDate: supabaseBankAccount.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        createdDate: supabaseBankAccount.created_at || new Date().toISOString(),
         createdBy: accountData.createdBy || 'System',
-        lastUpdated: supabaseBankAccount.updated_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        lastUpdated: supabaseBankAccount.updated_at || new Date().toISOString(),
       };
       
       console.log('🔄 Current bankAccounts count:', bankAccounts.length);

@@ -33,8 +33,8 @@ export function ClientProfileTab({ clientId }: ClientProfileTabProps) {
               <h3 className="text-gray-900">{client.name}</h3>
               <p className="text-gray-600">Client ID: {client.id}</p>
               <span className={`inline-block px-2 py-1 rounded text-xs mt-1 ${
-                client.status === 'Good Standing' ? 'bg-emerald-100 text-emerald-800' :
-                client.status === 'In Arrears' ? 'bg-red-100 text-red-800' :
+                client.status.toLowerCase().trim() === 'good standing' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                client.status.toLowerCase().trim() === 'in arrears' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
                 'bg-blue-100 text-blue-800'
               }`}>
                 {client.status}

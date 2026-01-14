@@ -54,8 +54,9 @@ export function ClientHomeTab({ clientId }: ClientHomeTabProps) {
   };
 
   const getStatusColor = () => {
-    if (client.status === 'Good Standing') return 'bg-emerald-50 border-emerald-200 text-emerald-800';
-    if (client.status === 'In Arrears') return 'bg-red-50 border-red-200 text-red-800';
+    const normalizedStatus = client.status.toLowerCase().trim();
+    if (normalizedStatus === 'good standing') return 'bg-emerald-50 border-emerald-200 text-emerald-800';
+    if (normalizedStatus === 'in arrears') return 'bg-orange-50 border-orange-200 text-orange-800';
     return 'bg-blue-50 border-blue-200 text-blue-800';
   };
 

@@ -36,7 +36,7 @@ export function FundAccountModal({ onClose, onSubmit }: FundAccountModalProps) {
   const [formData, setFormData] = useState<FundAccountData>({
     bankAccountId: bankAccounts.find(acc => acc.status === 'Active')?.id || '',
     amount: 0,
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toISOString(),
     reference: '',
     description: '',
     source: 'External Deposit',
@@ -449,8 +449,15 @@ export function FundAccountModal({ onClose, onSubmit }: FundAccountModalProps) {
                 <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 size-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
                 <input
                   type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  value={formData.date.split('T')[0]}
+                  onChange={(e) => {
+                    // Combine the selected date with current time
+                    const selectedDate = e.target.value; // YYYY-MM-DD format
+                    const now = new Date();
+                    const timeStr = now.toISOString().split('T')[1]; // Get HH:MM:SS.sssZ part
+                    const fullDateTime = `${selectedDate}T${timeStr}`;
+                    setFormData({ ...formData, date: fullDateTime });
+                  }}
                   className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-emerald-600 focus:border-transparent ${
                     isDark 
                       ? 'bg-[#3C3D4F] border-gray-600 text-white' 

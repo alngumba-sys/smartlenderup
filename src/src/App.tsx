@@ -1,52 +1,43 @@
-import { useState, useRef, useEffect } from 'react';
-import { Toaster } from 'sonner@2.0.3';
-import { MessageSquare, Bell, Users, LogOut, ChevronDown, ChevronRight, Eye, Edit, Share2, FolderInput, Copy, Trash2, Mail, Link2, Facebook, Twitter, Instagram } from 'lucide-react';
-import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
-import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import { DataProvider } from '../contexts/DataContext';
-import { NavigationProvider } from '../contexts/NavigationContext';
+import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { LoginPage } from '../components/LoginPage';
+import { RegisterPage } from '../components/RegisterPage';
+import { MotherCompanyHome } from '../components/MotherCompanyHome';
 import { InternalStaffPortal } from '../components/InternalStaffPortal';
 import { ClientPortal } from '../components/ClientPortal';
-import { LoginPage } from '../components/LoginPage';
-import { RegisterPage } from '../pages/Register';
-import { MotherCompanyHome } from '../components/MotherCompanyHome';
+import { MainNavigation } from '../components/MainNavigation';
+import { SupabaseSyncStatus } from '../components/SupabaseSyncStatus';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { PaymentCalendar } from '../components/PaymentCalendar';
-import { SupabaseSyncStatus } from '../components/SupabaseSyncStatus';
-import { MainNavigation } from '../components/MainNavigation';
-import { ErrorBoundary } from '../components/ErrorBoundary';
 import { DatabaseSetupNotice } from '../components/DatabaseSetupNotice';
-import { DatabaseErrorOverlay } from '../components/DatabaseErrorOverlay';
-const abcLogo = '/logo.svg'; // Replaced figma:asset for deployment
-import '../utils/clearLocalStorage'; // Import to register window.clearAppData function
-import '../utils/resetDatabase'; // Import to register window.resetDatabase function
-// DISABLED: Sample data - use Supabase only
-// import '../utils/populateSampleData'; 
-// import '../utils/clearDummyData'; // One-time clear of all dummy data - DISABLED to prevent reload loops
-import '../utils/clearShareholdersAndBanks'; // Import to register window.clearShareholdersAndBanks function
-import '../utils/migrateToSupabase'; // Import to register window.migrateToSupabase function
-import '../utils/syncOrganizationToSupabase'; // Import to register window.syncOrganization function
-import '../utils/debugOrganizations'; // Import to register window.debugOrgs function
-import '../utils/clearAllFrontendData'; // Import to register window.clearAllFrontendData function
-import '../utils/syncExistingDataToSupabase'; // Import to register window.syncExistingDataToSupabase function
-import '../utils/fixLocalStorage'; // Import to register window.fixLocalStorage function
-import '../utils/fixBankAccountOrgIds'; // Import to register window.fixBankAccountOrgIds function
-import '../utils/updateOrganizationPassword'; // Import to register window.updateOrgPassword function
-import '../utils/syncProjectStatesToTables'; // Import to register window.migrateToIndividualTables function
-import '../utils/addTrialColumns'; // Import to register window.addTrialColumns function
-import '../utils/checkSupabaseColumns'; // Import to register window.checkSupabaseColumns function
-import '../utils/showTrialMigrationHelp'; // Import to show trial setup help
-import '../utils/completeDataReset'; // Import to register window.completeDataReset function
-import '../utils/superAdminDataFix'; // Import to register Super Admin data sync utilities
-import '../utils/supabaseValidator'; // Import Supabase connection validator
-import '../utils/databaseSetupHelper'; // Auto-check database setup on load
-import '../utils/showDatabaseFixHelp'; // Show database fix help
-import '../utils/showBigWarning'; // Show big warning in console
-// import '../utils/clearCurrentShareholders'; // Auto-clear current shareholders - DISABLED to preserve data
-import { getOrganizationName, getCountryDemonym, getOrganizationLogo } from '../utils/organizationUtils';
+import { Toaster } from 'sonner@2.0.3';
+import { 
+  LogOut, 
+  Eye, 
+  Edit, 
+  Share2, 
+  ChevronRight, 
+  Facebook, 
+  Twitter, 
+  Instagram, 
+  Mail, 
+  Link2, 
+  FolderInput, 
+  Trash2, 
+  Copy 
+} from 'lucide-react';
 import { runComprehensiveCleanup } from '../utils/databaseCleanup';
-import { getStorageUsage, cleanupAllAutoBackups } from '../utils/dataBackup';
+import { getStorageUsage, cleanupAllAutoBackups } from '../utils/storageManager';
+import { getOrganizationName, getCountryDemonym, getOrganizationLogo } from '../utils/organizationUtils';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { ThemeProvider } from '../contexts/ThemeContext';
+import { AuthProvider } from '../contexts/AuthContext';
+import { DataProvider } from '../contexts/DataContext';
+import { NavigationProvider } from '../contexts/NavigationContext';
 import { BV_FUNGUO_LOGO } from '../assets/BVFunguoLogo';
+// Disabled temporarily to debug loading issues
+// import '../utils/devMigrationTools'; // Import developer migration tools for data updates
 
 function AppContent() {
   const { currentUser, isAuthenticated, isLoading, logout, login } = useAuth();

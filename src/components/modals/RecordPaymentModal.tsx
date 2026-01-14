@@ -125,12 +125,13 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
   // Check if selected payment method is a mobile money provider
   const isMobileMoney = mobileMoneyProviders.includes(formData.paymentMethod);
   
-  // Filter for loans that have been issued/disbursed and can receive payments
-  const activeLoans = loans.filter(loan => 
-    loan.status === 'Active' || 
-    loan.status === 'Disbursed' || 
-    loan.status === 'In Arrears'
-  );
+  // Filter for loans that have outstanding balance or are in arrears
+  // Only show loans where payment can be made (outstanding > 0 OR status = "In Arrears")
+  const activeLoans = loans.filter(loan => {
+    const hasOutstanding = (loan.outstandingBalance || 0) > 0;
+    const isInArrears = loan.status === 'In Arrears';
+    return hasOutstanding || isInArrears;
+  });
 
   // Filter destination accounts based on payment method
   // If Mobile Money payment → show only Mobile Money accounts
@@ -393,7 +394,7 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
                     required={isMobileMoney}
                     value={formData.mpesaPhone}
                     onChange={(e) => setFormData({ ...formData, mpesaPhone: e.target.value })}
-                    className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-[#111120] dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                    className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
                     placeholder="Phone number"
                   />
                 </div>

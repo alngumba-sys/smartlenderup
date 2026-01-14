@@ -149,21 +149,32 @@ export function AccountingTab() {
     .filter(t => t.type === 'Dividend Payment')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  // Calculate interest income from repayments
-  const totalInterestIncome = repayments.reduce((sum, r) => sum + Number(r.interest || 0), 0);
+  // ✅ CORRECTED: Calculate interest income from LOANS (amount_paid - principal)
+  // Interest Paid = Amount Paid - Principal Amount (for payments that exceed principal)
+  const totalInterestIncome = loans
+    .filter(l => l.status === 'Active' || l.status === 'Disbursed' || l.status === 'Completed')
+    .reduce((sum, l) => {
+      const principalAmount = l.principalAmount || 0;
+      const amountPaid = l.paidAmount || 0;
+      // Interest paid = amount paid minus principal (but not negative)
+      const interestPaid = Math.max(0, amountPaid - principalAmount);
+      return sum + interestPaid;
+    }, 0);
   
-  // Calculate interest income by loan type (need to get loan info for each repayment)
-  const getRepaymentInterestByLoanType = (loanType: string) => {
-    return repayments
-      .filter(r => {
-        const loan = loans.find(l => l.id === r.loanId);
-        return loan && loan.clientType === loanType;
-      })
-      .reduce((sum, r) => sum + Number(r.interest || 0), 0);
+  // ✅ CORRECTED: Calculate interest income by loan type from LOANS
+  const getInterestByLoanType = (loanType: string) => {
+    return loans
+      .filter(l => (l.status === 'Active' || l.status === 'Disbursed' || l.status === 'Completed') && l.clientType === loanType)
+      .reduce((sum, l) => {
+        const principalAmount = l.principalAmount || 0;
+        const amountPaid = l.paidAmount || 0;
+        const interestPaid = Math.max(0, amountPaid - principalAmount);
+        return sum + interestPaid;
+      }, 0);
   };
 
-  const totalIndividualLoanInterest = getRepaymentInterestByLoanType('Individual');
-  const totalGroupLoanInterest = getRepaymentInterestByLoanType('Group');
+  const totalIndividualLoanInterest = getInterestByLoanType('Individual');
+  const totalGroupLoanInterest = getInterestByLoanType('Group');
   
   // Calculate penalty income from repayments
   const totalPenaltyIncome = repayments.reduce((sum, r) => sum + Number(r.penalty || 0), 0);

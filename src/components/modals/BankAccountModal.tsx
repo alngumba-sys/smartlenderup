@@ -6,7 +6,7 @@ import { getCurrencyCode, getCurrencyOptions } from '../../utils/currencyUtils';
 interface BankAccountModalProps {
   onClose: () => void;
   onSubmit: (data: BankAccountFormData) => void;
-  editAccount?: BankAccount;
+  editingAccount?: BankAccount;
 }
 
 export interface BankAccountFormData {
@@ -23,7 +23,7 @@ export interface BankAccountFormData {
   createdBy: string;
 }
 
-export function BankAccountModal({ onClose, onSubmit, editAccount }: BankAccountModalProps) {
+export function BankAccountModal({ onClose, onSubmit, editingAccount }: BankAccountModalProps) {
   const defaultCurrency = getCurrencyCode();
   
   const [formData, setFormData] = useState<BankAccountFormData>({
@@ -41,22 +41,22 @@ export function BankAccountModal({ onClose, onSubmit, editAccount }: BankAccount
   });
 
   useEffect(() => {
-    if (editAccount) {
+    if (editingAccount) {
       setFormData({
-        name: editAccount.name,
-        accountType: editAccount.accountType,
-        bankName: editAccount.bankName || '',
-        accountNumber: editAccount.accountNumber || '',
-        branch: editAccount.branch || '',
-        currency: editAccount.currency,
-        openingBalance: editAccount.openingBalance,
-        openingDate: editAccount.openingDate,
-        status: editAccount.status,
-        description: editAccount.description || '',
-        createdBy: editAccount.createdBy
+        name: editingAccount.name,
+        accountType: editingAccount.accountType,
+        bankName: editingAccount.bankName || '',
+        accountNumber: editingAccount.accountNumber || '',
+        branch: editingAccount.branch || '',
+        currency: editingAccount.currency,
+        openingBalance: editingAccount.openingBalance,
+        openingDate: editingAccount.openingDate,
+        status: editingAccount.status,
+        description: editingAccount.description || '',
+        createdBy: editingAccount.createdBy
       });
     }
-  }, [editAccount]);
+  }, [editingAccount]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,7 +90,7 @@ export function BankAccountModal({ onClose, onSubmit, editAccount }: BankAccount
               <Icon className="size-[27px] text-emerald-400" />
             </div>
             <h3 className="text-white text-[1.41rem] font-semibold">
-              {editAccount ? 'Edit Account' : 'Add New Account'}
+              {editingAccount ? 'Edit Account' : 'Add New Account'}
             </h3>
           </div>
           <button
@@ -325,7 +325,7 @@ export function BankAccountModal({ onClose, onSubmit, editAccount }: BankAccount
               className="px-[20px] py-2 text-[0.96rem] bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all flex items-center gap-[9px] font-medium shadow-lg shadow-emerald-600/30"
             >
               <Icon className="size-[18px]" />
-              {editAccount ? 'Update' : 'Create'}
+              {editingAccount ? 'Update' : 'Create'}
             </button>
           </div>
         </form>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Wallet, Trash2, Edit } from 'lucide-react';
+import { Plus, Wallet, Trash2, Edit, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { getCurrencyCode } from '../../utils/currencyUtils';
 import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
@@ -9,6 +9,8 @@ import { formatCurrency } from '../../utils/currencyUtils';
 import { supabaseDataService } from '../../services/supabaseDataService';
 import { toast } from 'sonner@2.0.3';
 import { shortenReferenceUUID } from '../../utils/uuidUtils';
+// TEMPORARILY DISABLED - causing loading issues
+// import { DevMigrationPanel } from '../DevMigrationPanel';
 
 export function BankAccountsTab() {
   const { 
@@ -21,19 +23,21 @@ export function BankAccountsTab() {
     addFundingTransaction,
     shareholders,
     updateShareholder,
-    loans
+    loans,
+    repayments
   } = useData();
   
   console.log('');
   console.log('═══════════════════════════════════════════════');
   console.log('🏦 BANKACCOUNTSTAB COMPONENT RENDERING');
-  console.log('═══════════════════════════════════════════════');
+  console.log('══════════════════════════════════════════════');
   console.log('   Bank accounts from context:', bankAccounts.length);
   console.log('   Bank accounts:', bankAccounts);
   console.log('');
   
   const [showFundAccountModal, setShowFundAccountModal] = useState(false);
   const [showBankAccountModal, setShowBankAccountModal] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<BankAccount | undefined>(undefined);
   const [activeBank, setActiveBank] = useState<string>('all');
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<string | null>(null);
@@ -135,7 +139,182 @@ export function BankAccountsTab() {
     });
 
     setShowBankAccountModal(false);
+    setEditingAccount(undefined);
     toast.success(`Successfully added ${data.name} bank account`);
+  };
+
+  const handleEditBankAccount = async (data: BankAccountFormData) => {
+    // Check Supabase connection FIRST
+    const isConnected = await ensureSupabaseConnection('edit bank account');
+    if (!isConnected) {
+      return; // Block the operation if offline
+    }
+
+    if (!editingAccount) return;
+
+    // Calculate opening balance difference to adjust current balance
+    const oldOpeningBalance = editingAccount.openingBalance || 0;
+    const newOpeningBalance = data.openingBalance || 0;
+    const balanceDifference = newOpeningBalance - oldOpeningBalance;
+
+    // Show warning if opening balance is changing
+    if (balanceDifference !== 0) {
+      const confirmed = window.confirm(
+        `⚠️ Opening Balance Change\n\n` +
+        `Old Opening Balance: ${formatCurrency(oldOpeningBalance, { showCode: true })}\n` +
+        `New Opening Balance: ${formatCurrency(newOpeningBalance, { showCode: true })}\n\n` +
+        `This will adjust the current balance by ${formatCurrency(Math.abs(balanceDifference), { showCode: true })}.\n\n` +
+        `Current Balance: ${formatCurrency(editingAccount.balance, { showCode: true })}\n` +
+        `New Balance: ${formatCurrency(editingAccount.balance + balanceDifference, { showCode: true })}\n\n` +
+        `Do you want to continue?`
+      );
+      
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    // Update the bank account including opening balance
+    updateBankAccount(editingAccount.id, {
+      name: data.name,
+      accountType: data.accountType,
+      bankName: data.bankName,
+      accountNumber: data.accountNumber,
+      branch: data.branch,
+      status: data.status,
+      description: data.description,
+      openingBalance: newOpeningBalance,
+      openingDate: data.openingDate,
+      // Adjust current balance by the difference in opening balance
+      balance: editingAccount.balance + balanceDifference
+    });
+
+    setShowBankAccountModal(false);
+    setEditingAccount(undefined);
+    
+    if (balanceDifference !== 0) {
+      toast.success(
+        `Successfully updated ${data.name}. ` +
+        `Opening balance adjusted by ${formatCurrency(Math.abs(balanceDifference), { showCode: true })}.`
+      );
+    } else {
+      toast.success(`Successfully updated ${data.name} bank account`);
+    }
+  };
+
+  // ✅ Recalculate all bank account balances based on transactions
+  const handleRecalculateBalances = async () => {
+    const isConnected = await ensureSupabaseConnection('recalculate balances');
+    if (!isConnected) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      '🔄 Recalculate All Bank Account Balances\n\n' +
+      'This will recalculate all bank account balances based on:\n' +
+      '• Opening Balance\n' +
+      '• Funding Transactions (Credits)\n' +
+      '• Loan Disbursements (Debits)\n\n' +
+      'Do you want to continue?'
+    );
+
+    if (!confirmed) return;
+
+    let updatedCount = 0;
+
+    // Recalculate each account
+    bankAccounts.forEach(account => {
+      // Calculate total credits (funding)
+      const totalCredits = fundingTransactions
+        .filter(t => t.bankAccountId === account.id && t.transactionType === 'Credit')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      // Calculate total debits (loan disbursements)
+      const totalDebits = loans
+        .filter(l => l.bankAccountId === account.id && l.approvalStatus === 'Approved' && l.loanStatus !== 'Pending' && l.disbursementDate)
+        .reduce((sum, l) => sum + (l.approvedAmount || l.requestedAmount), 0);
+
+      // Calculate correct balance
+      const correctBalance = (account.openingBalance || 0) + totalCredits - totalDebits;
+
+      // Update if balance is different
+      if (account.balance !== correctBalance) {
+        updateBankAccount(account.id, {
+          balance: correctBalance
+        });
+        updatedCount++;
+      }
+    });
+
+    if (updatedCount > 0) {
+      toast.success(`Successfully recalculated ${updatedCount} account${updatedCount > 1 ? 's' : ''}`);
+    } else {
+      toast.success('All account balances are already correct');
+    }
+  };
+
+  // ✅ Delete ALL bank accounts and clear all data
+  const handleDeleteAllAccounts = async () => {
+    const isConnected = await ensureSupabaseConnection('delete all bank accounts');
+    if (!isConnected) {
+      return;
+    }
+
+    const totalAccounts = bankAccounts.length;
+    const totalFunding = fundingTransactions.length;
+    
+    if (totalAccounts === 0) {
+      toast.error('No bank accounts to delete');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      '🚨 DELETE ALL BANK ACCOUNTS\n\n' +
+      `This will permanently delete:\n` +
+      `• ${totalAccounts} Bank Account${totalAccounts > 1 ? 's' : ''}\n` +
+      `• ${totalFunding} Funding Transaction${totalFunding > 1 ? 's' : ''}\n\n` +
+      '⚠️ WARNING: This action CANNOT be undone!\n\n' +
+      'All loan disbursement references will remain but bank account links will be removed.\n\n' +
+      'Type "DELETE ALL" in the next prompt to confirm.'
+    );
+
+    if (!confirmed) return;
+
+    const confirmText = prompt('Type "DELETE ALL" to confirm:');
+    
+    if (confirmText !== 'DELETE ALL') {
+      toast.error('Deletion cancelled - confirmation text did not match');
+      return;
+    }
+
+    try {
+      // Get current organization ID
+      const orgData = localStorage.getItem('current_organization');
+      if (!orgData) {
+        toast.error('Organization not found');
+        return;
+      }
+      const org = JSON.parse(orgData);
+
+      // Delete all bank accounts from Supabase
+      for (const account of bankAccounts) {
+        await supabaseDataService.bankAccounts.delete(account.id, org.id);
+      }
+
+      // Delete all funding transactions from Supabase
+      for (const transaction of fundingTransactions) {
+        await supabaseDataService.fundingTransactions.delete(transaction.id, org.id);
+      }
+
+      toast.success(`Successfully deleted ${totalAccounts} account${totalAccounts > 1 ? 's' : ''} and ${totalFunding} transaction${totalFunding > 1 ? 's' : ''}`);
+      
+      // Reset to "All Accounts" view
+      setActiveBank('all');
+      
+    } catch (error) {
+      console.error('Error deleting all accounts:', error);
+      toast.error('Failed to delete all accounts. Please try again.');
+    }
   };
 
   // Get active bank accounts (individual accounts, not grouped by bank name)
@@ -147,7 +326,7 @@ export function BankAccountsTab() {
       return nameA.localeCompare(nameB);
     });
 
-  console.log('🔍 Active bank accounts for tabs:', activeBankAccounts.length);
+  console.log(' Active bank accounts for tabs:', activeBankAccounts.length);
   console.log('🔍 Active accounts:', activeBankAccounts.map(a => ({ id: a.id, name: a.accountName || a.name, status: a.status })));
 
   const grandTotal = activeBankAccounts
@@ -185,6 +364,7 @@ export function BankAccountsTab() {
     balance: number;
     type: string;
     depositor?: string; // ✅ NEW: Depositor name
+    sortOrder?: number; // ✅ NEW: Sort order for transactions
   }
 
   const getStatementTransactions = (): StatementTransaction[] => {
@@ -199,15 +379,16 @@ export function BankAccountsTab() {
       if (account.openingBalance > 0) {
         transactions.push({
           id: `opening-${account.id}`,
-          date: account.createdDate,
+          date: account.createdAt || account.openingDate || account.createdDate || new Date().toISOString(), // ✅ Use full timestamp from createdAt
           description: `Initial Account Opening - ${account.bankName} (${account.accountNumber})`,
           reference: account.accountNumber,
           debit: 0,
           credit: account.openingBalance,
           balance: 0, // Will be calculated
           type: 'Opening Balance',
-          depositor: 'System'
-        });
+          depositor: 'System',
+          sortOrder: 0 // ✅ Ensure opening balance is always first
+        } as any);
       }
     });
     
@@ -217,7 +398,7 @@ export function BankAccountsTab() {
       : fundingTransactions.filter(t => t.bankAccountId === activeBank);
 
     // Add funding transactions
-    relevantFundingTransactions.forEach(ft => {
+    relevantFundingTransactions.forEach((ft, index) => {
       const bankAccount = bankAccounts.find(b => b.id === ft.bankAccountId);
       transactions.push({
         id: ft.id,
@@ -228,45 +409,88 @@ export function BankAccountsTab() {
         credit: ft.transactionType === 'Credit' ? ft.amount : 0,
         balance: 0, // Will be calculated
         type: ft.transactionType === 'Credit' ? 'Funding' : 'Payment',
-        depositor: ft.depositorName || ft.shareholderName || '-' // ✅ NEW: Include depositor
-      });
+        depositor: ft.depositorName || ft.shareholderName || '-',
+        sortOrder: index + 1 // ✅ Maintain insertion order
+      } as any);
     });
 
     // Add loan disbursements (debits from bank account)
     const relevantLoans = activeBank === 'all'
-      ? loans.filter(l => l.approvalStatus === 'Approved' && l.loanStatus !== 'Pending')
-      : loans.filter(l => l.approvalStatus === 'Approved' && l.loanStatus !== 'Pending' && l.bankAccountId === activeBank);
+      ? loans.filter(l => l.approvalStatus === 'Approved' && l.loanStatus !== 'Pending' && l.disbursementDate)
+      : loans.filter(l => l.approvalStatus === 'Approved' && l.loanStatus !== 'Pending' && l.disbursementDate && l.bankAccountId === activeBank);
 
-    relevantLoans.forEach(loan => {
-      if (loan.disbursementDate) {
-        transactions.push({
-          id: `loan-${loan.id}`,
-          date: loan.disbursementDate,
-          description: `Loan Disbursement - ${loan.borrowerName} (${loan.loanId})`,
-          reference: loan.loanId,
-          debit: loan.approvedAmount || loan.requestedAmount,
-          credit: 0,
-          balance: 0,
-          type: 'Loan Disbursement',
-          depositor: '-' // ✅ NEW: No depositor for loan disbursements
-        });
-      }
+    console.log(`🔍 Found ${relevantLoans.length} loan disbursements for bank statement`);
+
+    relevantLoans.forEach((loan, index) => {
+      transactions.push({
+        id: `loan-${loan.id}`,
+        date: loan.disbursementDate,
+        description: `Loan Disbursement - ${loan.borrowerName} (${loan.loanId})`,
+        reference: loan.loanId,
+        debit: loan.approvedAmount || loan.requestedAmount,
+        credit: 0,
+        balance: 0,
+        type: 'Loan Disbursement',
+        depositor: '-',
+        sortOrder: relevantFundingTransactions.length + index + 1 // ✅ After funding transactions
+      } as any);
     });
 
-    // Sort by date (newest first)
-    transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // ✅ Add loan repayments (credits to bank account)
+    const relevantRepayments = activeBank === 'all'
+      ? repayments.filter(r => r.status === 'Approved')
+      : repayments.filter(r => r.status === 'Approved' && r.bankAccountId === activeBank);
 
-    // Calculate running balance (from oldest to newest, then reverse for display)
-    const reversedTransactions = [...transactions].reverse();
-    let runningBalance = activeBank === 'all' 
-      ? activeBankAccounts.reduce((sum, acc) => sum + acc.openingBalance, 0)
-      : (currentAccount?.openingBalance || 0);
+    console.log(`🔍 Found ${relevantRepayments.length} loan repayments for bank statement`);
 
-    reversedTransactions.forEach(transaction => {
+    relevantRepayments.forEach((repayment, index) => {
+      const loan = loans.find(l => l.id === repayment.loanId);
+      transactions.push({
+        id: `repayment-${repayment.id}`,
+        date: repayment.paymentDate || repayment.createdDate,
+        description: `Loan Repayment - ${repayment.clientName} (${repayment.receiptNumber})`,
+        reference: repayment.paymentReference || repayment.receiptNumber,
+        debit: 0,
+        credit: repayment.amount,
+        balance: 0,
+        type: 'Loan Repayment',
+        depositor: repayment.clientName,
+        sortOrder: relevantFundingTransactions.length + relevantLoans.length + index + 1
+      } as any);
+    });
+
+    console.log(`🔍 Total transactions before sort: ${transactions.length}`);
+
+    // Sort by date (newest first), then by sortOrder (oldest first within same date)
+    transactions.sort((a: any, b: any) => {
+      const dateCompare = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateCompare !== 0) return dateCompare;
+      // If same date, use sortOrder to maintain chronological order
+      return a.sortOrder - b.sortOrder;
+    });
+
+    // Calculate running balance from oldest to newest
+    // Create a proper chronological sort for calculation (oldest date first, oldest sortOrder first)
+    const sortedByOldest = [...transactions].sort((a: any, b: any) => {
+      const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (dateCompare !== 0) return dateCompare;
+      return a.sortOrder - b.sortOrder;
+    });
+    
+    let runningBalance = 0;
+    const balanceMap = new Map<string, number>();
+
+    sortedByOldest.forEach(transaction => {
       runningBalance += transaction.credit - transaction.debit;
-      transaction.balance = runningBalance;
+      balanceMap.set(transaction.id, runningBalance);
     });
 
+    // Apply balances to the display-sorted transactions
+    transactions.forEach(transaction => {
+      transaction.balance = balanceMap.get(transaction.id) || 0;
+    });
+
+    // Return in newest first order (already sorted that way in original transactions array)
     return transactions;
   };
 
@@ -295,6 +519,20 @@ export function BankAccountsTab() {
           >
             <Wallet className="size-4" />
             Fund Account
+          </button>
+          <button
+            onClick={handleRecalculateBalances}
+            className="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2 text-sm"
+          >
+            <RefreshCw className="size-4" />
+            Recalculate Balances
+          </button>
+          <button
+            onClick={handleDeleteAllAccounts}
+            className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm"
+          >
+            <Trash2 className="size-4" />
+            Delete All Accounts
           </button>
         </div>
       </div>
@@ -337,17 +575,29 @@ export function BankAccountsTab() {
               : `${currentAccount?.bankName || currentAccount?.accountName || currentAccount?.name || 'Account'} Balance`}
           </p>
           {activeBank !== 'all' && currentAccount && (
-            <button
-              onClick={() => {
-                setAccountToDelete(currentAccount.id);
-                setShowDeleteConfirmation(true);
-                setDeleteConfirmationText('');
-              }}
-              className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
-              title="Delete Account"
-            >
-              <Trash2 className="size-4" />
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setEditingAccount(currentAccount);
+                  setShowBankAccountModal(true);
+                }}
+                className="p-1.5 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded transition-colors"
+                title="Edit Account"
+              >
+                <Edit className="size-4" />
+              </button>
+              <button
+                onClick={() => {
+                  setAccountToDelete(currentAccount.id);
+                  setShowDeleteConfirmation(true);
+                  setDeleteConfirmationText('');
+                }}
+                className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
+                title="Delete Account"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
           )}
         </div>
         <p className="text-3xl font-bold text-white">
@@ -454,11 +704,22 @@ export function BankAccountsTab() {
                 statementTransactions.map((transaction) => (
                   <tr key={transaction.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900">
-                      {new Date(transaction.date).toLocaleDateString('en-US', { 
-                        year: 'numeric', 
-                        month: 'short', 
-                        day: 'numeric' 
-                      })}
+                      <div>
+                        <div className="font-medium">
+                          {new Date(transaction.date).toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                          })}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(transaction.date).toLocaleTimeString('en-US', { 
+                            hour: '2-digit', 
+                            minute: '2-digit',
+                            hour12: true
+                          })}
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900">
                       {transaction.description}
@@ -509,7 +770,8 @@ export function BankAccountsTab() {
       {showBankAccountModal && (
         <BankAccountModal
           onClose={() => setShowBankAccountModal(false)}
-          onSubmit={handleAddBankAccount}
+          onSubmit={editingAccount ? handleEditBankAccount : handleAddBankAccount}
+          editingAccount={editingAccount}
         />
       )}
 
@@ -599,6 +861,11 @@ export function BankAccountsTab() {
           </div>
         );
       })()}
+
+      {/* Dev Migration Panel */}
+      {/* TEMPORARILY DISABLED - causing loading issues
+      <DevMigrationPanel />
+      */}
     </div>
   );
 }

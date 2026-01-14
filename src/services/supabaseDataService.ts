@@ -1776,6 +1776,19 @@ export const bankAccountService = {
       insertData.account_type = accountData.account_type || accountData.accountType;
     }
     
+    // ✅ Add opening_balance and balance (only if columns exist)
+    if (accountData.opening_balance !== undefined || accountData.openingBalance !== undefined) {
+      insertData.opening_balance = accountData.opening_balance ?? accountData.openingBalance ?? 0;
+    }
+    if (accountData.balance !== undefined) {
+      insertData.balance = accountData.balance;
+    } else if (accountData.openingBalance !== undefined || accountData.opening_balance !== undefined) {
+      // Set initial balance to opening balance
+      insertData.balance = accountData.opening_balance ?? accountData.openingBalance ?? 0;
+    }
+    // Note: currency, status, opening_date, description, created_by might not exist in schema
+    // Only add if explicitly confirmed to exist
+    
     console.log('💾 Inserting bank account to Supabase:', insertData);
     
     const { data, error } = await supabase
@@ -1797,9 +1810,20 @@ export const bankAccountService = {
     if (updates.current_balance !== undefined) updateData.current_balance = updates.current_balance;
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.account_name !== undefined) updateData.account_name = updates.account_name;
+    if (updates.name !== undefined) updateData.account_name = updates.name;
     if (updates.account_number !== undefined) updateData.account_number = updates.account_number;
+    if (updates.accountNumber !== undefined) updateData.account_number = updates.accountNumber;
     if (updates.bank_name !== undefined) updateData.bank_name = updates.bank_name;
+    if (updates.bankName !== undefined) updateData.bank_name = updates.bankName;
     if (updates.branch !== undefined) updateData.branch = updates.branch;
+    if (updates.account_type !== undefined) updateData.account_type = updates.account_type;
+    if (updates.accountType !== undefined) updateData.account_type = updates.accountType;
+    if (updates.currency !== undefined) updateData.currency = updates.currency;
+    if (updates.opening_balance !== undefined) updateData.opening_balance = updates.opening_balance;
+    if (updates.openingBalance !== undefined) updateData.opening_balance = updates.openingBalance;
+    if (updates.opening_date !== undefined) updateData.opening_date = updates.opening_date;
+    if (updates.openingDate !== undefined) updateData.opening_date = updates.openingDate;
+    if (updates.description !== undefined) updateData.description = updates.description;
     
     updateData.updated_at = new Date().toISOString();
     
@@ -1817,6 +1841,21 @@ export const bankAccountService = {
     
     console.log('✅ Bank account updated:', data);
     return data;
+  },
+
+  async delete(id: string, organizationId: string) {
+    console.log('🗑️ Deleting bank account from Supabase:', id);
+    
+    const { error } = await supabase
+      .from('bank_accounts')
+      .delete()
+      .eq('id', id)
+      .eq('organization_id', organizationId);
+    
+    if (error) throw error;
+    
+    console.log('✅ Bank account deleted:', id);
+    return true;
   }
 };
 
@@ -1870,6 +1909,21 @@ export const fundingTransactionService = {
     
     console.log('✅ Funding transaction saved:', data);
     return data;
+  },
+
+  async delete(id: string, organizationId: string) {
+    console.log('🗑️ Deleting funding transaction from Supabase:', id);
+    
+    const { error } = await supabase
+      .from('funding_transactions')
+      .delete()
+      .eq('id', id)
+      .eq('organization_id', organizationId);
+    
+    if (error) throw error;
+    
+    console.log('✅ Funding transaction deleted:', id);
+    return true;
   }
 };
 
