@@ -1,0 +1,49 @@
+=================================================================
+SMARTLENDERUP - COPY & PASTE THIS INTO SUPABASE SQL EDITOR
+=================================================================
+
+Step 1: Copy everything below the line
+Step 2: Go to Supabase Dashboard → SQL Editor
+Step 3: Paste and click "Run"
+Step 4: Refresh your app
+Step 5: Done! ✅
+
+=================================================================
+COPY FROM HERE ↓↓↓
+=================================================================
+
+-- Fix payees table (add missing columns)
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS contact_phone TEXT;
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS contact_email TEXT;
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'Other';
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS contact_person TEXT;
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS physical_address TEXT;
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS kra_pin TEXT;
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS bank_name TEXT;
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS account_number TEXT;
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS mpesa_number TEXT;
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE payees ADD COLUMN IF NOT EXISTS total_paid NUMERIC DEFAULT 0;
+
+-- Fix product ID mismatch (update all loans)
+UPDATE loans
+SET product_id = '11794d71-e44c-4b16-8c84-1b06b54d0938'
+WHERE product_id != '11794d71-e44c-4b16-8c84-1b06b54d0938'
+   OR product_id IS NULL
+   OR product_id = '';
+
+=================================================================
+STOP COPYING HERE ↑↑↑
+=================================================================
+
+That's it! Both errors are now fixed.
+
+Expected result in Supabase:
+✅ Success. No rows returned.
+
+Now refresh your app and test:
+✅ Create a payee → Should work!
+✅ Check dashboard → Portfolio chart should show data!
+✅ Check loan products → Statistics should be accurate!
+
+=================================================================
