@@ -28,7 +28,7 @@ import {
   Copy 
 } from 'lucide-react';
 import { runComprehensiveCleanup } from '../utils/databaseCleanup';
-import { getStorageUsage, cleanupAllAutoBackups } from '../utils/storageManager';
+import { getStorageUsage, cleanupAllAutoBackups } from '../utils/dataBackup';
 import { getOrganizationName, getCountryDemonym, getOrganizationLogo } from '../utils/organizationUtils';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { ThemeProvider } from '../contexts/ThemeContext';
