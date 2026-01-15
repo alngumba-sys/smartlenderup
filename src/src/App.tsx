@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { LoginPage } from '../components/LoginPage';
-import { RegisterPage } from '../components/RegisterPage';
+import { RegisterPage } from '../pages/Register';
 import { MotherCompanyHome } from '../components/MotherCompanyHome';
 import { InternalStaffPortal } from '../components/InternalStaffPortal';
 import { ClientPortal } from '../components/ClientPortal';
