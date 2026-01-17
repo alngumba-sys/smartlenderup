@@ -214,7 +214,17 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
     });
   }).length;
   
-  const clientsInArrears = clientsOfType.filter(c => c.status === 'In Arrears').length;
+  // Clients in arrears: clients who have loans with days in arrears > 0 OR status "In Arrears"
+  const clientsInArrears = clientsOfType.filter(client => {
+    const clientLoans = loans.filter(l => l.clientUuid === client.id || l.clientId === client.id);
+    // Check if any loan has arrears or is in arrears status
+    return clientLoans.some(loan => {
+      const status = (loan.status || '').toLowerCase().trim();
+      const daysInArrears = loan.daysInArrears || 0;
+      return status === 'in arrears' || daysInArrears > 0;
+    });
+  }).length;
+  
   const averageCreditScore = clientsOfType.length > 0 ? Math.round(clientsOfType.reduce((sum, c) => sum + (c.creditScore || 300), 0) / clientsOfType.length) : 0;
   
   // Total outstanding = sum of all outstanding balances from all loans

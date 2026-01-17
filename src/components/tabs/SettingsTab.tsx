@@ -612,10 +612,20 @@ export function SettingsTab() {
               <h3 className="text-gray-900">Subscription Information</h3>
             </div>
             <div className="space-y-4">
+              <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-500/30">
+                <h4 className="font-medium text-emerald-700 mb-2">✓ Full Access Active</h4>
+                <p className="text-sm text-emerald-600">
+                  Your organization has full access to all SmartLenderUp features. 
+                  The 14-day free trial system is currently disabled.
+                </p>
+              </div>
+              
+              {/* COMMENTED OUT: Trial system temporarily disabled
               <p className="text-sm text-gray-600">
                 Your organization is currently on a <strong>14-day free trial</strong>. 
                 The trial banner above shows your remaining days.
               </p>
+              */}
               
               <div className="p-4 rounded-lg bg-[#1a1a2e] border border-blue-500/30">
                 <h4 className="font-medium text-blue-300 mb-2">📦 What's Included</h4>
@@ -630,6 +640,7 @@ export function SettingsTab() {
                 </ul>
               </div>
 
+              {/* COMMENTED OUT: Trial expiration info temporarily disabled
               <div className="p-4 rounded-lg bg-yellow-900/20 border border-yellow-500/30">
                 <h4 className="font-medium text-yellow-300 mb-2">⚡ After Trial</h4>
                 <p className="text-sm text-yellow-200">
@@ -637,6 +648,7 @@ export function SettingsTab() {
                   <strong className="text-yellow-100">support@smartlenderup.com</strong> for subscription pricing and payment details.
                 </p>
               </div>
+              */}
 
               <div className="flex items-center justify-between p-4 rounded-lg bg-[#1a1a2e] border border-gray-700/50">
                 <div>

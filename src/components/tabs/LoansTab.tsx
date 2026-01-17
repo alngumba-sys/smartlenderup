@@ -801,11 +801,29 @@ export function LoansTab() {
 
       {/* Summary Cards (for loan views) */}
       {activeSubTab !== 'guarantors' && activeSubTab !== 'comments' && activeSubTab !== 'repayment-schedule' && (() => {
-        // Only count active/disbursed loans for metrics - USE ALL LOANS, not just filtered
-        // ✅ Handle both status and loanStatus fields, case-insensitive
-        const allActiveDisbursedLoans = loans.filter(l => {
-          const status = (l.status || l.loanStatus || '').toLowerCase();
-          return status === 'active' || status === 'disbursed';
+        // Show statistics for all loans that exist in the system
+        const allLoans = loans || [];
+        
+        // Disbursed loans: all loans except pending/approved/rejected
+        const allActiveDisbursedLoans = allLoans.filter(l => {
+          const status = (l.status || '').toLowerCase().trim();
+          return status !== 'pending' && status !== 'approved' && status !== 'rejected' && status !== '';
+        });
+        
+        // For outstanding calculation, calculate dynamically based on amounts
+        const loansWithOutstanding = allActiveDisbursedLoans.filter(l => {
+          const principalAmt = l.principalAmount || 0;
+          const paidAmt = l.paidAmount || 0;
+          const totalInterest = l.totalInterest || 0;
+          const calculatedOutstanding = principalAmt + totalInterest - paidAmt;
+          // Include loan if it has outstanding balance
+          return calculatedOutstanding > 0;
+        });
+        
+        // Active loans: those with Active, Disbursed, or In Arrears status
+        const activeLoans = allActiveDisbursedLoans.filter(l => {
+          const status = (l.status || '').toLowerCase().trim();
+          return status === 'active' || status === 'disbursed' || status === 'in arrears';
         });
         
         return (
@@ -860,7 +878,7 @@ export function LoansTab() {
               <div>
                 <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Outstanding</p>
                 <p className={`text-2xl mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  KES {((allActiveDisbursedLoans.reduce((sum, l) => sum + Math.abs(l.outstandingBalance || 0), 0)) / 1000000).toFixed(2)}M
+                  KES {((loansWithOutstanding.reduce((sum, l) => sum + Math.abs(l.outstandingBalance || 0), 0)) / 1000000).toFixed(2)}M
                 </p>
               </div>
               <TrendingUp className="size-8 text-orange-600 dark:text-orange-400" />
@@ -885,7 +903,7 @@ export function LoansTab() {
                    'Active Loans'}
                 </p>
                 <p className={`text-2xl mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {allActiveDisbursedLoans.filter(l => l.status === 'Active').length}
+                  {activeLoans.length}
                 </p>
               </div>
               <CheckCircle className="size-8 text-purple-600 dark:text-purple-400" />
@@ -1056,6 +1074,10 @@ export function LoansTab() {
                       const client = clients.find(c => c.id === loan.clientId);
                       const principalAmt = loan.principalAmount || 0;
                       const paidAmt = loan.paidAmount || 0;
+                      const outstandingAmt = principalAmt + (loan.totalInterest || 0) - paidAmt;
+                      // Determine actual display status: if outstanding is 0 or less, show "Fully Paid"
+                      const displayStatus = outstandingAmt <= 0 ? 'Fully Paid' : loan.status;
+                      
                       return (
                         <tr key={loan.id} className={`border-t ${isDark ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-100 hover:bg-gray-50'}`}>
                           <td className={`px-4 py-2 text-xs ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>{loan.loanNumber || loan.id}</td>
@@ -1069,20 +1091,20 @@ export function LoansTab() {
                             {client?.clientNumber || client?.client_number || loan.clientId || 'N/A'}
                           </td>
                           <td className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
-                            KES {principalAmt.toLocaleString()}
+                            KES {principalAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
                           <td className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                            KES {(loan.totalInterest || 0).toLocaleString()}
+                            KES {(loan.totalInterest || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
                           <td className={`px-4 py-2 text-right text-xs text-emerald-600 dark:text-emerald-400`}>
-                            KES {paidAmt.toLocaleString()}
+                            KES {paidAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
                           <td className={`px-4 py-2 text-right text-xs text-orange-600 dark:text-orange-400`}>
-                            KES {(principalAmt + (loan.totalInterest || 0) - paidAmt).toLocaleString()}
+                            KES {outstandingAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
                           <td className="px-4 py-2 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(loan.status)}`}>
-                              {loan.status}
+                            <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(displayStatus)}`}>
+                              {displayStatus}
                             </span>
                           </td>
                           <td className="px-4 py-2 text-center">

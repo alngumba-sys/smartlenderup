@@ -1,14 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, Users, DollarSign, Calculator, CreditCard, Brain, BarChart3, Shield, Settings, Headphones, ChevronDown, FileText, Smartphone, Target, CheckSquare, Banknote, Receipt, BookOpen, FileCheck, Scale, Package, GitBranch, FolderOpen } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { LoanCalculatorTab } from './tabs/LoanCalculatorTab';
+import { LoanApprovalWorkflow } from './LoanApprovalWorkflow';
+// import { TrialBanner } from './TrialBanner'; // DISABLED: Trial system temporarily disabled
+import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigation } from '../contexts/NavigationContext';
 import { DashboardTab } from './tabs/DashboardTab';
 import { ClientsTab } from './tabs/ClientsTab';
 import { LoansTab } from './tabs/LoansTab';
 import { ApprovalsTab } from './tabs/ApprovalsTab';
-import { Approval1Tab } from './tabs/Approval1Tab';
 import { Approval2Tab } from './tabs/Approval2Tab';
-import { LoanReconciliationTab } from './tabs/LoanReconciliationTab';
 import { PaymentsTab } from './tabs/PaymentsTab';
-import { MobileBankingTab } from './tabs/MobileBankingTab';
+import { CollectionSheetsTab } from './tabs/CollectionSheetsTab';
 import { CreditScoringTab } from './tabs/CreditScoringTab';
 import { AIInsightsTab } from './tabs/AIInsightsTab';
 import { SMSCampaignsTab } from './tabs/SMSCampaignsTab';
@@ -26,14 +29,15 @@ import { AccountingTab } from './tabs/AccountingTab';
 import { LoanProductsTab } from './tabs/LoanProductsTab';
 import { ExpensesTab } from './tabs/ExpensesTab';
 import { PayrollTab } from './tabs/PayrollTab';
-import { InvestorAccountsTab } from './tabs/InvestorAccountsTab';
-import { CollectionSheetsTab } from './tabs/CollectionSheetsTab';
-import { LoanCalculatorTab } from './tabs/LoanCalculatorTab';
-import { LoanApprovalWorkflow } from './LoanApprovalWorkflow';
-import { TrialBanner } from './TrialBanner';
-import { useTheme } from '../contexts/ThemeContext';
-import { useAuth } from '../contexts/AuthContext';
-import { useNavigation } from '../contexts/NavigationContext';
+import { LoanReconciliationTab } from './tabs/LoanReconciliationTab';
+import { 
+  LayoutDashboard, Users, DollarSign, CreditCard, TrendingUp, 
+  Settings, FileText, Calculator, CheckSquare, Briefcase, 
+  PiggyBank, Bell, Calendar, Shield, Book, BarChart3, 
+  ChevronDown, X, UserCog, MessagesSquare, Send, Award,
+  FileCheck, Grid3x3, ClipboardList, Target, Brain, Banknote,
+  Receipt, BookOpen, FolderOpen, Package, Headphones, GitBranch
+} from 'lucide-react';
 
 interface InternalStaffPortalProps {
   onClientSelect: (clientId: string) => void;
@@ -236,10 +240,10 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
     }}>
       {/* Main Content Area */}
       <div className="flex-1 overflow-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6" style={{ backgroundColor: 'transparent' }}>
-        {/* Trial Banner - Only show for organization admins */}
-        {currentUser && currentUser.organizationId && (
+        {/* Trial Banner - DISABLED: Trial system temporarily disabled */}
+        {/* {currentUser && currentUser.organizationId && (
           <TrialBanner organizationId={currentUser.organizationId} />
-        )}
+        )} */}
         
         {/* All tab contents - conditionally rendered to prevent chart dimension errors */}
         {activeTab === 'dashboard' && <DashboardTab onNavigate={setActiveTab} />}

@@ -11,13 +11,16 @@ export interface PaymentStatusInfo {
 
 export function usePaymentStatus(organizationId: string): PaymentStatusInfo {
   const [paymentInfo, setPaymentInfo] = useState<PaymentStatusInfo>({
-    isPaid: true, // Default to true to avoid blocking on load
-    daysRemaining: 14,
-    subscriptionStatus: 'trial',
-    paymentStatus: 'pending',
+    isPaid: true, // DISABLED: Trial system temporarily disabled - always return isPaid: true
+    daysRemaining: 999, // Large number to indicate no trial
+    subscriptionStatus: 'active',
+    paymentStatus: 'paid',
     isTrialExpired: false,
   });
 
+  // DISABLED: Trial system temporarily disabled
+  // Commenting out the entire useEffect that checks payment status
+  /*
   useEffect(() => {
     if (!organizationId) return;
 
@@ -100,6 +103,7 @@ export function usePaymentStatus(organizationId: string): PaymentStatusInfo {
       console.error('Error fetching payment status:', error);
     }
   };
+  */
 
   return paymentInfo;
 }
