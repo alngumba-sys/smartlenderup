@@ -105,7 +105,7 @@ export function LoanProductsTab() {
   };
 
   return (
-    <div className="p-6 space-y-6 dark:bg-gray-900 bg-[rgb(17,17,32)]">
+    <div className={`p-6 space-y-6 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -126,10 +126,6 @@ export function LoanProductsTab() {
         <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
-          style={{
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
-          }}
         >
           <div className="flex items-center justify-between mb-2">
             <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Products</span>
@@ -144,10 +140,6 @@ export function LoanProductsTab() {
         <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
-          style={{
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
-          }}
         >
           <div className="flex items-center justify-between mb-2">
             <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Loans</span>
@@ -160,10 +152,6 @@ export function LoanProductsTab() {
         <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
-          style={{
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
-          }}
         >
           <div className="flex items-center justify-between mb-2">
             <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Disbursed</span>
@@ -178,10 +166,6 @@ export function LoanProductsTab() {
         <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
-          style={{
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
-          }}
         >
           <div className="flex items-center justify-between mb-2">
             <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Avg Interest Rate</span>

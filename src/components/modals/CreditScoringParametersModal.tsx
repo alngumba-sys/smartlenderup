@@ -156,8 +156,8 @@ export function CreditScoringParametersModal({ isOpen, onClose, onSave, clientTy
         {/* Header */}
         <div className="sticky top-0 bg-[rgb(208,239,255)] dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 px-6 py-3 flex items-center justify-between z-10">
           <div>
-            <h2 className="text-gray-900 dark:text-white font-bold">Credit Scoring Parameters</h2>
-            <p className="text-gray-600 dark:text-gray-300 text-sm">Configure the factors that determine credit scores</p>
+            <h2 className="dark:text-white font-bold text-[rgb(229,234,238)]">Credit Scoring Parameters</h2>
+            <p className="dark:text-gray-300 text-sm text-[rgb(221,223,224)]">Configure the factors that determine credit scores</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300">
             <X className="size-6" />
@@ -205,21 +205,21 @@ export function CreditScoringParametersModal({ isOpen, onClose, onSave, clientTy
           }`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className={`text-sm ${totalWeight === 100 ? 'text-emerald-900 dark:text-emerald-100' : 'text-amber-900 dark:text-amber-100'}`}>
+                <p className="text-sm font-semibold" style={{ color: 'rgba(0, 0, 0, 0.77)' }}>
                   Total Weight (Active Parameters Only)
                 </p>
-                <p className={`text-3xl ${totalWeight === 100 ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}>
+                <p className="text-3xl font-bold" style={{ color: 'rgba(0, 0, 0, 0.77)' }}>
                   {totalWeight}%
                 </p>
               </div>
               {totalWeight !== 100 && (
-                <div className="text-amber-700 dark:text-amber-300 text-sm text-right">
+                <div className="text-sm text-right font-semibold" style={{ color: 'rgba(0, 0, 0, 0.77)' }}>
                   <p>⚠️ Must equal 100%</p>
                   <p>Adjust: {totalWeight > 100 ? `-${totalWeight - 100}%` : `+${100 - totalWeight}%`}</p>
                 </div>
               )}
               {totalWeight === 100 && (
-                <div className="text-emerald-700 dark:text-emerald-300 text-sm">
+                <div className="text-sm font-semibold" style={{ color: 'rgba(0, 0, 0, 0.77)' }}>
                   ✓ Weights properly balanced
                 </div>
               )}

@@ -3,6 +3,7 @@ import { X, DollarSign, CreditCard, AlertCircle, CheckCircle } from 'lucide-reac
 import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getCurrencyCode, getMobileMoneyProviders } from '../../utils/currencyUtils';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface RecordPaymentModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface RecordPaymentModalProps {
 
 export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanId }: RecordPaymentModalProps) {
   const { isDark } = useTheme();
+  useEscapeKey(onClose, isOpen);
   const { clients, loans, bankAccounts } = useData();
   const currencyCode = getCurrencyCode();
   const mobileMoneyProviders = getMobileMoneyProviders();
@@ -293,8 +295,8 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
         {/* Header */}
         <div className="sticky top-0 bg-[rgb(208,239,255)] dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 px-6 py-4 flex items-center justify-between">
           <div>
-            <h2 className="text-gray-900 dark:text-white text-2xl">Record Payment</h2>
-            <p className="text-gray-600 dark:text-gray-300 text-sm">Record a loan repayment from client</p>
+            <h2 className="dark:text-white text-2xl text-[rgb(215,223,231)]">Record Payment</h2>
+            <p className="dark:text-gray-300 text-sm text-[rgb(234,238,242)]">Record a loan repayment from client</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-gray-100">
             <X className="size-6" />
@@ -311,7 +313,7 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
                 required
                 value={formData.loanId}
                 onChange={(e) => setFormData({ ...formData, loanId: e.target.value })}
-                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-[#111120] dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#111120] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
               >
                 <option value="">Choose a loan...</option>
                 {activeLoans
@@ -375,7 +377,7 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
                 required
                 value={formData.paymentMethod}
                 onChange={handlePaymentMethodChange}
-                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-[#111120] dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#111120] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
               >
                 {mobileMoneyProviders.map(provider => (
                   <option key={provider} value={provider}>{provider}</option>
@@ -394,7 +396,7 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
                     required={isMobileMoney}
                     value={formData.mpesaPhone}
                     onChange={(e) => setFormData({ ...formData, mpesaPhone: e.target.value })}
-                    className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                    className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
                     placeholder="Phone number"
                   />
                 </div>
@@ -405,7 +407,7 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
                     required
                     value={formData.mpesaCode}
                     onChange={(e) => setFormData({ ...formData, mpesaCode: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-[#111120] dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-mono"
+                    className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#111120] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-mono"
                     placeholder="e.g. SK12ABC34D"
                   />
                 </div>
@@ -419,7 +421,7 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
                     required
                     value={formData.transactionRef}
                     onChange={(e) => setFormData({ ...formData, transactionRef: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-[#111120] dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-mono"
+                    className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#111120] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-mono"
                     placeholder="Bank ref or Cheque no."
                   />
                 </div>
@@ -435,7 +437,7 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
                 required
                 value={formData.destinationAccountId}
                 onChange={(e) => setFormData({ ...formData, destinationAccountId: e.target.value })}
-                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-[#111120] dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#111120] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
               >
                 <option value="">Select where payment was received...</option>
                 {destinationBankAccounts.map(account => {
@@ -454,7 +456,7 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
                 })}
               </select>
               {destinationBankAccounts.length === 0 && (
-                <p className="text-amber-600 dark:text-amber-400 text-xs mt-1">
+                <p className="dark:text-amber-400 text-xs mt-1 text-[rgb(183,134,6)]">
                   ⚠️ No active {isMobileMoney ? 'mobile money' : 'bank'} accounts found. Please add a {isMobileMoney ? 'mobile money' : 'bank'} account in Settings.
                 </p>
               )}
@@ -468,7 +470,7 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
                 required
                 value={formData.amount ? formatNumberWithCommas(formData.amount) : ''}
                 onChange={handleAmountChange}
-                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-[#111120] dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#111120] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
                 placeholder="0"
               />
             </div>
@@ -479,7 +481,7 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
                 required
                 value={formData.paymentDate}
                 onChange={(e) => setFormData({ ...formData, paymentDate: e.target.value })}
-                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-[#111120] dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#111120] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
               />
             </div>
 
@@ -490,7 +492,7 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 rows={2}
-                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-[#111120] dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#111120] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
                 placeholder="Any additional information..."
               />
             </div>

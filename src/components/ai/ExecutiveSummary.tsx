@@ -363,19 +363,16 @@ export function ExecutiveSummary() {
       </div>
 
       {/* AI Insights */}
-      <div className="p-4 rounded-lg border" style={{
-        backgroundColor: isDark ? '#1e3a52' : '#1e3a52',
-        borderColor: isDark ? '#2563eb' : '#3b82f6'
-      }}>
+      <div className="p-4 rounded-lg border bg-blue-50 border-blue-200">
         <div className="flex items-start gap-2 mb-3">
-          <Sparkles className="size-5 text-blue-400 flex-shrink-0 mt-0.5" />
+          <Sparkles className="size-5 text-blue-600 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <h4 className="text-blue-200 mb-2">🤖 AI-Generated Insights</h4>
+            <h4 className="text-blue-900 mb-2 font-medium">🤖 AI-Generated Insights</h4>
             <div className="space-y-2">
               {summary.insights.map((insight, idx) => (
                 <div key={idx} className="flex items-start gap-2">
-                  <CheckCircle className="size-4 text-blue-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-blue-100 text-sm">{insight}</p>
+                  <CheckCircle className="size-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-blue-800 text-sm">{insight}</p>
                 </div>
               ))}
             </div>
@@ -384,19 +381,16 @@ export function ExecutiveSummary() {
       </div>
 
       {/* Strategic Recommendations */}
-      <div className="p-4 rounded-lg border" style={{
-        backgroundColor: isDark ? '#064e3b' : '#064e3b',
-        borderColor: isDark ? '#059669' : '#10b981'
-      }}>
+      <div className="p-4 rounded-lg border bg-green-50 border-green-200">
         <div className="flex items-start gap-2 mb-3">
-          <TrendingUp className="size-5 text-green-400 flex-shrink-0 mt-0.5" />
+          <TrendingUp className="size-5 text-green-600 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <h4 className="text-green-200 mb-2">📊 Strategic Recommendations</h4>
+            <h4 className="text-green-900 mb-2 font-medium">📊 Strategic Recommendations</h4>
             <div className="space-y-2">
               {summary.recommendations.map((rec, idx) => (
                 <div key={idx} className="flex items-start gap-2">
-                  <span className="text-green-400">•</span>
-                  <p className="text-green-100 text-sm">{rec}</p>
+                  <span className="text-green-600">•</span>
+                  <p className="text-green-800 text-sm">{rec}</p>
                 </div>
               ))}
             </div>
@@ -407,27 +401,27 @@ export function ExecutiveSummary() {
       {/* Risk Factors */}
       <div className="p-4 rounded-lg border" style={{
         backgroundColor: summary.riskFactors[0] === 'No significant risks identified' || summary.riskFactors[0].includes('excellently')
-          ? '#064e3b'
-          : '#78350f',
+          ? '#d1fae5'
+          : '#fef3c7',
         borderColor: summary.riskFactors[0] === 'No significant risks identified' || summary.riskFactors[0].includes('excellently')
-          ? '#059669'
-          : '#92400e'
+          ? '#10b981'
+          : '#f59e0b'
       }}>
         <div className="flex items-start gap-2 mb-3">
           {summary.riskFactors[0] === 'No significant risks identified' || summary.riskFactors[0].includes('excellently') ? (
-            <CheckCircle className="size-5 text-green-400 flex-shrink-0 mt-0.5" />
+            <CheckCircle className="size-5 text-green-600 flex-shrink-0 mt-0.5" />
           ) : (
-            <AlertTriangle className="size-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="size-5 text-amber-600 flex-shrink-0 mt-0.5" />
           )}
           <div className="flex-1">
-            <h4 className={summary.riskFactors[0] === 'No significant risks identified' || summary.riskFactors[0].includes('excellently') ? 'text-green-200 mb-2' : 'text-amber-200 mb-2'}>
+            <h4 className={summary.riskFactors[0] === 'No significant risks identified' || summary.riskFactors[0].includes('excellently') ? 'text-green-900 mb-2 font-medium' : 'text-amber-900 mb-2 font-medium'}>
               ⚠️ Risk Factors
             </h4>
             <div className="space-y-2">
               {summary.riskFactors.map((risk, idx) => (
                 <div key={idx} className="flex items-start gap-2">
-                  <span className={summary.riskFactors[0] === 'No significant risks identified' || summary.riskFactors[0].includes('excellently') ? 'text-green-400' : 'text-amber-400'}>•</span>
-                  <p className={`text-sm ${summary.riskFactors[0] === 'No significant risks identified' || summary.riskFactors[0].includes('excellently') ? 'text-green-100' : 'text-amber-100'}`}>{risk}</p>
+                  <span className={summary.riskFactors[0] === 'No significant risks identified' || summary.riskFactors[0].includes('excellently') ? 'text-green-600' : 'text-amber-600'}>•</span>
+                  <p className={`text-sm ${summary.riskFactors[0] === 'No significant risks identified' || summary.riskFactors[0].includes('excellently') ? 'text-green-800' : 'text-amber-800'}`}>{risk}</p>
                 </div>
               ))}
             </div>

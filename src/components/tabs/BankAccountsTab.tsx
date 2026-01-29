@@ -567,9 +567,9 @@ export function BankAccountsTab() {
       </div>
 
       {/* Summary Card for Active Tab */}
-      <div className="bg-gradient-to-br from-[#020838] to-[#041056] rounded-lg p-6 text-white border border-gray-700">
+      <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6 border border-blue-200">
         <div className="flex items-center justify-between mb-1">
-          <p className="text-[#e8d1c9] text-sm">
+          <p className="text-gray-600 text-sm">
             {activeBank === 'all' 
               ? 'Total Balance (All Accounts)' 
               : `${currentAccount?.bankName || currentAccount?.accountName || currentAccount?.name || 'Account'} Balance`}
@@ -581,7 +581,7 @@ export function BankAccountsTab() {
                   setEditingAccount(currentAccount);
                   setShowBankAccountModal(true);
                 }}
-                className="p-1.5 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded transition-colors"
+                className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded transition-colors"
                 title="Edit Account"
               >
                 <Edit className="size-4" />
@@ -592,7 +592,7 @@ export function BankAccountsTab() {
                   setShowDeleteConfirmation(true);
                   setDeleteConfirmationText('');
                 }}
-                className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
+                className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
                 title="Delete Account"
               >
                 <Trash2 className="size-4" />
@@ -600,7 +600,7 @@ export function BankAccountsTab() {
             </div>
           )}
         </div>
-        <p className="text-3xl font-bold text-white">
+        <p className="text-3xl font-bold text-[rgb(12,66,121)]">
           {formatCurrency(currentTabTotal, { showCode: true, decimals: 0 })}
         </p>
         
@@ -626,9 +626,9 @@ export function BankAccountsTab() {
           return (
             <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {bankSummaries.map((bank) => (
-                <div key={bank.bankName} className="bg-white/5 border border-white/10 rounded-lg p-3">
-                  <p className="text-[#e8d1c9] text-xs mb-1">{bank.bankName}</p>
-                  <p className="text-sm font-semibold text-white">
+                <div key={bank.bankName} className="bg-white border border-blue-200 rounded-lg p-3">
+                  <p className="text-gray-600 text-xs mb-1">{bank.bankName}</p>
+                  <p className="text-sm font-semibold text-gray-900">
                     {formatCurrency(bank.totalBalance, { showCode: true, decimals: 0 })}
                   </p>
                 </div>
@@ -641,25 +641,25 @@ export function BankAccountsTab() {
         {activeBank !== 'all' && currentAccount && (
           <div className="mt-4">
             <div className="grid grid-cols-5 gap-4">
-              <div className="bg-white/5 border border-white/10 rounded-lg p-3">
-                <p className="text-[#e8d1c9] text-xs mb-1">Account Type</p>
-                <p className="text-sm font-semibold text-white">{currentAccount.accountType}</p>
+              <div className="bg-white border border-blue-200 rounded-lg p-3">
+                <p className="text-gray-600 text-xs mb-1">Account Type</p>
+                <p className="text-sm font-semibold text-gray-900">{currentAccount.accountType}</p>
               </div>
-              <div className="bg-white/5 border border-white/10 rounded-lg p-3">
-                <p className="text-[#e8d1c9] text-xs mb-1">Bank Name</p>
-                <p className="text-sm font-semibold text-white">{currentAccount.bankName || 'N/A'}</p>
+              <div className="bg-white border border-blue-200 rounded-lg p-3">
+                <p className="text-gray-600 text-xs mb-1">Bank Name</p>
+                <p className="text-sm font-semibold text-gray-900">{currentAccount.bankName || 'N/A'}</p>
               </div>
-              <div className="bg-white/5 border border-white/10 rounded-lg p-3">
-                <p className="text-[#e8d1c9] text-xs mb-1">Account Number</p>
-                <p className="text-sm font-mono text-white">{currentAccount.accountNumber || 'N/A'}</p>
+              <div className="bg-white border border-blue-200 rounded-lg p-3">
+                <p className="text-gray-600 text-xs mb-1">Account Number</p>
+                <p className="text-sm font-mono text-gray-900">{currentAccount.accountNumber || 'N/A'}</p>
               </div>
-              <div className="bg-white/5 border border-white/10 rounded-lg p-3">
-                <p className="text-[#e8d1c9] text-xs mb-1">Branch</p>
-                <p className="text-sm text-white">{currentAccount.branch || 'N/A'}</p>
+              <div className="bg-white border border-blue-200 rounded-lg p-3">
+                <p className="text-gray-600 text-xs mb-1">Branch</p>
+                <p className="text-sm text-gray-900">{currentAccount.branch || 'N/A'}</p>
               </div>
-              <div className="bg-white/5 border border-white/10 rounded-lg p-3">
-                <p className="text-[#e8d1c9] text-xs mb-1">Total Funding Received</p>
-                <p className="text-sm font-semibold text-white">
+              <div className="bg-white border border-blue-200 rounded-lg p-3">
+                <p className="text-gray-600 text-xs mb-1">Total Funding Received</p>
+                <p className="text-sm font-semibold text-gray-900">
                   {formatCurrency(currentAccountFunding, { showCode: true, decimals: 2 })}
                 </p>
               </div>

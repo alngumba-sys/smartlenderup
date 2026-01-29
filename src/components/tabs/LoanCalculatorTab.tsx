@@ -100,34 +100,27 @@ export function LoanCalculatorTab() {
   const schedule = generateSchedule();
 
   return (
-    <div className={`p-6 space-y-6 transition-colors ${isDark ? 'dark' : ''}`}>
+    <div className="p-6 space-y-6 transition-colors">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Calculator className="size-8 text-blue-600 dark:text-blue-400" />
+        <Calculator className="size-8 text-blue-600" />
         <div>
-          <h2 className="text-gray-900 dark:text-white text-[20px]">Loan Calculator</h2>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">Calculate loan repayments and view amortization schedule</p>
+          <h2 className="text-gray-900 text-[20px]">Loan Calculator</h2>
+          <p className="text-gray-600 text-sm">Calculate loan repayments and view amortization schedule</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Input Section */}
-        <div className={`p-6 rounded-lg shadow-sm border space-y-4 ${
-          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}
-          style={{
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
-          }}
-        >
-          <h4 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>Loan Details</h4>
+        <div className="p-6 rounded-lg shadow-sm border space-y-4 bg-white border-gray-200">
+          <h4 className="text-gray-900">Loan Details</h4>
           
           <div>
-            <label className={`block text-sm mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Loan Product</label>
+            <label className="block text-sm mb-2 text-gray-700">Loan Product</label>
             <select
               value={product}
               onChange={(e) => setProduct(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900"
             >
               <option value="">Select a loan product</option>
               {loanProducts.length === 0 && (
@@ -140,54 +133,54 @@ export function LoanCalculatorTab() {
           </div>
 
           <div>
-            <label className={`block text-sm mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+            <label className="block text-sm mb-2 text-gray-700">
               Loan Amount ({currencySymbol})
             </label>
             <input
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900"
               min="0"
               max={selectedProduct?.maxAmount}
             />
-            <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            <p className="text-xs mt-1 text-gray-500">
               Max: {currencySymbol} {selectedProduct?.maxAmount.toLocaleString()}
             </p>
           </div>
 
           <div>
-            <label className={`block text-sm mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+            <label className="block text-sm mb-2 text-gray-700">
               Tenor (Months)
             </label>
             <input
               type="number"
               value={tenor}
               onChange={(e) => setTenor(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900"
               min="0"
               max={selectedProduct?.maxTenor}
             />
-            <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            <p className="text-xs mt-1 text-gray-500">
               Max: {selectedProduct?.maxTenor || 24} months
             </p>
           </div>
 
-          <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
             {selectedProduct ? (
               <>
-                <p className="text-sm text-blue-900 dark:text-blue-300">
+                <p className="text-sm text-blue-900">
                   <strong>Interest Rate:</strong> {selectedProduct.interestRate}% p.a.
                 </p>
-                <p className="text-sm text-blue-900 dark:text-blue-300">
+                <p className="text-sm text-blue-900">
                   <strong>Interest Type:</strong> {selectedProduct.interestType}
                 </p>
-                <p className="text-sm text-blue-900 dark:text-blue-300">
+                <p className="text-sm text-blue-900">
                   <strong>Repayment:</strong> {selectedProduct.repaymentFrequency}
                 </p>
               </>
             ) : (
-              <p className="text-sm text-blue-900 dark:text-blue-300">
+              <p className="text-sm text-blue-900">
                 Select a loan product to view details
               </p>
             )}
@@ -195,41 +188,34 @@ export function LoanCalculatorTab() {
         </div>
 
         {/* Results Section */}
-        <div className={`p-6 rounded-lg shadow-sm border space-y-4 ${
-          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}
-          style={{
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
-          }}
-        >
-          <h4 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>Calculation Results</h4>
+        <div className="p-6 rounded-lg shadow-sm border space-y-4 bg-white border-gray-200">
+          <h4 className="text-gray-900">Calculation Results</h4>
           
           {result && (
             <>
-              <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 rounded-lg border border-blue-200 dark:border-blue-800">
-                <p className="text-sm text-blue-800 dark:text-blue-300 mb-1">Monthly Payment</p>
-                <p className="text-3xl text-blue-900 dark:text-blue-100">
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-800 mb-1">Monthly Payment</p>
+                <p className="text-3xl text-blue-900">
                   {currencySymbol} {result.monthlyPayment.toLocaleString()}
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Principal Amount</p>
-                  <p className="text-gray-900 dark:text-white">{currencySymbol} {Number(amount).toLocaleString()}</p>
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-600">Principal Amount</p>
+                  <p className="text-gray-900">{currencySymbol} {Number(amount).toLocaleString()}</p>
                 </div>
-                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Total Interest</p>
-                  <p className="text-gray-900 dark:text-white">{currencySymbol} {result.totalInterest.toLocaleString()}</p>
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-600">Total Interest</p>
+                  <p className="text-gray-900">{currencySymbol} {result.totalInterest.toLocaleString()}</p>
                 </div>
-                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Total Repayment</p>
-                  <p className="text-gray-900 dark:text-white">{currencySymbol} {result.totalRepayment.toLocaleString()}</p>
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-600">Total Repayment</p>
+                  <p className="text-gray-900">{currencySymbol} {result.totalRepayment.toLocaleString()}</p>
                 </div>
-                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Loan Duration</p>
-                  <p className="text-gray-900 dark:text-white">{tenor} months</p>
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-600">Loan Duration</p>
+                  <p className="text-gray-900">{tenor} months</p>
                 </div>
               </div>
 
@@ -247,34 +233,34 @@ export function LoanCalculatorTab() {
 
       {/* Amortization Schedule */}
       {showSchedule && schedule.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <h4 className="text-gray-900 dark:text-white mb-3">Repayment Schedule</h4>
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h4 className="text-gray-900 mb-3">Repayment Schedule</h4>
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
             <div className="overflow-x-auto max-h-96">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                <thead className="bg-gray-50 sticky top-0">
                   <tr>
-                    <th className="px-4 py-2 text-left text-gray-700 dark:text-gray-300">Month</th>
-                    <th className="px-4 py-2 text-right text-gray-700 dark:text-gray-300">Payment</th>
-                    <th className="px-4 py-2 text-right text-gray-700 dark:text-gray-300">Principal</th>
-                    <th className="px-4 py-2 text-right text-gray-700 dark:text-gray-300">Interest</th>
-                    <th className="px-4 py-2 text-right text-gray-700 dark:text-gray-300">Balance</th>
+                    <th className="px-4 py-2 text-left text-gray-700">Month</th>
+                    <th className="px-4 py-2 text-right text-gray-700">Payment</th>
+                    <th className="px-4 py-2 text-right text-gray-700">Principal</th>
+                    <th className="px-4 py-2 text-right text-gray-700">Interest</th>
+                    <th className="px-4 py-2 text-right text-gray-700">Balance</th>
                   </tr>
                 </thead>
                 <tbody>
                   {schedule.map((row) => (
-                    <tr key={row.month} className="border-t border-gray-200 dark:border-gray-700">
-                      <td className="px-4 py-2 text-gray-900 dark:text-white">{row.month}</td>
-                      <td className="px-4 py-2 text-right text-gray-900 dark:text-white">
+                    <tr key={row.month} className="border-t border-gray-200">
+                      <td className="px-4 py-2 text-gray-900">{row.month}</td>
+                      <td className="px-4 py-2 text-right text-gray-900">
                         {row.payment.toLocaleString()}
                       </td>
-                      <td className="px-4 py-2 text-right text-gray-900 dark:text-white">
+                      <td className="px-4 py-2 text-right text-gray-900">
                         {row.principal.toLocaleString()}
                       </td>
-                      <td className="px-4 py-2 text-right text-gray-900 dark:text-white">
+                      <td className="px-4 py-2 text-right text-gray-900">
                         {row.interest.toLocaleString()}
                       </td>
-                      <td className="px-4 py-2 text-right text-gray-900 dark:text-white">
+                      <td className="px-4 py-2 text-right text-gray-900">
                         {row.balance.toLocaleString()}
                       </td>
                     </tr>

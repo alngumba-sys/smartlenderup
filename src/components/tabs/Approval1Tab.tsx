@@ -124,8 +124,10 @@ export function Approval1Tab() {
       </div>
 
       {/* 3-Phase Pipeline */}
-      <div className="bg-[rgb(17,17,32)] p-6 rounded-lg border border-[#111120]">
-        <h3 className="text-gray-900 mb-4 flex items-center gap-2">
+      <div className={`p-6 rounded-lg border ${
+        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
+        <h3 className={`mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
           <FileText className="size-5 text-purple-600" />
           Streamlined 3-Phase Approval Pipeline
         </h3>
@@ -298,28 +300,38 @@ export function Approval1Tab() {
       </div>
 
       {/* Risk Analysis Summary */}
-      <div className="bg-[rgb(17,17,32)] border-2 border-[#2d3748] rounded-lg p-4">
+      <div className={`border-2 rounded-lg p-4 ${
+        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
         <div className="flex items-start gap-3">
-          <div className="size-10 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+          <div className={`size-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+            isDark ? 'bg-blue-600' : 'bg-blue-600'
+          }`}>
             <FileCheck className="size-5 text-white" />
           </div>
           <div className="flex-1">
-            <h4 className="text-gray-100 font-semibold mb-2">📊 Risk Analysis Summary</h4>
+            <h4 className={`font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>📊 Risk Analysis Summary</h4>
             <div className="grid grid-cols-3 gap-4">
-              <div className="bg-[#1a1a2e] rounded-lg p-3 border-2 border-emerald-600">
-                <p className="text-emerald-400 text-2xl font-bold">{enrichedApprovals.filter((a: any) => a.riskLevel === 'low' && a.status === 'pending').length}</p>
-                <p className="text-gray-300 text-sm">Low Risk Loans</p>
-                <p className="text-xs text-gray-400 mt-1">Recommended for approval</p>
+              <div className={`rounded-lg p-3 border-2 border-emerald-600 ${
+                isDark ? 'bg-gray-700' : 'bg-white'
+              }`}>
+                <p className={`text-2xl font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{enrichedApprovals.filter((a: any) => a.riskLevel === 'low' && a.status === 'pending').length}</p>
+                <p className={isDark ? 'text-gray-300' : 'text-gray-700'} style={{ fontSize: '14px' }}>Low Risk Loans</p>
+                <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Recommended for approval</p>
               </div>
-              <div className="bg-[#1a1a2e] rounded-lg p-3 border-2 border-amber-500">
-                <p className="text-amber-400 text-2xl font-bold">{enrichedApprovals.filter((a: any) => a.riskLevel === 'medium' && a.status === 'pending').length}</p>
-                <p className="text-gray-300 text-sm">Medium Risk</p>
-                <p className="text-xs text-gray-400 mt-1">Requires review</p>
+              <div className={`rounded-lg p-3 border-2 border-amber-500 ${
+                isDark ? 'bg-gray-700' : 'bg-white'
+              }`}>
+                <p className={`text-2xl font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{enrichedApprovals.filter((a: any) => a.riskLevel === 'medium' && a.status === 'pending').length}</p>
+                <p className={isDark ? 'text-gray-300' : 'text-gray-700'} style={{ fontSize: '14px' }}>Medium Risk</p>
+                <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Requires review</p>
               </div>
-              <div className="bg-[#1a1a2e] rounded-lg p-3 border-2 border-red-500">
-                <p className="text-red-400 text-2xl font-bold">{enrichedApprovals.filter((a: any) => a.riskLevel === 'high' && a.status === 'pending').length}</p>
-                <p className="text-gray-300 text-sm">High Risk</p>
-                <p className="text-xs text-gray-400 mt-1">Careful review needed</p>
+              <div className={`rounded-lg p-3 border-2 border-red-500 ${
+                isDark ? 'bg-gray-700' : 'bg-white'
+              }`}>
+                <p className={`text-2xl font-bold ${isDark ? 'text-red-400' : 'text-red-600'}`}>{enrichedApprovals.filter((a: any) => a.riskLevel === 'high' && a.status === 'pending').length}</p>
+                <p className={isDark ? 'text-gray-300' : 'text-gray-700'} style={{ fontSize: '14px' }}>High Risk</p>
+                <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Careful review needed</p>
               </div>
             </div>
           </div>
@@ -327,7 +339,9 @@ export function Approval1Tab() {
       </div>
 
       {/* Bulk Approval Filters */}
-      <div className="bg-[rgb(25,25,41)] p-4 rounded-lg border border-gray-200">
+      <div className={`p-4 rounded-lg border ${
+        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
         <div className="grid grid-cols-4 gap-4">
           <div>
             <label className="text-gray-600 text-sm mb-2 block">Min Amount</label>
@@ -375,7 +389,9 @@ export function Approval1Tab() {
       </div>
 
       {/* Phase Tabs */}
-      <div className="bg-[rgb(17,17,32)] rounded-lg p-2 flex items-center gap-2">
+      <div className={`rounded-lg p-2 flex items-center gap-2 ${
+        isDark ? 'bg-gray-800' : 'bg-gray-100'
+      }`}>
         <button
           onClick={() => setFilterPhase(filterPhase === 1 ? null : 1)}
           className={`flex items-center gap-2 px-4 py-2 rounded transition-all flex-1 justify-center ${

@@ -122,12 +122,12 @@ export const themes: Theme[] = [
       background: '#fff5f5',
       surface: '#ffffff',
       text: '#212529',
-      textSecondary: '#495057',
+      textSecondary: '#1f2937',
       border: '#ffc9c9',
       // Card specific colors
       cardBackground: '#ffffff',
       cardText: '#212529',
-      cardTextSecondary: '#495057',
+      cardTextSecondary: '#1f2937',
       cardBorder: '#ffc9c9',
       cardHover: '#fff5f5',
       // Chart colors
@@ -224,12 +224,12 @@ export const themes: Theme[] = [
       background: '#faf5ff',
       surface: '#ffffff',
       text: '#1e1b4b',
-      textSecondary: '#6b7280',
+      textSecondary: '#1f2937',
       border: '#e9d5ff',
       // Card specific colors
       cardBackground: '#ffffff',
       cardText: '#1e1b4b',
-      cardTextSecondary: '#6b7280',
+      cardTextSecondary: '#1f2937',
       cardBorder: '#e9d5ff',
       cardHover: '#faf5ff',
       // Chart colors

@@ -36,6 +36,7 @@ import { AuthProvider } from '../contexts/AuthContext';
 import { DataProvider } from '../contexts/DataContext';
 import { NavigationProvider } from '../contexts/NavigationContext';
 import { BV_FUNGUO_LOGO } from '../assets/BVFunguoLogo';
+import logoImage from "figma:asset/8c9a9782f822a04113fd7bff4f68f1bc0ac7a2af.png";
 // Disabled temporarily to debug loading issues
 // import '../utils/devMigrationTools'; // Import developer migration tools for data updates
 
@@ -252,31 +253,24 @@ function AppContent() {
     >
       {/* Portal Selector */}
       <div 
-        className="border-b px-2 sm:px-4 py-2 flex-shrink-0 transition-colors"
+        className="border-b px-4 sm:px-6 md:px-8 py-2 flex-shrink-0 transition-colors backdrop-blur-md"
         style={{
-          backgroundColor: '#0d1b2a',
-          borderColor: '#1e2f42'
+          backgroundColor: 'rgba(17, 17, 32, 0.85)',
+          borderColor: 'rgba(255, 255, 255, 0.1)'
         }}
       >
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+        <div className="w-full flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-            {organizationLogo && (
-              <img 
-                src={organizationLogo} 
-                alt={organizationName} 
-                className="h-6 sm:h-8 w-auto object-contain flex-shrink-0" 
-              />
-            )}
+            <img 
+              src={logoImage}
+              alt={organizationName} 
+              className="h-8 sm:h-10 w-auto object-contain flex-shrink-0" 
+            />
             <div className="min-w-0 flex-1">
-              <h1 className="text-sm sm:text-base md:text-lg truncate" style={{ 
-                color: '#e1e8f0'
-              }}>{organizationName}</h1>
-              <p className="text-xs hidden sm:block truncate" style={{
-                color: '#b8c5d6',
-                opacity: 0.5,
-                position: 'relative',
-                zIndex: 10
-              }}>
+              <h1 className="text-sm sm:text-base md:text-lg truncate text-white">
+                {organizationName}
+              </h1>
+              <p className="text-xs hidden sm:block truncate text-white/70">
                 Empowering {countryDemonym} Entrepreneurs
               </p>
             </div>
@@ -288,8 +282,8 @@ function AppContent() {
               <SupabaseSyncStatus />
             </div>
             
-            {/* Theme Toggle */}
-            <ThemeToggle />
+            {/* Theme Toggle - Temporarily hidden (light mode only) */}
+            {/* <ThemeToggle /> */}
             
             {/* Payment Calendar - Hidden on mobile */}
             <div className="hidden lg:block">
@@ -540,30 +534,23 @@ function AppContent() {
             </div>
 
             {/* User Info & Logout */}
-            <div className="flex items-center gap-2 ml-2 pl-2 border-l" style={{
-              borderColor: '#1e2f42'
-            }}>
+            <div className="flex items-center gap-2 ml-2 pl-2 border-l border-white/20">
               <div className="text-right hidden sm:block">
-                <p className="text-xs" style={{
-                  color: '#b8c5d6',
-                  fontWeight: 'bold'
-                }}>
-                  {currentUser?.role}
+                <p className="text-xs text-white font-bold">
+                  {(() => {
+                    console.log('🔍 Current User:', currentUser);
+                    console.log('🔍 userType:', currentUser?.userType);
+                    console.log('🔍 role:', currentUser?.role);
+                    return currentUser?.userType === 'staff' ? 'Staff' : currentUser?.role;
+                  })()}
                 </p>
-                <p className="text-xs" style={{
-                  color: '#b8c5d6',
-                  opacity: 0.8
-                }}>
+                <p className="text-xs text-white/70">
                   {currentUser?.email}
                 </p>
               </div>
               <button
                 onClick={handleLogout}
-                className="p-2 rounded-lg transition-colors"
-                style={{
-                  backgroundColor: '#1a2942',
-                  color: '#e1e8f0'
-                }}
+                className="p-2 rounded-lg transition-colors bg-white/10 hover:bg-white/20 text-white"
                 title="Logout"
               >
                 <LogOut className="size-5" />

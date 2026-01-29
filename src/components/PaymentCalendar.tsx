@@ -145,8 +145,8 @@ export function PaymentCalendar() {
         onClick={() => setIsOpen(!isOpen)}
         className="p-2 rounded-lg transition-colors relative"
         style={{
-          backgroundColor: isOpen ? (isDark ? '#1e3a52' : '#e0f2fe') : 'transparent',
-          color: isDark ? '#94a3b8' : '#475569'
+          backgroundColor: isOpen ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+          color: '#ffffff'
         }}
         title="Payment Calendar"
       >

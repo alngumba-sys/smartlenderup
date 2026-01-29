@@ -84,6 +84,7 @@ export function LoansTab() {
     const interestRate = parseFloat(loanData.interestRate) || 0;
     const term = parseInt(loanData.loanTerm) || 12;
     const termUnit = loanData.termUnit || 'Months';
+    const facilitationFee = parseFloat(loanData.facilitationFee) || 0;
     
     // Calculate total interest and repayable amount
     let totalInterest = 0;
@@ -137,6 +138,7 @@ export function LoansTab() {
       firstRepaymentDate: firstRepaymentDate.toISOString().split('T')[0],
       maturityDate: maturityDate.toISOString().split('T')[0],
       status: 'Pending' as const,
+      facilitationFee: facilitationFee,
       collateral: loanData.collateralType && loanData.collateralValue ? [{
         type: loanData.collateralType,
         description: loanData.collateralType,
@@ -831,10 +833,6 @@ export function LoansTab() {
           <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
           }`}
-            style={{
-              backgroundColor: '#15233a',
-              borderColor: '#1e2f42'
-            }}
           >
             <div className="flex items-center justify-between">
               <div>
@@ -850,10 +848,6 @@ export function LoansTab() {
           <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
           }`}
-            style={{
-              backgroundColor: '#15233a',
-              borderColor: '#1e2f42'
-            }}
           >
             <div className="flex items-center justify-between">
               <div>
@@ -869,10 +863,6 @@ export function LoansTab() {
           <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
           }`}
-            style={{
-              backgroundColor: '#15233a',
-              borderColor: '#1e2f42'
-            }}
           >
             <div className="flex items-center justify-between">
               <div>
@@ -888,10 +878,6 @@ export function LoansTab() {
           <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
           }`}
-            style={{
-              backgroundColor: '#15233a',
-              borderColor: '#1e2f42'
-            }}
           >
             <div className="flex items-center justify-between">
               <div>
@@ -1096,7 +1082,7 @@ export function LoansTab() {
                           <td className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                             KES {(loan.totalInterest || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
-                          <td className={`px-4 py-2 text-right text-xs text-emerald-600 dark:text-emerald-400`}>
+                          <td className={`px-4 py-2 text-right text-xs text-emerald-700 dark:text-emerald-400`}>
                             KES {paidAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
                           <td className={`px-4 py-2 text-right text-xs text-orange-600 dark:text-orange-400`}>

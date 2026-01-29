@@ -1,17 +1,30 @@
 import { useState } from 'react';
 import { X, User, Building2, Camera } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { getCurrencyCode } from '../../utils/currencyUtils';
-import { formatNumberWithCommas, parseFormattedNumber } from '../../utils/numberFormat';
+
+// Helper functions for number formatting
+const formatNumberWithCommas = (value: string) => {
+  if (!value) return '';
+  const number = parseFloat(value.replace(/,/g, ''));
+  if (isNaN(number)) return value;
+  return number.toLocaleString('en-US');
+};
+
+const parseFormattedNumber = (value: string) => {
+  return value.replace(/,/g, '');
+};
 
 interface NewClientModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (clientData: any) => void;
+  onSubmit: (data: any) => void;
 }
 
 export function NewClientModal({ isOpen, onClose, onSubmit }: NewClientModalProps) {
   const { isDark } = useTheme();
+  useEscapeKey(onClose, isOpen);
   const [clientType, setClientType] = useState<'individual' | 'business'>('individual');
   const [clientPicture, setClientPicture] = useState<string | null>(null);
   
@@ -90,12 +103,12 @@ export function NewClientModal({ isOpen, onClose, onSubmit }: NewClientModalProp
     <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-0 sm:p-4 ${isDark ? 'dark' : ''}`}>
       <div className="bg-white dark:bg-gray-800 rounded-none sm:rounded-lg w-full h-full sm:h-auto sm:max-w-2xl sm:max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-[rgb(208,239,255)] dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 px-4 sm:px-6 py-4 flex items-center justify-between z-10">
+        <div className="sticky top-0 bg-[rgb(208,239,255)] border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between z-10">
           <div>
-            <h2 className="text-gray-900 dark:text-white text-base sm:text-lg">Add New Borrower</h2>
-            <p className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm">Create individual or business borrower account</p>
+            <h2 className="text-gray-900 text-base sm:text-lg">Add New Borrower</h2>
+            <p className="text-gray-600 text-xs sm:text-sm">Create individual or business borrower account</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-gray-100">
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
             <X className="size-5 sm:size-6" />
           </button>
         </div>
@@ -117,7 +130,7 @@ export function NewClientModal({ isOpen, onClose, onSubmit }: NewClientModalProp
               >
                 <User className={`size-6 ${clientType === 'individual' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`} />
                 <div className="text-left">
-                  <div className={`font-medium ${clientType === 'individual' ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-300'}`}>
+                  <div className={`font-medium ${clientType === 'individual' ? 'text-emerald-800 dark:text-emerald-300' : 'text-gray-800 dark:text-gray-300'}`}>
                     Individual
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">Personal borrower</div>
@@ -189,24 +202,24 @@ export function NewClientModal({ isOpen, onClose, onSubmit }: NewClientModalProp
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">First Name *</label>
+                  <label className="block text-sm text-gray-700 mb-1">First Name *</label>
                   <input
                     type="text"
                     required
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     placeholder="John"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Last Name *</label>
+                  <label className="block text-sm text-gray-700 mb-1">Last Name *</label>
                   <input
                     type="text"
                     required
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     placeholder="Doe"
                   />
                 </div>
@@ -214,36 +227,36 @@ export function NewClientModal({ isOpen, onClose, onSubmit }: NewClientModalProp
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">National ID *</label>
+                  <label className="block text-sm text-gray-700 mb-1">National ID *</label>
                   <input
                     type="text"
                     required
                     value={formData.idNumber}
                     onChange={(e) => setFormData({ ...formData, idNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     placeholder="12345678"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Date of Birth *</label>
+                  <label className="block text-sm text-gray-700 mb-1">Date of Birth *</label>
                   <input
                     type="date"
                     required
                     value={formData.dateOfBirth}
                     onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Gender *</label>
+                  <label className="block text-sm text-gray-700 mb-1">Gender *</label>
                   <select
                     required
                     value={formData.gender}
                     onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     <option value="Female">Female</option>
                     <option value="Male">Male</option>
@@ -251,11 +264,11 @@ export function NewClientModal({ isOpen, onClose, onSubmit }: NewClientModalProp
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Marital Status</label>
+                  <label className="block text-sm text-gray-700 mb-1">Marital Status</label>
                   <select
                     value={formData.maritalStatus}
                     onChange={(e) => setFormData({ ...formData, maritalStatus: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     <option value="Single">Single</option>
                     <option value="Married">Married</option>
@@ -266,12 +279,12 @@ export function NewClientModal({ isOpen, onClose, onSubmit }: NewClientModalProp
               </div>
 
               <div>
-                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Town</label>
+                <label className="block text-sm text-gray-700 mb-1">Town</label>
                 <input
                   type="text"
                   value={formData.town}
                   onChange={(e) => setFormData({ ...formData, town: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   placeholder="Town name"
                 />
               </div>
@@ -282,36 +295,36 @@ export function NewClientModal({ isOpen, onClose, onSubmit }: NewClientModalProp
           {clientType === 'business' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Business Name *</label>
+                <label className="block text-sm text-gray-700 mb-1">Business Name *</label>
                 <input
                   type="text"
                   required
                   value={formData.businessName}
                   onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Acme Corporation Ltd"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Registration Number *</label>
+                  <label className="block text-sm text-gray-700 mb-1">Registration Number *</label>
                   <input
                     type="text"
                     required
                     value={formData.registrationNumber}
                     onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="CPR/2024/12345"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Business Type *</label>
+                  <label className="block text-sm text-gray-700 mb-1">Business Type *</label>
                   <select
                     required
                     value={formData.businessType}
                     onChange={(e) => setFormData({ ...formData, businessType: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="Retail">Retail</option>
                     <option value="Wholesale">Wholesale</option>
@@ -331,31 +344,31 @@ export function NewClientModal({ isOpen, onClose, onSubmit }: NewClientModalProp
           <div className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Phone Number *</label>
+                <label className="block text-sm text-gray-700 mb-1">Phone Number *</label>
                 <input
                   type="tel"
                   required
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   placeholder="Phone number"
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Email *</label>
+                <label className="block text-sm text-gray-700 mb-1">Email *</label>
                 <input
                   type="email"
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   placeholder="email@example.com"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm text-gray-700 mb-1">
                 {clientType === 'individual' ? 'Occupation' : 'Industry *'}
               </label>
               <input
@@ -363,13 +376,13 @@ export function NewClientModal({ isOpen, onClose, onSubmit }: NewClientModalProp
                 required={clientType === 'business'}
                 value={formData.occupation}
                 onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 placeholder={clientType === 'individual' ? 'Teacher' : 'Retail'}
               />
             </div>
 
             <div>
-              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm text-gray-700 mb-1">
                 Address {clientType === 'business' ? '*' : ''}
               </label>
               <input
@@ -377,31 +390,31 @@ export function NewClientModal({ isOpen, onClose, onSubmit }: NewClientModalProp
                 required={clientType === 'business'}
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 placeholder="Street address, building, etc."
               />
             </div>
 
             <div>
-              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm text-gray-700 mb-1">
                 Monthly {clientType === 'individual' ? 'Income' : 'Revenue'} ({currencyCode})
               </label>
               <input
                 type="text"
                 value={formatNumberWithCommas(formData.monthlyIncome)}
                 onChange={(e) => setFormData({ ...formData, monthlyIncome: parseFormattedNumber(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 placeholder="0"
               />
             </div>
           </div>
 
           {/* Submit Buttons */}
-          <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+              className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
             >
               Cancel
             </button>

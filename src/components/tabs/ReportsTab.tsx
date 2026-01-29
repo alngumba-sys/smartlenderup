@@ -182,19 +182,19 @@ export function ReportsTab() {
           <div className="flex items-center gap-3 flex-shrink-0">
             {/* Date Range Selector */}
             <div className="flex items-center gap-2">
-              <Calendar className="size-4 text-gray-600 dark:text-gray-400" />
+              <Calendar className="size-4 text-gray-600" />
               <input
                 type="date"
                 value={dateRange.startDate}
                 onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
-                className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+                className="px-3 py-1.5 border border-gray-300 bg-white text-gray-900 rounded-lg text-sm"
               />
-              <span className="text-gray-600 dark:text-gray-400 text-sm">to</span>
+              <span className="text-gray-600 text-sm">to</span>
               <input
                 type="date"
                 value={dateRange.endDate}
                 onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
-                className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+                className="px-3 py-1.5 border border-gray-300 bg-white text-gray-900 rounded-lg text-sm"
               />
             </div>
             {/* Export & Print Buttons */}
@@ -278,33 +278,33 @@ export function ReportsTab() {
                 onClick={() => handleCategoryChange(category.id)}
                 className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
                   isActive
-                    ? `border-${category.color}-500 bg-${category.color}-50 dark:bg-${category.color}-900/20`
-                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600'
+                    ? `border-${category.color}-500 bg-${category.color}-50`
+                    : 'border-gray-200 bg-white hover:border-gray-300'
                 }`}
               >
                 <div className="flex items-start gap-3">
                   <div className={`size-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                     isActive
-                      ? `bg-${category.color}-100 dark:bg-${category.color}-900/40`
-                      : 'bg-gray-100 dark:bg-gray-700'
+                      ? `bg-${category.color}-100`
+                      : 'bg-gray-100'
                   }`}>
                     <Icon className={`size-5 ${
-                      isActive ? `text-${category.color}-600` : 'text-gray-600 dark:text-gray-400'
+                      isActive ? `text-${category.color}-600` : 'text-gray-600'
                     }`} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className={`text-sm mb-1 ${
-                      isActive ? `text-${category.color}-900 dark:text-${category.color}-100` : 'text-gray-900 dark:text-white'
+                    <h3 className={`text-sm font-semibold mb-1 ${
+                      isActive ? 'text-gray-900' : 'text-gray-900'
                     }`}>
                       {category.name}
                     </h3>
                     <p className={`text-xs ${
-                      isActive ? `text-${category.color}-700 dark:text-${category.color}-300` : 'text-gray-600 dark:text-gray-400'
+                      isActive ? 'text-gray-700' : 'text-gray-600'
                     }`}>
                       {category.description}
                     </p>
                     <p className={`text-xs mt-1 ${
-                      isActive ? `text-${category.color}-600 dark:text-${category.color}-400` : 'text-gray-500 dark:text-gray-500'
+                      isActive ? 'text-gray-600' : 'text-gray-500'
                     }`}>
                       {category.reports.length} report{category.reports.length !== 1 ? 's' : ''}
                     </p>
@@ -320,7 +320,7 @@ export function ReportsTab() {
           {/* Sub-Report Tabs */}
           {currentCategory && currentCategory.reports.length > 0 && (
             <div className="border-b border-gray-200 dark:border-gray-700 p-4 print:hidden flex-shrink-0">
-              <div className="dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-1 overflow-x-auto bg-[rgb(17,17,32)]">
+              <div className={`rounded-xl border border-gray-200 dark:border-gray-700 p-1 overflow-x-auto ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
                 <div className="flex gap-1 min-w-max">
                   {currentCategory.reports.map((report) => (
                     <button
@@ -346,7 +346,7 @@ export function ReportsTab() {
           )}
 
           {/* Report Content */}
-          <div className="flex-1 overflow-y-auto dark:bg-gray-900 bg-[rgb(17,17,32)]">
+          <div className={`flex-1 overflow-y-auto ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
             <div className="report-print-area">
               {renderReport()}
             </div>

@@ -68,10 +68,6 @@ export function PayrollTab() {
           <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
           }`}
-            style={{
-              backgroundColor: '#15233a',
-              borderColor: '#1e2f42'
-            }}
           >
             <div className="flex items-center justify-between mb-2">
               <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Gross Pay</p>
@@ -84,10 +80,6 @@ export function PayrollTab() {
           <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
           }`}
-            style={{
-              backgroundColor: '#15233a',
-              borderColor: '#1e2f42'
-            }}
           >
             <div className="flex items-center justify-between mb-2">
               <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Net Pay</p>
@@ -100,10 +92,6 @@ export function PayrollTab() {
           <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
           }`}
-            style={{
-              backgroundColor: '#15233a',
-              borderColor: '#1e2f42'
-            }}
           >
             <div className="flex items-center justify-between mb-2">
               <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Deductions</p>
@@ -116,10 +104,6 @@ export function PayrollTab() {
           <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
           }`}
-            style={{
-              backgroundColor: '#15233a',
-              borderColor: '#1e2f42'
-            }}
           >
             <div className="flex items-center justify-between mb-2">
               <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Avg Employees</p>
@@ -131,7 +115,9 @@ export function PayrollTab() {
         </div>
 
         {/* Search and Actions */}
-        <div className="dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-[rgb(17,17,32)] px-[16px] py-[7px]">
+        <div className={`rounded-lg border p-4 px-[16px] py-[7px] ${
+          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
@@ -140,13 +126,13 @@ export function PayrollTab() {
                 placeholder="Search by period or ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm"
               />
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm"
             >
               <option>All Statuses</option>
               <option>Draft</option>

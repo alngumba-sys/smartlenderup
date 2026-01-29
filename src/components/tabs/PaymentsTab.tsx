@@ -175,10 +175,6 @@ export function PaymentsTab() {
               isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
             }`}
               onClick={() => setSelectedMetric('reconciled-today')}
-              style={{
-                backgroundColor: '#15233a',
-                borderColor: '#1e2f42'
-              }}
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -193,10 +189,6 @@ export function PaymentsTab() {
               isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
             }`}
               onClick={() => setSelectedMetric('unallocated')}
-              style={{
-                backgroundColor: '#15233a',
-                borderColor: '#1e2f42'
-              }}
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -209,17 +201,13 @@ export function PaymentsTab() {
           </div>
 
           {/* Recent Payments */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
-            style={{
-              backgroundColor: '#15233a',
-              borderColor: '#1e2f42'
-            }}
+          <div className={`rounded-lg border overflow-hidden ${
+            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}
           >
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 flex justify-between items-center"
-              style={{
-                backgroundColor: '#0f1a2e',
-                borderColor: '#1e2f42'
-              }}
+            <div className={`p-4 border-b flex justify-between items-center ${
+              isDark ? 'bg-gray-700 border-gray-700' : 'bg-gray-50 border-gray-200'
+            }`}
             >
               <h3 className="text-gray-900 dark:text-white">Recent Payments</h3>
               <button className="px-3 py-1.5 bg-emerald-600 text-white rounded text-sm hover:bg-emerald-700" onClick={() => setShowAutoReconcileModal(true)}>
@@ -245,21 +233,21 @@ export function PaymentsTab() {
                     const loan = loans.find(l => l.id === payment.loanId);
                     const isUnallocated = unallocatedPayments.includes(payment);
                     return (
-                      <tr key={payment.id} className="border-t border-gray-100 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700">
-                        <td className="px-4 py-3 text-gray-900 dark:text-gray-300">{payment.paymentDate}</td>
-                        <td className="px-4 py-3 text-gray-900 dark:text-gray-300 font-mono text-xs">{payment.paymentReference}</td>
-                        <td className="px-4 py-3 text-gray-900 dark:text-gray-300">{client?.name}</td>
-                        <td className="px-4 py-3 text-gray-900 dark:text-gray-300">{loan?.loan_number || payment.loanId}</td>
-                        <td className="px-4 py-3 text-right text-gray-900 dark:text-gray-300">KES {payment.amount.toLocaleString()}</td>
+                      <tr key={payment.id} className="border-t border-gray-100 hover:bg-blue-50 transition-colors">
+                        <td className="px-4 py-3 text-gray-900">{payment.paymentDate}</td>
+                        <td className="px-4 py-3 text-gray-900 font-mono text-xs">{payment.paymentReference}</td>
+                        <td className="px-4 py-3 text-gray-900">{client?.name}</td>
+                        <td className="px-4 py-3 text-gray-900">{loan?.loan_number || payment.loanId}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">KES {payment.amount.toLocaleString()}</td>
                         <td className="px-4 py-3 text-center">
                           <span className="flex items-center justify-center gap-1">
-                            {payment.paymentMethod === 'M-Pesa' && <Smartphone className="size-3 text-emerald-600 dark:text-emerald-400" />}
-                            <span className="text-gray-900 dark:text-gray-300">{payment.paymentMethod}</span>
+                            {payment.paymentMethod === 'M-Pesa' && <Smartphone className="size-3 text-emerald-600" />}
+                            <span className="text-gray-900">{payment.paymentMethod}</span>
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            isUnallocated ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            isUnallocated ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'
                           }`}>
                             {isUnallocated ? 'Unallocated' : 'Reconciled'}
                           </span>
@@ -275,11 +263,9 @@ export function PaymentsTab() {
       ) : (
         <div className="space-y-6">
           {/* Arrears Aging Chart */}
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700"
-            style={{
-              backgroundColor: '#15233a',
-              borderColor: '#1e2f42'
-            }}
+          <div className={`p-6 rounded-lg border ${
+            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}
           >
             <h3 className="text-gray-900 dark:text-white mb-4">Arrears Aging Analysis</h3>
             <div className="grid grid-cols-4 gap-4">
@@ -290,10 +276,6 @@ export function PaymentsTab() {
                   className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
                     isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
                   }`}
-                  style={{
-                    backgroundColor: '#15233a',
-                    borderColor: '#1e2f42'
-                  }}
                 >
                   <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{item.range}</p>
                   <p className={`text-2xl mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{item.count}</p>
@@ -303,17 +285,13 @@ export function PaymentsTab() {
           </div>
 
           {/* Arrears List */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
-            style={{
-              backgroundColor: '#15233a',
-              borderColor: '#1e2f42'
-            }}
+          <div className={`rounded-lg border overflow-hidden ${
+            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}
           >
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 flex justify-between items-center"
-              style={{
-                backgroundColor: '#0f1a2e',
-                borderColor: '#1e2f42'
-              }}
+            <div className={`p-4 border-b flex justify-between items-center ${
+              isDark ? 'bg-gray-700 border-gray-700' : 'bg-gray-50 border-gray-200'
+            }`}
             >
               <h3 className="text-gray-900 dark:text-white">Loans in Arrears</h3>
               <button className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center gap-2" onClick={() => setShowBulkRemindersModal(true)}>

@@ -713,6 +713,9 @@ export const loanService = {
       balance: parseNumber(loanData.outstandingBalance || loanData.totalRepayable || loanData.totalAmount || loanData.total_amount || totalAmount), // Changed from outstanding_balance to balance
       amount_paid: 0, // Changed from paid_amount to amount_paid
       
+      // Fees
+      processing_fee: parseNumber(loanData.facilitationFee || loanData.processingFee || loanData.processing_fee || 0),
+      
       // Purpose & disbursement
       purpose: loanData.purpose || '',
       disbursement_method: loanData.disbursementMethod || loanData.disbursement_method || null,

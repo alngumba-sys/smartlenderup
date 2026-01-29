@@ -46,26 +46,20 @@ interface InternalStaffPortalProps {
 
 export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaffPortalProps) {
   const navigation = useNavigation();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  // Use activeTab from NavigationContext instead of local state
+  const activeTab = navigation.activeTab;
+  const setActiveTab = navigation.setActiveTab;
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { hasPermission, currentUser } = useAuth();
 
-  // Sync with NavigationContext
-  useEffect(() => {
-    if (navigation.activeTab !== activeTab) {
-      setActiveTab(navigation.activeTab);
-    }
-  }, [navigation.activeTab]);
-
   // Handle tab trigger from header
   useEffect(() => {
     if (triggerTab) {
       setActiveTab(triggerTab);
-      navigation.setActiveTab(triggerTab);
     }
-  }, [triggerTab]);
+  }, [triggerTab, setActiveTab]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -167,7 +161,7 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
         { id: 'staff-management', label: 'Staff Management', icon: Users, permission: 'manageStaff' },
         { id: 'loan-products', label: 'Loan Products', icon: Package, permission: 'manageProducts' },
         { id: 'documents', label: 'Documents', icon: FileText, permission: 'viewDashboard' },
-        { id: 'settings', label: 'Settings', icon: Settings, permission: 'viewDashboard' }
+        { id: 'settings', label: 'Settings', icon: Settings, permission: 'canAccessAdmin' }
       ]
     },
     {
@@ -208,7 +202,6 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
     if (item.type === 'single') {
       const tabToActivate = item.linkedTab || item.id;
       setActiveTab(tabToActivate);
-      navigation.setActiveTab(tabToActivate);
       setOpenDropdown(null);
     } else {
       setOpenDropdown(openDropdown === item.id ? null : item.id);
@@ -218,7 +211,6 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
   const handleDropdownItemClick = (tabId: string) => {
     console.log('handleDropdownItemClick called with:', tabId);
     setActiveTab(tabId);
-    navigation.setActiveTab(tabId);
     console.log('setActiveTab called with:', tabId);
     setOpenDropdown(null);
   };
@@ -234,10 +226,15 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
   const { currentTheme, isDark } = useTheme();
 
   return (
-    <div className={`min-h-screen flex flex-col overflow-hidden transition-colors ${isDark ? 'dark' : ''}`} style={{ 
-      background: 'radial-gradient(ellipse at top left, #6b5b2a 0%, #4a3f1a 15%, #2d3748 35%, #1a2942 60%), radial-gradient(ellipse at bottom right, #1e2836 0%, #15233a 25%, #0d1b2a 50%, #0a1628 75%), radial-gradient(circle at center, #4a3f1a 0%, transparent 40%), linear-gradient(135deg, #2d3748 0%, #1a2942 20%, #4a3f1a 35%, #6b5b2a 45%, #15233a 60%, #0d1b2a 75%, #1e2836 90%, #0a1628 100%)',
-      backgroundBlendMode: 'overlay, multiply, soft-light, normal'
-    }}>
+    <div 
+      className={`min-h-screen flex flex-col overflow-hidden transition-colors ${isDark ? 'dark' : ''}`} 
+      style={{ 
+        background: isDark 
+          ? 'radial-gradient(ellipse at top left, #6b5b2a 0%, #4a3f1a 15%, #2d3748 35%, #1a2942 60%), radial-gradient(ellipse at bottom right, #1e2836 0%, #15233a 25%, #0d1b2a 50%, #0a1628 75%), radial-gradient(circle at center, #4a3f1a 0%, transparent 40%), linear-gradient(135deg, #2d3748 0%, #1a2942 20%, #4a3f1a 35%, #6b5b2a 45%, #15233a 60%, #0d1b2a 75%, #1e2836 90%, #0a1628 100%)'
+          : '#f9fafb',
+        backgroundBlendMode: isDark ? 'overlay, multiply, soft-light, normal' : 'normal'
+      }}
+    >
       {/* Main Content Area */}
       <div className="flex-1 overflow-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6" style={{ backgroundColor: 'transparent' }}>
         {/* Trial Banner - DISABLED: Trial system temporarily disabled */}

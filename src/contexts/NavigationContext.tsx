@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { getFirstVisibleTabRoute } from '../utils/staffPermissions';
 
 interface NavigationContextType {
   activeTab: string;
@@ -17,11 +18,32 @@ interface NavigationContextType {
 const NavigationContext = createContext<NavigationContextType | undefined>(undefined);
 
 export function NavigationProvider({ children }: { children: ReactNode }) {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  // Initialize with the first visible tab based on permissions
+  const [activeTab, setActiveTab] = useState(() => {
+    const firstTab = getFirstVisibleTabRoute();
+    console.log('🎯 NavigationProvider: Setting initial tab to', firstTab);
+    return firstTab;
+  });
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
   const [selectedApprovalId, setSelectedApprovalId] = useState<string | null>(null);
   const [selectedSavingsId, setSelectedSavingsId] = useState<string | null>(null);
+
+  // Update active tab when user logs in (permissions change)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const firstTab = getFirstVisibleTabRoute();
+      console.log('🔄 User permissions changed, updating tab to', firstTab);
+      setActiveTab(firstTab);
+    };
+
+    // Listen for storage changes (when user logs in/out)
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   const navigateToClient = (clientId: string) => {
     setSelectedClientId(clientId);

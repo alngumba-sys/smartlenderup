@@ -337,10 +337,6 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
         <div className={`p-4 sm:p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
-          style={{
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
-          }}
         >
           <div className="flex items-start gap-3">
             {clientTypeTab === 'individual' ? (
@@ -361,10 +357,6 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
         <div className={`p-4 sm:p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
-          style={{
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
-          }}
         >
           <div className="flex items-start gap-3">
             <TrendingUp className="size-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-1" />
@@ -380,10 +372,6 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
         <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
-          style={{
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
-          }}
         >
           <div className="flex items-start gap-3">
             <TrendingDown className="size-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-1" />
@@ -399,10 +387,6 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
         <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
-          style={{
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
-          }}
         >
           <div className="flex items-start gap-3">
             <CreditCard className="size-6 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-1" />
@@ -417,10 +401,6 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
         <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
-          style={{
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
-          }}
         >
           <div className="flex items-start gap-3">
             <DollarSign className="size-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-1" />
@@ -434,7 +414,9 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
       </div>
 
       {/* Search and Filters */}
-      <div className="dark:bg-gray-800 p-3 sm:p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-[rgb(17,17,32)]">
+      <div className={`p-3 sm:p-4 rounded-lg border ${
+        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center">
           <div className="flex-1 relative">
             <Search className="size-4 sm:size-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -544,16 +526,8 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
         </div>
       ) : (
         <div className={`rounded-lg border overflow-hidden ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
-          style={{
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
-          }}
         >
           <div className={`p-4 border-b ${isDark ? 'border-gray-700 bg-gray-700' : 'border-gray-200 bg-gray-50'}`}
-            style={{
-              backgroundColor: '#0f1a2e',
-              borderColor: '#1e2f42'
-            }}
           >
             <h3 className={isDark ? 'text-white' : 'text-gray-900'}>
               {clientTypeTab === 'individual' ? 'Individual Clients' : 'Business Clients'} ({filteredClients.length})

@@ -724,31 +724,31 @@ export function AccountingTab() {
             <div className="bg-white p-4 rounded-lg border-l-4 border-blue-400">
               <p className="text-gray-600 text-sm mb-1">Total Assets</p>
               <p className="text-blue-700 text-2xl">
-                {loadingAccounts ? 'Loading...' : `${currencyCode} ${(supabaseAccounts.filter(a => a.account_type?.toLowerCase() === 'asset').reduce((sum, a) => sum + Number(a.balance || 0), 0) / 1000000).toFixed(2)}M`}
+                {loadingAccounts ? 'Loading...' : `${currencyCode} ${supabaseAccounts.filter(a => a.account_type?.toLowerCase() === 'asset').reduce((sum, a) => sum + Number(a.balance || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               </p>
             </div>
             <div className="bg-white p-4 rounded-lg border-l-4 border-red-400">
               <p className="text-gray-600 text-sm mb-1">Total Liabilities</p>
               <p className="text-red-700 text-2xl">
-                {loadingAccounts ? 'Loading...' : `${currencyCode} ${(supabaseAccounts.filter(a => a.account_type?.toLowerCase() === 'liability').reduce((sum, a) => sum + Number(a.balance || 0), 0) / 1000000).toFixed(2)}M`}
+                {loadingAccounts ? 'Loading...' : `${currencyCode} ${supabaseAccounts.filter(a => a.account_type?.toLowerCase() === 'liability').reduce((sum, a) => sum + Number(a.balance || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               </p>
             </div>
             <div className="bg-white p-4 rounded-lg border-l-4 border-purple-400">
               <p className="text-gray-600 text-sm mb-1">Total Equity</p>
               <p className="text-purple-700 text-2xl">
-                {loadingAccounts ? 'Loading...' : `${currencyCode} ${(supabaseAccounts.filter(a => a.account_type?.toLowerCase() === 'equity').reduce((sum, a) => sum + Number(a.balance || 0), 0) / 1000000).toFixed(2)}M`}
+                {loadingAccounts ? 'Loading...' : `${currencyCode} ${supabaseAccounts.filter(a => a.account_type?.toLowerCase() === 'equity').reduce((sum, a) => sum + Number(a.balance || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               </p>
             </div>
             <div className="bg-white p-4 rounded-lg border-l-4 border-emerald-400">
               <p className="text-gray-600 text-sm mb-1">Total Revenue</p>
               <p className="text-emerald-700 text-2xl">
-                {loadingAccounts ? 'Loading...' : `${currencyCode} ${(supabaseAccounts.filter(a => a.account_type?.toLowerCase() === 'revenue').reduce((sum, a) => sum + Number(a.balance || 0), 0) / 1000000).toFixed(2)}M`}
+                {loadingAccounts ? 'Loading...' : `${currencyCode} ${supabaseAccounts.filter(a => a.account_type?.toLowerCase() === 'revenue').reduce((sum, a) => sum + Number(a.balance || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               </p>
             </div>
             <div className="bg-white p-4 rounded-lg border-l-4 border-amber-400">
               <p className="text-gray-600 text-sm mb-1">Total Expenses</p>
               <p className="text-amber-700 text-2xl">
-                {loadingAccounts ? 'Loading...' : `${currencyCode} ${(supabaseAccounts.filter(a => a.account_type?.toLowerCase() === 'expense').reduce((sum, a) => sum + Number(a.balance || 0), 0) / 1000000).toFixed(2)}M`}
+                {loadingAccounts ? 'Loading...' : `${currencyCode} ${supabaseAccounts.filter(a => a.account_type?.toLowerCase() === 'expense').reduce((sum, a) => sum + Number(a.balance || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               </p>
             </div>
           </div>

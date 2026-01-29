@@ -113,10 +113,6 @@ export function ExpensesTab() {
         <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
-          style={{
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
-          }}
         >
           <div className="flex items-center justify-between mb-2">
             <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Expenses</p>
@@ -129,10 +125,6 @@ export function ExpensesTab() {
         <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
-          style={{
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
-          }}
         >
           <div className="flex items-center justify-between mb-2">
             <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Paid</p>
@@ -147,10 +139,6 @@ export function ExpensesTab() {
         <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
-          style={{
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
-          }}
         >
           <div className="flex items-center justify-between mb-2">
             <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Pending</p>
@@ -165,10 +153,6 @@ export function ExpensesTab() {
         <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
-          style={{
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
-          }}
         >
           <div className="flex items-center justify-between mb-2">
             <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Active Payees</p>
@@ -180,7 +164,9 @@ export function ExpensesTab() {
       </div>
 
       {/* Filters */}
-      <div className="dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mb-6 bg-[rgb(17,17,32)] px-[16px] py-[7px]">
+      <div className={`p-4 rounded-lg border mb-6 px-[16px] py-[7px] ${
+        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Search */}
           <div className="relative">
@@ -190,7 +176,7 @@ export function ExpensesTab() {
               placeholder="Search expenses..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm"
             />
           </div>
 
@@ -199,7 +185,7 @@ export function ExpensesTab() {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm"
             >
               {categories.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
@@ -212,7 +198,7 @@ export function ExpensesTab() {
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm"
             >
               {statuses.map(status => (
                 <option key={status} value={status}>{status}</option>
@@ -225,7 +211,7 @@ export function ExpensesTab() {
             <select
               value={selectedPayee}
               onChange={(e) => setSelectedPayee(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm"
             >
               <option value="All">All Payees</option>
               {payees.map(payee => (

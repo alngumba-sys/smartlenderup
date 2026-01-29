@@ -358,7 +358,9 @@ export function StaffManagementTab() {
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm" style={{ backgroundColor: '#111120' }}>
+      <div className={`p-6 border-b backdrop-blur-sm ${
+        isDark ? 'border-gray-700 bg-gray-800/80' : 'border-gray-200 bg-white/80'
+      }`}>
         <div className="flex justify-between items-start mb-4">
           <div>
             <h2 className="text-gray-900 dark:text-white">Staff Management</h2>
@@ -412,7 +414,7 @@ export function StaffManagementTab() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6" style={{ backgroundColor: '#111120' }}>
+      <div className={`flex-1 overflow-auto p-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
         {viewMode === 'list' ? (
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
             <table className="w-full">

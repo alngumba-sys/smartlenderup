@@ -1,10 +1,12 @@
 import { Shield, Filter, Download, Search, CheckCircle, AlertCircle, AlertTriangle, Calendar, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useData } from '../../contexts/DataContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { toast } from 'sonner';
 
 export function AuditTrailTab() {
   const { auditLogs } = useData();
+  const { isDark } = useTheme();
   const [filterModule, setFilterModule] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -140,7 +142,9 @@ export function AuditTrailTab() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-[rgb(17,17,32)]">
+        <div className={`p-4 rounded-lg border ${
+          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 dark:text-gray-400 text-sm">Total Activities</p>
@@ -149,7 +153,9 @@ export function AuditTrailTab() {
             <Shield className="size-8 text-blue-600" />
           </div>
         </div>
-        <div className="dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-[rgb(17,17,32)]">
+        <div className={`p-4 rounded-lg border ${
+          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 dark:text-gray-400 text-sm">Successful</p>
@@ -158,7 +164,9 @@ export function AuditTrailTab() {
             <CheckCircle className="size-8 text-emerald-600" />
           </div>
         </div>
-        <div className="dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-[rgb(17,17,32)]">
+        <div className={`p-4 rounded-lg border ${
+          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 dark:text-gray-400 text-sm">Failed</p>
@@ -167,7 +175,9 @@ export function AuditTrailTab() {
             <AlertCircle className="size-8 text-red-600" />
           </div>
         </div>
-        <div className="dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-[rgb(17,17,32)]">
+        <div className={`p-4 rounded-lg border ${
+          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 dark:text-gray-400 text-sm">Warnings</p>
@@ -179,7 +189,9 @@ export function AuditTrailTab() {
       </div>
 
       {/* Filters */}
-      <div className="dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-[rgb(17,17,32)]">
+      <div className={`p-4 rounded-lg border ${
+        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <Filter className="size-4 text-gray-600 dark:text-gray-400" />

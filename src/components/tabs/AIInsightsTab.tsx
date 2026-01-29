@@ -1003,66 +1003,66 @@ export function AIInsightsTab() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div 
             onClick={() => setSelectedInsight('defaultRisk')}
-            className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-950 dark:to-orange-950 p-6 rounded-lg border border-red-200 dark:border-red-800 cursor-pointer hover:shadow-lg transition-all"
+            className="bg-gradient-to-br from-red-50 to-orange-50 p-6 rounded-lg border border-red-200 cursor-pointer hover:shadow-lg transition-all"
           >
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-red-600 dark:bg-red-700 rounded-lg">
+              <div className="p-2 bg-red-600 rounded-lg">
                 <AlertTriangle className="size-5 text-white" />
               </div>
               <div>
-                <p className="text-red-900 dark:text-red-100">High Default Risk</p>
-                <p className="text-red-700 dark:text-red-300 text-sm">Next 30 days</p>
+                <p className="text-red-900">High Default Risk</p>
+                <p className="text-red-700 text-sm">Next 30 days</p>
               </div>
             </div>
-            <p className="text-red-900 dark:text-red-100 text-3xl">{highRiskClients.length}</p>
-            <p className="text-red-700 dark:text-red-300 text-sm mt-2">
+            <p className="text-red-900 text-3xl">{highRiskClients.length}</p>
+            <p className="text-red-700 text-sm mt-2">
               Clients identified with {'>'} 70% default probability
             </p>
-            <p className="text-red-600 dark:text-red-400 text-xs mt-3 flex items-center gap-1">
+            <p className="text-red-600 text-xs mt-3 flex items-center gap-1">
               Click for detailed analysis <TrendingUp className="size-3" />
             </p>
           </div>
 
           <div 
             onClick={() => setSelectedInsight('parForecast')}
-            className="bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-yellow-950 p-6 rounded-lg border border-amber-200 dark:border-amber-800 cursor-pointer hover:shadow-lg transition-all"
+            className="bg-gradient-to-br from-amber-50 to-yellow-50 p-6 rounded-lg border border-amber-200 cursor-pointer hover:shadow-lg transition-all"
           >
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-amber-600 dark:bg-amber-700 rounded-lg">
+              <div className="p-2 bg-amber-600 rounded-lg">
                 <TrendingUp className="size-5 text-white" />
               </div>
               <div>
-                <p className="text-amber-900 dark:text-amber-100">Predicted PAR 30</p>
-                <p className="text-amber-700 dark:text-amber-300 text-sm">3 months forecast</p>
+                <p className="text-amber-900">Predicted PAR 30</p>
+                <p className="text-amber-700 text-sm">3 months forecast</p>
               </div>
             </div>
-            <p className="text-amber-900 dark:text-amber-100 text-3xl">{forecastedPAR30}%</p>
-            <p className="text-amber-700 dark:text-amber-300 text-sm mt-2">
+            <p className="text-amber-900 text-3xl">{forecastedPAR30}%</p>
+            <p className="text-amber-700 text-sm mt-2">
               {parseFloat(currentPAR30) === 0 ? 'Portfolio performing excellently' : `+${(parseFloat(forecastedPAR30) - parseFloat(currentPAR30)).toFixed(1)}% increase projected if no intervention`}
             </p>
-            <p className="text-amber-600 dark:text-amber-400 text-xs mt-3 flex items-center gap-1">
+            <p className="text-amber-600 text-xs mt-3 flex items-center gap-1">
               Click for trend analysis <BarChart3 className="size-3" />
             </p>
           </div>
 
           <div 
             onClick={() => setSelectedInsight('revenueOpp')}
-            className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950 dark:to-green-950 p-6 rounded-lg border border-emerald-200 dark:border-emerald-800 cursor-pointer hover:shadow-lg transition-all"
+            className="bg-gradient-to-br from-emerald-50 to-green-50 p-6 rounded-lg border border-emerald-200 cursor-pointer hover:shadow-lg transition-all"
           >
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-emerald-600 dark:bg-emerald-700 rounded-lg">
+              <div className="p-2 bg-emerald-600 rounded-lg">
                 <DollarSign className="size-5 text-white" />
               </div>
               <div>
-                <p className="text-emerald-900 dark:text-emerald-100">Revenue Opportunity</p>
-                <p className="text-emerald-700 dark:text-emerald-300 text-sm">Optimal pricing</p>
+                <p className="text-emerald-900">Revenue Opportunity</p>
+                <p className="text-emerald-700 text-sm">Optimal pricing</p>
               </div>
             </div>
-            <p className="text-emerald-900 dark:text-emerald-100 text-3xl">{revenueOppDisplay}</p>
-            <p className="text-emerald-700 dark:text-emerald-300 text-sm mt-2">
+            <p className="text-emerald-900 text-3xl">{revenueOppDisplay}</p>
+            <p className="text-emerald-700 text-sm mt-2">
               Additional quarterly revenue potential
             </p>
-            <p className="text-emerald-600 dark:text-emerald-400 text-xs mt-3 flex items-center gap-1">
+            <p className="text-emerald-600 text-xs mt-3 flex items-center gap-1">
               Click for optimization details <Target className="size-3" />
             </p>
           </div>
@@ -1075,66 +1075,66 @@ export function AIInsightsTab() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div 
             onClick={() => setSelectedInsight('churnPrediction')}
-            className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950 dark:to-indigo-950 p-6 rounded-lg border border-purple-200 dark:border-purple-800 cursor-pointer hover:shadow-lg transition-all"
+            className="bg-gradient-to-br from-purple-50 to-indigo-50 p-6 rounded-lg border border-purple-200 cursor-pointer hover:shadow-lg transition-all"
           >
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-purple-600 dark:bg-purple-700 rounded-lg">
+              <div className="p-2 bg-purple-600 rounded-lg">
                 <Users className="size-5 text-white" />
               </div>
               <div>
-                <p className="text-purple-900 dark:text-purple-100">Churn Risk</p>
-                <p className="text-purple-700 dark:text-purple-300 text-sm">Client retention</p>
+                <p className="text-purple-900">Churn Risk</p>
+                <p className="text-purple-700 text-sm">Client retention</p>
               </div>
             </div>
-            <p className="text-purple-900 dark:text-purple-100 text-3xl">{churnRiskClients.length}</p>
-            <p className="text-purple-700 dark:text-purple-300 text-sm mt-2">
+            <p className="text-purple-900 text-3xl">{churnRiskClients.length}</p>
+            <p className="text-purple-700 text-sm mt-2">
               {churnRiskClients.length > 0 ? 'High-value clients at risk of leaving' : 'No clients at risk - excellent retention'}
             </p>
-            <p className="text-purple-600 dark:text-purple-400 text-xs mt-3 flex items-center gap-1">
+            <p className="text-purple-600 text-xs mt-3 flex items-center gap-1">
               Click for retention strategy <Users className="size-3" />
             </p>
           </div>
 
           <div 
             onClick={() => setSelectedInsight('fraudDetection')}
-            className="bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-950 dark:to-pink-950 p-6 rounded-lg border border-red-200 dark:border-red-800 cursor-pointer hover:shadow-lg transition-all"
+            className="bg-gradient-to-br from-red-50 to-pink-50 p-6 rounded-lg border border-red-200 cursor-pointer hover:shadow-lg transition-all"
           >
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-red-600 dark:bg-red-700 rounded-lg">
+              <div className="p-2 bg-red-600 rounded-lg">
                 <ShieldAlert className="size-5 text-white" />
               </div>
               <div>
-                <p className="text-red-900 dark:text-red-100">Fraud Alerts</p>
-                <p className="text-red-700 dark:text-red-300 text-sm">30-day activity</p>
+                <p className="text-red-900">Fraud Alerts</p>
+                <p className="text-red-700 text-sm">30-day activity</p>
               </div>
             </div>
-            <p className="text-red-900 dark:text-red-100 text-3xl">{totalFraudInstances}</p>
-            <p className="text-red-700 dark:text-red-300 text-sm mt-2">
+            <p className="text-red-900 text-3xl">{totalFraudInstances}</p>
+            <p className="text-red-700 text-sm mt-2">
               {totalFraudInstances > 0 ? 'Suspicious patterns detected and blocked' : 'No fraud detected - clean portfolio'}
             </p>
-            <p className="text-red-600 dark:text-red-400 text-xs mt-3 flex items-center gap-1">
+            <p className="text-red-600 text-xs mt-3 flex items-center gap-1">
               Click for fraud analysis <ShieldAlert className="size-3" />
             </p>
           </div>
 
           <div 
             onClick={() => setSelectedInsight('collectionOpt')}
-            className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 p-6 rounded-lg border border-blue-200 dark:border-blue-800 cursor-pointer hover:shadow-lg transition-all"
+            className="bg-gradient-to-br from-blue-50 to-cyan-50 p-6 rounded-lg border border-blue-200 cursor-pointer hover:shadow-lg transition-all"
           >
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-blue-600 dark:bg-blue-700 rounded-lg">
+              <div className="p-2 bg-blue-600 rounded-lg">
                 <Activity className="size-5 text-white" />
               </div>
               <div>
-                <p className="text-blue-900 dark:text-blue-100">Collection Rate</p>
-                <p className="text-blue-700 dark:text-blue-300 text-sm">Optimization</p>
+                <p className="text-blue-900">Collection Rate</p>
+                <p className="text-blue-700 text-sm">Optimization</p>
               </div>
             </div>
-            <p className="text-blue-900 dark:text-blue-100 text-3xl">+{collectionImprovement}%</p>
-            <p className="text-blue-700 dark:text-blue-300 text-sm mt-2">
+            <p className="text-blue-900 text-3xl">+{collectionImprovement}%</p>
+            <p className="text-blue-700 text-sm mt-2">
               {collectionImprovement > 0 ? 'Potential improvement with AI strategy' : 'Already at peak performance'}
             </p>
-            <p className="text-blue-600 dark:text-blue-400 text-xs mt-3 flex items-center gap-1">
+            <p className="text-blue-600 text-xs mt-3 flex items-center gap-1">
               Click for strategy details <Zap className="size-3" />
             </p>
           </div>

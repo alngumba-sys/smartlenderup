@@ -1,61 +1,158 @@
-# Quick Start Guide - SmartLenderUp
+# Staff Management - Quick Start Guide
 
-## Getting Started with Sample Data
+## ⚡ 5-Minute Setup
 
-If you see an empty dashboard with no clients or loans, you can quickly populate sample data for testing.
+### Step 1: Database (2 minutes)
 
-### Option 1: Browser Console (Recommended)
-1. Open your browser's Developer Tools (F12 or Right-click → Inspect)
-2. Go to the **Console** tab
-3. Type one of these commands:
+1. Go to [Supabase Dashboard](https://supabase.com) → SmartlenderUp project
+2. Click **SQL Editor** → **New query**
+3. Copy `/database/migrations/create_staff_tables.sql` and paste
+4. Click **Run**
+5. ✅ Verify: See `staff_users` and `staff_permissions` in **Table Editor**
 
-#### Populate Sample Data
-```javascript
-populateSampleData()
+### Step 2: Create First Staff (2 minutes)
+
+1. Login to SmartLenderUp as Manager
+2. Go to **Admin** → **Settings** → **Staff Management**
+3. Click **Add Staff Member**
+4. Fill in:
+   - Name: John Doe
+   - Phone: +254712345678
+   - Role: Staff
+5. Check permissions:
+   - Dashboard: ✅ View
+   - Operations → Loans: ✅ View
+6. Click **Create Staff Member**
+7. ✅ Note the default password (last 4 digits: 5678)
+
+### Step 3: Test Staff Login (1 minute)
+
+1. **Logout** from Manager account
+2. Click **Staff Login** on login page
+3. Login with:
+   - Phone: +254712345678
+   - Password: 5678
+4. Set new password when prompted
+5. ✅ Verify: See only Dashboard and Loans in navigation
+
+## 🎯 Key Concepts
+
+### Permission Levels
+- **View**: Can see the tab and data
+- **Edit**: Can modify and create records
+- **Delete**: Can remove records
+
+### Default Password
+- Always the **last 4 digits** of phone number
+- Example: +254712345678 → password is **5678**
+- Must be changed on first login
+
+### Access Control
+- **Managers**: See everything (permissions don't apply)
+- **Staff**: See only permitted tabs
+- **Automatic**: Navigation filters based on permissions
+
+## 📋 Common Tasks
+
+### Add Staff Member
 ```
-This will create:
-- 3 loan products (Business Loan, Personal Loan, Emergency Loan)
-- 5 sample clients
-- 5 active loans with repayment history
-- Sample repayment records
-
-#### Reset Database (Clear All Data)
-```javascript
-resetDatabase()
+Settings → Staff Management → Add Staff Member
 ```
-This will completely clear all data and start fresh.
 
-### What Gets Created
+### Edit Permissions
+```
+Settings → Staff Management → Click Edit icon → Update → Save
+```
 
-**Loan Products:**
-- Business Loan (10K - 500K, 12% interest)
-- Personal Loan (5K - 200K, 15% interest)
-- Emergency Loan (2K - 50K, 18% interest)
+### Deactivate Staff
+```
+Settings → Staff Management → Click Trash icon → Confirm
+```
 
-**Sample Clients:**
-- Sarah Mwangi
-- James Omondi
-- Grace Njeri
-- Peter Kamau
-- Mary Achieng
+### Staff Login
+```
+Login Page → Staff Login → Phone + Password → Change Password (first time)
+```
 
-**Active Loans:**
-- 5 loans in active repayment status
-- Various amounts and terms
-- Realistic repayment schedules
+## 🔍 Tab Keys Reference
 
-### Default Login Credentials
+| Tab Key | What it Controls |
+|---------|------------------|
+| `dashboard` | Dashboard |
+| `operations_loans` | Loans tab |
+| `operations_clients` | Clients tab |
+| `operations_products` | Loan Products |
+| `operations_groups` | Groups |
+| `accounting_chart` | Chart of Accounts |
+| `accounting_journal` | Journal Entries |
+| `accounting_trial` | Trial Balance |
+| `reports_par` | PAR Report |
+| `reports_collections` | Collections Report |
+| `reports_management` | Management Report |
+| `payroll` | Payroll |
+| `ai_tools` | AI Tools |
+| `settings` | Settings |
 
-**Super Admin:**
-- Username: `superadmin`
-- Password: `SuperAdmin@123`
-- Access: Click the logo 5 times on the login page
+## 💡 Quick Tips
 
-**Regular Staff:**
-- Register a new organization or individual account through the registration flow
+1. **Default Password**: Last 4 digits of phone number
+2. **Permission Hierarchy**: View must be enabled for Edit/Delete
+3. **Changes Take Effect**: After logout/login
+4. **Managers Always See All**: Permissions don't apply to managers
+5. **Phone Format**: Include country code (+254...)
 
-### Notes
-- All sample data is stored in browser localStorage
-- Clearing browser data will remove all information
-- The system uses Kenya (KES) as the default currency
-- You can change country/currency during organization registration
+## 🐛 Quick Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| Can't create staff | Check internet, verify Supabase is connected |
+| Staff login fails | Use phone number exactly as entered, verify password |
+| Tabs not showing | Check permissions were granted, logout and login again |
+| Database error | Verify tables were created in Supabase |
+
+## 📚 Full Documentation
+
+- **Complete Setup**: `/STAFF_MANAGEMENT_SETUP.md`
+- **User Guide**: `/docs/STAFF_MANAGEMENT_GUIDE.md`
+- **Database Schema**: `/database/migrations/README.md`
+- **Implementation Details**: `/IMPLEMENTATION_SUMMARY.md`
+
+## 🎯 Example: Loan Officer
+
+**Permissions to Grant:**
+- ✅ Dashboard → View
+- ✅ Operations → Loans → View, Edit
+- ✅ Operations → Clients → View, Edit
+- ✅ Reports → Collections → View
+
+**Result:** Can manage loans and clients, view reports, but can't access accounting or delete records.
+
+## 🎯 Example: Accountant
+
+**Permissions to Grant:**
+- ✅ Dashboard → View
+- ✅ Accounting → Chart of Accounts → View
+- ✅ Accounting → Journal Entries → View, Edit
+- ✅ Reports → Management → View
+
+**Result:** Full access to accounting, read-only reports, no access to operations.
+
+## ✅ Success Checklist
+
+- [ ] Database tables created in Supabase
+- [ ] Created first test staff member  
+- [ ] Staff logged in successfully
+- [ ] Changed password on first login
+- [ ] Verified navigation shows only permitted tabs
+- [ ] Tested permission editing
+- [ ] Read full documentation
+
+## 🚀 You're Ready!
+
+Your staff management system is set up and ready to use. Managers can create staff accounts with custom permissions, and staff can securely login to access only their permitted features.
+
+---
+
+**Need Help?**  
+📧 support@smartlenderup.com  
+📖 Full docs in `/docs/` folder

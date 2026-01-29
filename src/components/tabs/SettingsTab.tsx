@@ -7,6 +7,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePaymentStatus } from '../../hooks/usePaymentStatus';
 import { StripePayment } from '../StripePayment';
 import { LoanProductDiagnostic } from '../LoanProductDiagnostic';
+import { StaffManagement } from '../StaffManagement';
+import { Users as UsersIcon } from 'lucide-react';
+import { isManager } from '../../utils/staffPermissions';
 
 export function SettingsTab() {
   const { currentTheme, themes, setTheme, isDark, mode, toggleMode } = useTheme();
@@ -20,11 +23,11 @@ export function SettingsTab() {
   
   // Get payment status
   const paymentStatus = usePaymentStatus(organizationId);
-  const isManager = currentUser?.role === 'Manager';
+  const isManagerRole = isManager() || currentUser?.role === 'Manager';
   
   // Check if settings should be locked
-  const isSettingsLocked = !paymentStatus.isPaid && !isManager;
-  const isNonPaymentSectionLocked = !paymentStatus.isPaid && isManager;
+  const isSettingsLocked = !paymentStatus.isPaid && !isManagerRole;
+  const isNonPaymentSectionLocked = !paymentStatus.isPaid && isManagerRole;
 
   // Loan disbursement configuration state
   const [disbursementModel, setDisbursementModel] = useState<'fee_deducted_upfront' | 'fee_added_to_repayment' | 'no_fee_deduction' | 'interest_on_disbursed'>('fee_deducted_upfront');
@@ -97,7 +100,7 @@ export function SettingsTab() {
 
       {/* Sub-tabs */}
       <div className="flex gap-2 border-b border-gray-200">
-        {isManager && (
+        {isManagerRole && (
           <button
             onClick={() => setActiveSection('payment')}
             data-settings-payment
@@ -176,10 +179,22 @@ export function SettingsTab() {
           Subscription & Trial
           {isNonPaymentSectionLocked && <Lock className="size-3" />}
         </button>
+        <button
+          onClick={() => !isNonPaymentSectionLocked && setActiveSection('staff')}
+          className={`px-4 py-2 flex items-center gap-2 ${
+            activeSection === 'staff'
+              ? 'border-b-2 border-emerald-600 text-emerald-700'
+              : 'text-gray-600 hover:text-gray-900'
+          } ${isNonPaymentSectionLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={isNonPaymentSectionLocked}
+        >
+          Staff Management
+          {isNonPaymentSectionLocked && <Lock className="size-3" />}
+        </button>
       </div>
 
       {/* Payment Required Warning for Manager */}
-      {isManager && !paymentStatus.isPaid && activeSection !== 'payment' && (
+      {isManagerRole && !paymentStatus.isPaid && activeSection !== 'payment' && (
         <div className="p-4 bg-gradient-to-r from-red-900/20 to-orange-900/20 border-2 border-red-500/30 rounded-lg">
           <div className="flex items-start gap-3">
             <AlertTriangle className="size-5 text-red-400 mt-0.5 flex-shrink-0" />
@@ -217,7 +232,7 @@ export function SettingsTab() {
       )}
 
       {/* Payment Section - Manager Only */}
-      {activeSection === 'payment' && isManager && (
+      {activeSection === 'payment' && isManagerRole && (
         <div className="space-y-6">
           <StripePayment 
             organizationId={organizationId} 
@@ -232,7 +247,7 @@ export function SettingsTab() {
       {/* General Settings */}
       {activeSection === 'general' && (
         <div className="space-y-6">
-          <div className="bg-[rgb(17,17,32)] rounded-lg border border-gray-200 p-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-center gap-3 mb-4">
               <Globe className="size-5 text-emerald-600" />
               <h3 className="text-gray-900">Organization Details</h3>
@@ -265,7 +280,7 @@ export function SettingsTab() {
             </div>
           </div>
 
-          <div className="bg-[rgb(17,17,32)] rounded-lg border border-gray-200 p-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-center gap-3 mb-4">
               <Database className="size-5 text-emerald-600" />
               <h3 className="text-gray-900">System Configuration</h3>
@@ -294,26 +309,26 @@ export function SettingsTab() {
             </div>
           </div>
 
-          <div className="bg-[rgb(17,17,32)] rounded-lg border border-gray-200 p-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-center gap-3 mb-4">
               <DollarSign className="size-5 text-blue-500" />
               <h3 className="text-gray-900">Loan Disbursement Configuration</h3>
             </div>
             
             {/* Warning Panel */}
-            <div className="mb-6 p-4 rounded-lg" style={{ backgroundColor: '#1e3a5f', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+            <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-300">
               <div className="flex items-start gap-3">
-                <Info className="size-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+                <Info className="size-5 text-amber-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="font-medium text-yellow-400 mb-2">⚠️ Logic Configuration Only</p>
-                  <p className="text-sm text-gray-300 leading-relaxed">
+                  <p className="font-medium text-amber-900 mb-2">⚠️ Logic Configuration Only</p>
+                  <p className="text-sm text-gray-700 leading-relaxed">
                     This section configures the <strong>disbursement logic/model</strong> for your organization. 
                     The 10% processing fee shown here is <strong>only for demonstration purposes</strong>.
                   </p>
-                  <p className="text-sm text-gray-300 leading-relaxed mt-2">
+                  <p className="text-sm text-gray-700 leading-relaxed mt-2">
                     💡 <strong>Important:</strong> The actual processing fee percentage applied to each loan is set during 
-                    <strong className="text-blue-400"> Loan Product Creation</strong>. This configuration only determines 
-                    <strong className="text-blue-400"> HOW</strong> that fee is handled (deducted upfront, added to repayment, etc.).
+                    <strong className="text-blue-600"> Loan Product Creation</strong>. This configuration only determines 
+                    <strong className="text-blue-600"> HOW</strong> that fee is handled (deducted upfront, added to repayment, etc.).
                   </p>
                 </div>
               </div>
@@ -377,51 +392,50 @@ export function SettingsTab() {
               </div>
 
               {/* Live Example Calculator */}
-              <div className="p-5 rounded-lg" style={{ backgroundColor: '#1a2942', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+              <div className="p-5 rounded-lg bg-blue-50 border border-blue-300">
                 <div className="flex items-center gap-2 mb-4">
-                  <Calculator className="size-5 text-blue-400" />
-                  <h4 className="font-medium text-blue-300">Live Example Calculator</h4>
-                  <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgba(251, 191, 36, 0.2)', color: '#fbbf24' }}>
+                  <Calculator className="size-5 text-blue-700" />
+                  <h4 className="font-medium text-blue-900">Live Example Calculator</h4>
+                  <span className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-800 border border-amber-300">
                     Demo Only
                   </span>
                 </div>
                 
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-sm text-gray-400 mb-1">Example Loan Amount</label>
+                    <label className="block text-sm text-gray-700 mb-1">Example Loan Amount</label>
                     <input
                       type="number"
                       value={exampleLoanAmount}
                       onChange={(e) => setExampleLoanAmount(Number(e.target.value))}
-                      className="w-full px-4 py-2 border rounded-lg text-gray-200"
-                      style={{ backgroundColor: '#0f1829', borderColor: 'rgba(59, 130, 246, 0.3)' }}
+                      className="w-full px-4 py-2 border border-blue-300 rounded-lg text-gray-900 bg-white"
                       placeholder="Enter amount..."
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 pt-3">
-                    <div className="p-3 rounded-lg" style={{ backgroundColor: '#0f1829', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                      <p className="text-xs text-gray-500 mb-1">Loan Applied For</p>
-                      <p className="text-lg font-bold text-gray-200">{currencyCode} {example.principal.toLocaleString()}</p>
+                    <div className="p-3 rounded-lg bg-white border border-blue-200">
+                      <p className="text-xs text-gray-600 mb-1">Loan Applied For</p>
+                      <p className="text-lg font-bold text-gray-900">{currencyCode} {example.principal.toLocaleString()}</p>
                     </div>
-                    <div className="p-3 rounded-lg" style={{ backgroundColor: '#0f1829', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                      <p className="text-xs text-gray-500 mb-1">Processing Fee (Example)</p>
-                      <p className="text-lg font-bold text-orange-400">{currencyCode} {example.fee.toLocaleString()}</p>
+                    <div className="p-3 rounded-lg bg-white border border-orange-200">
+                      <p className="text-xs text-gray-600 mb-1">Processing Fee (Example)</p>
+                      <p className="text-lg font-bold text-orange-600">{currencyCode} {example.fee.toLocaleString()}</p>
                     </div>
-                    <div className="p-3 rounded-lg" style={{ backgroundColor: '#0f1829', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                      <p className="text-xs text-gray-500 mb-1">Cash Disbursed</p>
-                      <p className="text-lg font-bold text-blue-400">{currencyCode} {example.disbursedAmount.toLocaleString()}</p>
+                    <div className="p-3 rounded-lg bg-white border border-blue-200">
+                      <p className="text-xs text-gray-600 mb-1">Cash Disbursed</p>
+                      <p className="text-lg font-bold text-blue-600">{currencyCode} {example.disbursedAmount.toLocaleString()}</p>
                     </div>
-                    <div className="p-3 rounded-lg" style={{ backgroundColor: '#0f1829', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
-                      <p className="text-xs text-gray-500 mb-1">Interest Amount (15%)</p>
-                      <p className="text-lg font-bold text-purple-400">{currencyCode} {example.interestAmount.toLocaleString()}</p>
+                    <div className="p-3 rounded-lg bg-white border border-purple-200">
+                      <p className="text-xs text-gray-600 mb-1">Interest Amount (15%)</p>
+                      <p className="text-lg font-bold text-purple-600">{currencyCode} {example.interestAmount.toLocaleString()}</p>
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-lg" style={{ backgroundColor: '#0f2638', border: '2px solid rgba(59, 130, 246, 0.4)' }}>
-                    <p className="text-xs text-gray-500 mb-1">Total to Repay</p>
-                    <p className="text-2xl font-bold text-blue-300">{currencyCode} {example.totalRepayment.toLocaleString()}</p>
-                    <p className="text-xs text-gray-400 mt-2">{example.description}</p>
+                  <div className="p-4 rounded-lg bg-blue-100 border-2 border-blue-400">
+                    <p className="text-xs text-gray-700 mb-1">Total to Repay</p>
+                    <p className="text-2xl font-bold text-blue-900">{currencyCode} {example.totalRepayment.toLocaleString()}</p>
+                    <p className="text-xs text-gray-600 mt-2">{example.description}</p>
                   </div>
                 </div>
               </div>
@@ -627,9 +641,12 @@ export function SettingsTab() {
               </p>
               */}
               
-              <div className="p-4 rounded-lg bg-[#1a1a2e] border border-blue-500/30">
-                <h4 className="font-medium text-blue-300 mb-2">📦 What's Included</h4>
-                <ul className="space-y-2 text-sm text-gray-300">
+              <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+                <h4 className="font-medium text-blue-700 mb-2 flex items-center gap-2">
+                  <Settings className="size-4" />
+                  📦 What's Included
+                </h4>
+                <ul className="space-y-2 text-sm text-gray-700">
                   <li>✓ Full access to all platform features</li>
                   <li>✓ Unlimited loan processing</li>
                   <li>✓ AI-powered insights and analytics</li>
@@ -650,10 +667,10 @@ export function SettingsTab() {
               </div>
               */}
 
-              <div className="flex items-center justify-between p-4 rounded-lg bg-[#1a1a2e] border border-gray-700/50">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200">
                 <div>
-                  <p className="font-medium text-white">Need Help?</p>
-                  <p className="text-sm text-gray-400">Contact our support team for assistance</p>
+                  <p className="font-medium text-gray-900">Need Help?</p>
+                  <p className="text-sm text-gray-600">Contact our support team for assistance</p>
                 </div>
                 <button 
                   onClick={() => window.open('mailto:support@smartlenderup.com', '_blank')}
@@ -667,8 +684,28 @@ export function SettingsTab() {
         </div>
       )}
 
+      {/* Staff Management */}
+      {activeSection === 'staff' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <UsersIcon className="size-5 text-emerald-600" />
+              <h3 className="text-gray-900">Staff Management</h3>
+            </div>
+            <div className="space-y-4">
+              <StaffManagement />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Staff Management */}
+      {activeSection === 'staff' && (
+        <StaffManagement />
+      )}
+
       {/* Save Button */}
-      {activeSection !== 'theme' && activeSection !== 'subscription' && (
+      {activeSection !== 'theme' && activeSection !== 'subscription' && activeSection !== 'staff' && (
         <div className="flex justify-end">
           <button className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
             Save Changes

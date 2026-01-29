@@ -14,12 +14,13 @@ import { GroupSignUpModal } from './modals/GroupSignUpModal';
 import { SuperAdminLoginModal } from './modals/SuperAdminLoginModal';
 import { SuperAdminDashboard } from './SuperAdminDashboard';
 import { FeaturesCarousel } from './FeaturesCarousel';
+import { StaffLogin } from './StaffLogin';
 import { db } from '../utils/database';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner@2.0.3';
 
 interface LoginPageProps {
-  onLogin: (userType: 'admin' | 'employee', userData: any) => void;
+  onLogin: (userType: 'admin' | 'employee' | 'staff', userData: any) => void;
   onBack?: () => void;
   platformName?: string;
   onGoToRegister?: () => void;
@@ -61,6 +62,7 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
   const [showContactUs, setShowContactUs] = useState(false);
   const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', message: '' });
   const [sendingContact, setSendingContact] = useState(false);
+  const [showStaffLogin, setShowStaffLogin] = useState(false);
   const signInRef = useRef<HTMLDivElement>(null);
   const pricingRef = useRef<HTMLDivElement>(null);
   const logoClickTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -154,6 +156,11 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
       loadPricing();
     }
   }, [showPricing]);
+
+  // Debug: Log when showStaffLogin changes
+  useEffect(() => {
+    console.log('🔄 showStaffLogin changed:', showStaffLogin);
+  }, [showStaffLogin]);
 
   const textArray = [
     'Transform your MFI operations\npowered by innovation',
@@ -907,6 +914,19 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
     }
   ];
 
+  // If showing staff login, render only that component
+  if (showStaffLogin) {
+    return (
+      <StaffLogin
+        onLoginSuccess={(userData) => {
+          setShowStaffLogin(false);
+          onLogin('staff', userData);
+        }}
+        onBackToMain={() => setShowStaffLogin(false)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen" style={{ backgroundImage: 'radial-gradient(circle farthest-corner at 17.6% 50.7%, rgba(25,0,184,1) 0%, rgba(0,0,0,1) 90%)' }}>
       {/* Navigation Header */}
@@ -1454,6 +1474,23 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                       </button>
 
                       <div className="text-center pt-3 border-t" style={{ borderColor: 'rgba(173, 232, 244, 0.2)' }}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('Staff Login button clicked');
+                            setShowSignInDropdown(false);
+                            setShowStaffLogin(true);
+                          }}
+                          className="w-full text-sm py-2 mb-3 rounded-lg border hover:opacity-90 transition-all"
+                          style={{
+                            borderColor: 'rgba(173, 232, 244, 0.5)',
+                            color: '#ade8f4'
+                          }}
+                        >
+                          Staff Login
+                        </button>
                         <p className="text-xs" style={{ color: '#ffffff', opacity: 0.7 }}>
                           Don't have an account? <button onClick={() => { 
                             if (onGoToRegister) {

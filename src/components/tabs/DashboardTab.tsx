@@ -608,8 +608,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       <div>
         <h3 className={`${theme.textPrimary} mb-3`}>Loan Health Metrics</h3>
         <div className="rounded-lg shadow-sm border p-6" style={{
-          backgroundColor: '#1a1d29',
-          borderColor: '#252932'
+          backgroundColor: isDark ? '#1a1d29' : '#ffffff',
+          borderColor: isDark ? '#252932' : '#e5e7eb'
         }}>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {/* Gross Loan Portfolio */}
@@ -718,9 +718,9 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   onClick={(e) => e.stopPropagation()}
                   className="text-[9px] px-1 py-0.5 rounded border cursor-pointer opacity-50 hover:opacity-100 transition-opacity"
                   style={{ 
-                    backgroundColor: 'rgba(13, 40, 56, 0.5)',
-                    borderColor: 'rgba(59, 130, 246, 0.2)',
-                    color: '#3b82f6'
+                    backgroundColor: isDark ? 'rgba(13, 40, 56, 0.5)' : 'rgba(255, 255, 255, 0.8)',
+                    borderColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(156, 163, 175, 0.5)',
+                    color: isDark ? '#3b82f6' : '#374151'
                   }}
                 >
                   <option value="today">1D</option>
@@ -754,9 +754,9 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   onClick={(e) => e.stopPropagation()}
                   className="text-[9px] px-1 py-0.5 rounded border cursor-pointer opacity-50 hover:opacity-100 transition-opacity"
                   style={{ 
-                    backgroundColor: 'rgba(13, 40, 56, 0.5)',
-                    borderColor: 'rgba(59, 130, 246, 0.2)',
-                    color: '#3b82f6'
+                    backgroundColor: isDark ? 'rgba(13, 40, 56, 0.5)' : 'rgba(255, 255, 255, 0.8)',
+                    borderColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(156, 163, 175, 0.5)',
+                    color: isDark ? '#3b82f6' : '#374151'
                   }}
                 >
                   <option value="today">1D</option>
@@ -790,9 +790,9 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   onClick={(e) => e.stopPropagation()}
                   className="text-[9px] px-1 py-0.5 rounded border cursor-pointer opacity-50 hover:opacity-100 transition-opacity"
                   style={{ 
-                    backgroundColor: 'rgba(13, 40, 56, 0.5)',
-                    borderColor: 'rgba(59, 130, 246, 0.2)',
-                    color: '#3b82f6'
+                    backgroundColor: isDark ? 'rgba(13, 40, 56, 0.5)' : 'rgba(255, 255, 255, 0.8)',
+                    borderColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(156, 163, 175, 0.5)',
+                    color: isDark ? '#3b82f6' : '#374151'
                   }}
                 >
                   <option value="today">1D</option>
@@ -847,10 +847,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Portfolio Growth Trend */}
         <div className="p-4 rounded-lg border" style={{ 
-          backgroundColor: '#15233a',
-          borderColor: '#1e2f42'
+          backgroundColor: isDark ? '#15233a' : '#ffffff',
+          borderColor: isDark ? '#1e2f42' : '#e5e7eb'
         }}>
-          <h3 className="mb-3 text-sm" style={{ color: '#e1e8f0' }}>Portfolio Growth & PAR Trend</h3>
+          <h3 className="mb-3 text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Portfolio Growth & PAR Trend</h3>
           <div style={{ width: '100%', height: '250px', minHeight: '250px', minWidth: '100px', position: 'relative' }}>
             {isMounted && <ResponsiveContainer width="100%" height={250} aspect={undefined}>
               <LineChart 
@@ -860,13 +860,13 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e2f42" />
               <XAxis 
                 dataKey="month" 
-                tick={{ fontSize: 12, fill: '#b8c5d6' }}
+                tick={{ fontSize: 12, fill: isDark ? '#b8c5d6' : '#6b7280' }}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis 
                 yAxisId="left"
-                tick={{ fontSize: 11, fill: '#b8c5d6' }}
+                tick={{ fontSize: 11, fill: isDark ? '#b8c5d6' : '#6b7280' }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(value) => `${safeToFixed(safeDivideNum(value || 0, 1000000), 1)}M`}
@@ -874,7 +874,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
               <YAxis 
                 yAxisId="right"
                 orientation="right"
-                tick={{ fontSize: 11, fill: '#b8c5d6' }}
+                tick={{ fontSize: 11, fill: isDark ? '#b8c5d6' : '#6b7280' }}
                 tickLine={false}
                 axisLine={false}
                 domain={[0, 15]}
@@ -889,11 +889,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 }}
                 contentStyle={{ 
                   fontSize: '12px',
-                  backgroundColor: '#0d1b2a',
-                  border: '1px solid #1e2f42',
-                  color: '#e1e8f0'
+                  backgroundColor: isDark ? '#0d1b2a' : '#ffffff',
+                  border: isDark ? '1px solid #1e2f42' : '1px solid #e5e7eb',
+                  color: isDark ? '#e1e8f0' : '#111827'
                 }}
-                labelStyle={{ color: '#e1e8f0' }}
+                labelStyle={{ color: isDark ? '#e1e8f0' : '#111827' }}
               />
               <Legend 
                 wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
@@ -925,10 +925,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
         {/* Loans by Product */}
         <div className="p-4 rounded-lg border" style={{ 
-          backgroundColor: '#15233a',
-          borderColor: '#1e2f42'
+          backgroundColor: isDark ? '#15233a' : '#ffffff',
+          borderColor: isDark ? '#1e2f42' : '#e5e7eb'
         }}>
-          <h3 className="mb-3 text-sm" style={{ color: '#e1e8f0' }}>Portfolio by Product</h3>
+          <h3 className="mb-3 text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Portfolio by Product</h3>
           {loansByProduct.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {/* Donut Chart */}
@@ -952,17 +952,17 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                       formatter={(value: number) => `${currencySymbol} ${safeFormat(value || 0)}`}
                       contentStyle={{ 
                         fontSize: '12px',
-                        backgroundColor: '#0d1b2a',
-                        border: '1px solid #1e2f42',
-                        color: '#e1e8f0'
+                        backgroundColor: isDark ? '#0d1b2a' : '#ffffff',
+                        border: isDark ? '1px solid #1e2f42' : '1px solid #e5e7eb',
+                        color: isDark ? '#e1e8f0' : '#111827'
                       }}
                     />
                   </RechartsPieChart>
                 </ResponsiveContainer>}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="text-center">
-                    <p className="text-lg" style={{ color: '#e1e8f0' }}>{currencySymbol} {safeToFixed(safeDivideNum(totalPortfolioValue || 0, 1000000), 1)}M</p>
-                    <p className="text-xs" style={{ color: '#b8c5d6' }}>Total</p>
+                    <p className="text-lg" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>{currencySymbol} {safeToFixed(safeDivideNum(totalPortfolioValue || 0, 1000000), 1)}M</p>
+                    <p className="text-xs" style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>Total</p>
                   </div>
                 </div>
               </div>
@@ -979,11 +979,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                           style={{ backgroundColor: COLORS[index % COLORS.length] }}
                         />
                         <div>
-                          <p className="text-sm" style={{ color: '#e1e8f0' }}>
+                          <p className="text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>
                             {currencySymbol} {safeFormat(item.value || 0)}{' '}
-                            <span style={{ color: '#b8c5d6' }}>({percentage}%)</span>
+                            <span style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>({percentage}%)</span>
                           </p>
-                          <p className="text-xs mt-0.5 whitespace-nowrap" style={{ color: '#b8c5d6' }}>
+                          <p className="text-xs mt-0.5 whitespace-nowrap" style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>
                             {item.name}
                           </p>
                         </div>
@@ -995,7 +995,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-48 space-y-2">
-              <p className="text-sm" style={{ color: '#b8c5d6' }}>
+              <p className="text-sm" style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>
                 {loanProducts.length === 0 
                   ? 'No loan products created yet' 
                   : contextLoans.length === 0 
@@ -1003,7 +1003,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                     : 'No active loans with outstanding balances for existing products'}
               </p>
               {loanProducts.length > 0 && contextLoans.length > 0 && (
-                <p className="text-xs" style={{ color: '#7a8a9e' }}>
+                <p className="text-xs" style={{ color: isDark ? '#7a8a9e' : '#9ca3af' }}>
                   {loanProducts.length} product(s), {contextLoans.length} loan(s) in database
                 </p>
               )}
@@ -1016,10 +1016,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Monthly Disbursements */}
         <div className="p-4 rounded-lg border" style={{ 
-          backgroundColor: '#15233a',
-          borderColor: '#1e2f42'
+          backgroundColor: isDark ? '#15233a' : '#ffffff',
+          borderColor: isDark ? '#1e2f42' : '#e5e7eb'
         }}>
-          <h3 className="mb-3 text-sm" style={{ color: '#e1e8f0' }}>Monthly Disbursements (Last 7 Months)</h3>
+          <h3 className="mb-3 text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Monthly Disbursements (Last 7 Months)</h3>
           <div style={{ width: '100%', height: '250px', minHeight: '250px', minWidth: '100px', position: 'relative' }}>
             {isMounted && <ResponsiveContainer width="100%" height={250} aspect={undefined}>
               <BarChart 
@@ -1029,7 +1029,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
               <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#1e2f42" />
               <XAxis 
                 dataKey="month" 
-                tick={{ fontSize: 12, fill: '#b8c5d6' }}
+                tick={{ fontSize: 12, fill: isDark ? '#b8c5d6' : '#6b7280' }}
                 tickLine={false}
                 axisLine={false}
               />
@@ -1037,11 +1037,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 formatter={(value: number) => `${currencySymbol} ${safeToFixed(safeDivideNum(value || 0, 1000000), 1)}M`}
                 cursor={false}
                 contentStyle={{ 
-                  backgroundColor: '#0d1b2a',
-                  border: '1px solid #1e2f42',
-                  color: '#e1e8f0'
+                  backgroundColor: isDark ? '#0d1b2a' : '#ffffff',
+                  border: isDark ? '1px solid #1e2f42' : '1px solid #e5e7eb',
+                  color: isDark ? '#e1e8f0' : '#111827'
                 }}
-                labelStyle={{ color: '#e1e8f0' }}
+                labelStyle={{ color: isDark ? '#e1e8f0' : '#111827' }}
               />
               <Bar dataKey="amount" radius={8}>
                 {monthlyDisbursements.map((entry: any, index: number) => (
@@ -1051,7 +1051,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   position="top"
                   offset={12}
                   fontSize={11}
-                  fill="#b8c5d6"
+                  fill={isDark ? '#b8c5d6' : '#6b7280'}
                   formatter={(value: number) => `${safeToFixed(safeDivideNum(value || 0, 1000000), 1)}M`}
                 />
               </Bar>
@@ -1062,10 +1062,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
         {/* Collection Rate by Week */}
         <div className="p-4 rounded-lg border" style={{ 
-          backgroundColor: '#15233a',
-          borderColor: '#1e2f42'
+          backgroundColor: isDark ? '#15233a' : '#ffffff',
+          borderColor: isDark ? '#1e2f42' : '#e5e7eb'
         }}>
-          <h3 className="mb-3 text-sm" style={{ color: '#e1e8f0' }}>Collection Rate (Last 5 Weeks)</h3>
+          <h3 className="mb-3 text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Collection Rate (Last 5 Weeks)</h3>
           <div style={{ width: '100%', height: '250px', minHeight: '250px', minWidth: '100px', position: 'relative' }}>
             {isMounted && <ResponsiveContainer width="100%" height={250} aspect={undefined}>
               <AreaChart 
@@ -1075,7 +1075,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
               <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#1e2f42" />
               <XAxis 
                 dataKey="week" 
-                tick={{ fontSize: 12, fill: '#b8c5d6' }}
+                tick={{ fontSize: 12, fill: isDark ? '#b8c5d6' : '#6b7280' }}
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
@@ -1084,11 +1084,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 cursor={false}
                 contentStyle={{ 
                   fontSize: '12px',
-                  backgroundColor: '#0d1b2a',
-                  border: '1px solid #1e2f42',
-                  color: '#e1e8f0'
+                  backgroundColor: isDark ? '#0d1b2a' : '#ffffff',
+                  border: isDark ? '1px solid #1e2f42' : '1px solid #e5e7eb',
+                  color: isDark ? '#e1e8f0' : '#111827'
                 }}
-                labelStyle={{ color: '#e1e8f0' }}
+                labelStyle={{ color: isDark ? '#e1e8f0' : '#111827' }}
                 formatter={(value: number) => `${currencySymbol} ${safeFormat(value || 0)}`}
               />
               <Legend 
@@ -1117,7 +1117,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   position="top"
                   offset={8}
                   fontSize={11}
-                  fill="#b8c5d6"
+                  fill={isDark ? '#b8c5d6' : '#6b7280'}
                   formatter={(value: number, entry: any) => {
                     if (!entry || !entry.payload) return '';
                     const rate = entry.payload.rate || 0;
@@ -1135,10 +1135,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       <div className="grid grid-cols-1 gap-4">
         {/* Loan Status Distribution */}
         <div className="p-4 rounded-lg border" style={{ 
-          backgroundColor: '#15233a',
-          borderColor: '#1e2f42'
+          backgroundColor: isDark ? '#15233a' : '#ffffff',
+          borderColor: isDark ? '#1e2f42' : '#e5e7eb'
         }}>
-          <h3 className="mb-3 text-sm" style={{ color: '#e1e8f0' }}>Loan Status Distribution</h3>
+          <h3 className="mb-3 text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Loan Status Distribution</h3>
           <div style={{ width: '100%', height: '250px', minHeight: '250px', minWidth: '100px', position: 'relative' }}>
             {isMounted && <ResponsiveContainer width="100%" height={250} aspect={undefined}>
               <BarChart
@@ -1165,11 +1165,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 cursor={false}
                 contentStyle={{ 
                   fontSize: '12px',
-                  backgroundColor: '#0d1b2a',
-                  border: '1px solid #1e2f42',
-                  color: '#e1e8f0'
+                  backgroundColor: isDark ? '#0d1b2a' : '#ffffff',
+                  border: isDark ? '1px solid #1e2f42' : '1px solid #e5e7eb',
+                  color: isDark ? '#e1e8f0' : '#111827'
                 }}
-                labelStyle={{ color: '#e1e8f0' }}
+                labelStyle={{ color: isDark ? '#e1e8f0' : '#111827' }}
               />
               <Bar
                 dataKey="count"
@@ -1240,12 +1240,12 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Overdue Loans Alert */}
         <div className="p-4 rounded-lg border" style={{ 
-          backgroundColor: '#15233a',
-          borderColor: '#1e2f42'
+          backgroundColor: isDark ? '#15233a' : '#ffffff',
+          borderColor: isDark ? '#1e2f42' : '#e5e7eb'
         }}>
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="size-4 text-red-600" />
-            <h3 className="text-sm" style={{ color: '#e1e8f0' }}>Overdue Loan Alerts</h3>
+            <h3 className="text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Overdue Loan Alerts</h3>
           </div>
           <div className="space-y-2">
             {overdueLoans.slice(0, 5).map((loan) => {
@@ -1257,8 +1257,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 }}>
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="text-sm" style={{ color: '#e1e8f0' }}>{client?.name}</p>
-                      <p className="text-xs" style={{ color: '#b8c5d6' }}>{loan.id} - {loan.daysInArrears} days overdue</p>
+                      <p className="text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>{client?.name}</p>
+                      <p className="text-xs" style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>{loan.id} - {loan.daysInArrears} days overdue</p>
                     </div>
                     <span className="text-sm text-red-400">{currencySymbol} {safeFormat(loan.outstandingBalance || 0)}</span>
                   </div>
@@ -1270,12 +1270,12 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
         {/* Recent Applications */}
         <div className="p-4 rounded-lg border" style={{ 
-          backgroundColor: '#15233a',
-          borderColor: '#1e2f42'
+          backgroundColor: isDark ? '#15233a' : '#ffffff',
+          borderColor: isDark ? '#1e2f42' : '#e5e7eb'
         }}>
           <div className="flex items-center gap-2 mb-3">
             <Activity className="size-4 text-emerald-600" />
-            <h3 className="text-sm" style={{ color: '#e1e8f0' }}>Recent Activity</h3>
+            <h3 className="text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Recent Activity</h3>
           </div>
           <div className="space-y-2">
             {recentApplications.map((loan) => {
@@ -1293,8 +1293,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 }}>
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="text-sm" style={{ color: '#e1e8f0' }}>{client?.name}</p>
-                      <p className="text-xs" style={{ color: '#b8c5d6' }}>{activityDescription}</p>
+                      <p className="text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>{client?.name}</p>
+                      <p className="text-xs" style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>{activityDescription}</p>
                     </div>
                     <span className="text-sm text-emerald-400">{currencySymbol} {safeFormat(loan.principalAmount || 0)}</span>
                   </div>
@@ -1310,8 +1310,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         onClick={() => setSelectedMetric('ai-insights')}
         className="p-4 rounded-lg border hover:shadow-md transition-all cursor-pointer"
         style={{
-          background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)',
-          backgroundColor: '#15233a',
+          background: isDark 
+            ? 'linear-gradient(135deg, rgba(147, 51, 234, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)'
+            : 'linear-gradient(135deg, rgba(147, 51, 234, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%)',
+          backgroundColor: isDark ? '#15233a' : '#ffffff',
           borderColor: '#7c3aed'
         }}
       >
@@ -1320,23 +1322,23 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             <Activity className="size-5 text-white" />
           </div>
           <div className="flex-1">
-            <h3 className="mb-1 text-sm" style={{ color: '#e1e8f0' }}>AI-Powered Insight</h3>
+            <h3 className="mb-1 text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>AI-Powered Insight</h3>
             {atRiskClientsCount > 0 ? (
               <>
-                <p className="text-sm mb-1" style={{ color: '#e1e8f0' }}>
+                <p className="text-sm mb-1" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>
                   <strong>{atRiskClientsCount} client{atRiskClientsCount !== 1 ? 's' : ''} identified with highest risk of default in next 30 days.</strong>
                 </p>
-                <p className="text-xs" style={{ color: '#b8c5d6' }}>
+                <p className="text-xs" style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>
                   Recommended action: Proactive outreach and payment plan restructuring for high-risk clients. 
                   Estimated prevention of {currencyCode} {(potentialDefaults / 1000).toFixed(0)}K in potential defaults.
                 </p>
               </>
             ) : (
               <>
-                <p className="text-sm mb-1" style={{ color: '#e1e8f0' }}>
+                <p className="text-sm mb-1" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>
                   <strong>Excellent portfolio health! No clients at high risk of default.</strong>
                 </p>
-                <p className="text-xs" style={{ color: '#b8c5d6' }}>
+                <p className="text-xs" style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>
                   All loans are performing well with no significant arrears. Continue monitoring and maintain proactive client engagement.
                 </p>
               </>
@@ -1349,12 +1351,12 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       {selectedMetric && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" style={{ 
-            backgroundColor: '#15233a',
-            borderColor: '#1e2f42'
+            backgroundColor: isDark ? '#15233a' : '#ffffff',
+            borderColor: isDark ? '#1e2f42' : '#e5e7eb'
           }}>
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 style={{ color: '#e1e8f0' }}>Metric Details</h3>
+                <h3 style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Metric Details</h3>
                 <button
                   onClick={() => setSelectedMetric(null)}
                   className="hover:opacity-80 transition-opacity"

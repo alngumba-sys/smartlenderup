@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { X, DollarSign, Info, AlertCircle, Upload, FileText, Trash2, CheckCircle, Calculator } from 'lucide-react';
-import { useData } from '../../contexts/DataContext';
+import { X, DollarSign, Calendar, FileText, AlertTriangle, User, Upload, Trash2, Info, CheckCircle } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { toast } from 'sonner@2.0.3';
+import { useData } from '../../contexts/DataContext';
 import { getCurrencyCode } from '../../utils/currencyUtils';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { formatNumberWithCommas, parseFormattedNumber } from '../../utils/numberFormat';
 
 interface NewLoanModalProps {
   onClose: () => void;
-  onSubmit: (loanData: any) => void;
+  onSubmit: (data: any) => void;
   preselectedClientId?: string;
 }
 
@@ -23,6 +23,7 @@ interface UploadedDocument {
 
 export function NewLoanModal({ onClose, onSubmit, preselectedClientId }: NewLoanModalProps) {
   const { isDark } = useTheme();
+  useEscapeKey(onClose);
   const { clients, loanProducts, loanDocuments } = useData();
   const [allowCustomRate, setAllowCustomRate] = useState(false);
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([]);
@@ -46,7 +47,8 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId }: NewLoan
     collateralType: '',
     collateralValue: '',
     guarantorName: '',
-    guarantorPhone: ''
+    guarantorPhone: '',
+    facilitationFee: ''
   });
 
   // Check for existing client documents when client is selected
@@ -243,282 +245,398 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId }: NewLoan
   const recommendedAmount = creditScore ? getRecommendedLoanAmount(creditScore) : 0;
 
   return (
-    <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 ${isDark ? 'dark' : ''}`}>
-      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[95vh] overflow-y-auto">
+    <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4 ${isDark ? 'dark' : ''}`}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[96vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="sticky top-0 bg-[#020838] border-b border-emerald-700 px-5 py-2.5 flex items-center justify-between z-10">
-          <div>
-            <h2 className="text-white text-[20px]">New Loan Application</h2>
-            <p className="text-gray-300 text-xs">Create a new loan for a client</p>
-          </div>
-          <div className="flex items-center gap-3">
+        <div className="relative bg-gradient-to-r from-slate-800 via-slate-700 to-blue-900 px-6 py-4">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h2 className="text-white text-xl font-semibold mb-0.5">New Loan Application</h2>
+              <p className="text-blue-200 text-xs">Create and submit a new loan application for client approval</p>
+            </div>
+            
             {/* Credit Score Display in Header */}
             {creditScore !== null && (
-              <>
-                <div className="text-center px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg">
-                  <p className="text-xs text-gray-300 mb-1">Credit Score</p>
+              <div className="flex items-center gap-3 ml-6">
+                <div className="text-center px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl shadow-lg">
+                  <p className="text-xs text-blue-200 mb-0.5 font-medium">Credit Score</p>
                   <p className={`text-3xl font-bold ${getCreditScoreColor(creditScore)}`}>{creditScore}</p>
-                  <p className={`text-xs mt-0.5 ${getCreditScoreColor(creditScore)}`}>{getCreditScoreLabel(creditScore)}</p>
+                  <div className="mt-1">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      creditScore >= 740 ? 'bg-green-100 text-green-800' :
+                      creditScore >= 670 ? 'bg-blue-100 text-blue-800' :
+                      creditScore >= 580 ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-orange-100 text-orange-800'
+                    }`}>
+                      {getCreditScoreLabel(creditScore)}
+                    </span>
+                  </div>
                 </div>
+                
                 {/* Recommended Loan Amount */}
-                <div className="text-center px-4 py-2 bg-emerald-600/20 backdrop-blur-sm border border-emerald-500/30 rounded-lg">
-                  <p className="text-xs text-emerald-200 mb-1">Max Recommended</p>
-                  <p className="text-xl font-bold text-emerald-300">{currencyCode} {(recommendedAmount / 1000).toFixed(0)}K</p>
-                  <p className="text-xs text-emerald-200 mt-0.5">Based on score</p>
+                <div className="text-center px-4 py-2 bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 backdrop-blur-md border border-emerald-400/30 rounded-xl shadow-lg">
+                  <p className="text-xs text-emerald-100 mb-0.5 font-medium">Max Recommended</p>
+                  <p className="text-2xl font-bold text-white">{currencyCode} {(recommendedAmount / 1000).toFixed(0)}K</p>
+                  <p className="text-xs text-emerald-200 mt-0.5">Based on credit score</p>
                 </div>
-              </>
+              </div>
             )}
-            <button onClick={onClose} className="text-gray-300 hover:text-white">
+            
+            <button 
+              onClick={onClose} 
+              className="ml-4 text-blue-200 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-lg"
+            >
               <X className="size-5" />
             </button>
           </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-5">
-          <div className="grid grid-cols-6 gap-3">
-            {/* Client Selection */}
-            <div className="col-span-3">
-              <label className="block text-xs text-gray-700 dark:text-gray-300 mb-1">Select Client *</label>
-              <select
-                required
-                value={formData.clientId}
-                onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-                className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-              >
-                <option value="">Choose a client...</option>
-                {clients.map(client => (
-                  <option key={client.id} value={client.id}>
-                    {client.name} - {client.clientNumber || client.client_number || client.id} ({client.phone}) - Score: {client.creditScore || '300'}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Loan Product */}
-            <div className="col-span-3">
-              <label className="block text-xs text-gray-700 dark:text-gray-300 mb-1">Loan Product *</label>
-              <select
-                required
-                value={formData.productId}
-                onChange={(e) => handleProductChange(e.target.value)}
-                className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-              >
-                <option value="">Select loan product...</option>
-                {availableProducts.map(product => (
-                  <option key={product.id} value={product.id}>
-                    {product.name} - {product.interestRate}% {product.interestType} | {product.repaymentFrequency} | 
-                    {currencyCode} {(product.minAmount || 0).toLocaleString()} - {(product.maxAmount || 0).toLocaleString()}
-                  </option>
-                ))}
-              </select>
-              {availableProducts.length === 0 && (
-                <p className="text-red-600 text-xs mt-1">No active loan products available. Please create one first.</p>
-              )}
-            </div>
-
-            {/* Client Info Box - Compact */}
-            {selectedClient && (
-              <div className="col-span-6 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-4">
-                    <span className="text-gray-600 dark:text-gray-400">Score: <strong className="text-blue-700 dark:text-blue-300">{selectedClient.creditScore || '300'}</strong></span>
-                    <span className="text-gray-600 dark:text-gray-400">Business: <strong className="text-gray-900 dark:text-gray-100">{selectedClient.businessType || 'N/A'}</strong></span>
-                    <span className="text-gray-600 dark:text-gray-400">Location: <strong className="text-gray-900 dark:text-gray-100">Nairobi</strong></span>
-                    <span className="text-gray-600 dark:text-gray-400">Status: <strong className="text-gray-900 dark:text-gray-100">{selectedClient.status}</strong></span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Product Details - Compact */}
-            {selectedProduct && (
-              <div className="col-span-6 p-2 bg-gradient-to-r from-blue-50 to-emerald-50 dark:bg-gradient-to-r dark:from-blue-900/20 dark:to-emerald-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-600 dark:text-gray-400">Rate: <strong className="text-blue-900 dark:text-blue-300">{selectedProduct.interestRate}% {selectedProduct.interestType}</strong></span>
-                  <span className="text-gray-600 dark:text-gray-400">Repayment: <strong className="text-gray-900 dark:text-gray-100">{selectedProduct.repaymentFrequency}</strong></span>
-                  <span className="text-gray-600 dark:text-gray-400">Tenor: <strong className="text-gray-900 dark:text-gray-100">{selectedProduct.minTenor}-{selectedProduct.maxTenor} months</strong></span>
-                  <span className="text-gray-600 dark:text-gray-400">Fee: <strong className="text-gray-900 dark:text-gray-100">{currencyCode} {selectedProduct.processingFee?.toLocaleString() || 0}</strong></span>
-                </div>
-              </div>
-            )}
-
-            {/* Principal Amount */}
-            <div className="col-span-2">
-              <label className="block text-xs text-gray-700 dark:text-gray-300 mb-1">Principal Amount ({currencyCode}) *</label>
-              <input
-                type="text"
-                required
-                value={formatNumberWithCommas(formData.principalAmount)}
-                onChange={(e) => setFormData({ ...formData, principalAmount: parseFormattedNumber(e.target.value) })}
-                className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-                placeholder="0"
-              />
-              {creditScore !== null && recommendedAmount > 0 && (
-                <p className="text-gray-500 text-xs mt-0.5">
-                  Recommended {currencyCode} {(recommendedAmount / 1000).toFixed(0)}K
-                </p>
-              )}
+        {/* Form Content */}
+        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1">
+          {/* Section 1: Client & Product Selection */}
+          <div className="mb-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1 h-5 bg-blue-600 rounded-full"></div>
+              <h3 className="text-base font-semibold text-gray-800">Client & Product Information</h3>
             </div>
             
-            {/* Interest Rate with Custom Override */}
-            <div className="col-span-2">
-              <label className="block text-xs text-gray-700 dark:text-gray-300 mb-1">
-                Interest Rate (%) *
-              </label>
-              <input
-                type="number"
-                required
-                step="0.1"
-                min="0"
-                max="100"
-                value={formData.interestRate}
-                readOnly
-                className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm cursor-not-allowed"
-                placeholder="10"
-              />
-            </div>
-
-            {/* Loan Term */}
-            <div className="col-span-2">
-              <label className="block text-xs text-gray-700 dark:text-gray-300 mb-1">Loan Term (months) *</label>
-              <input
-                type="number"
-                required
-                min={selectedProduct?.minTenor || 1}
-                max={selectedProduct?.maxTenor || 60}
-                value={formData.loanTerm}
-                onChange={(e) => setFormData({ ...formData, loanTerm: e.target.value })}
-                className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-                placeholder="0"
-              />
-              {selectedProduct && (
-                <p className="text-gray-500 text-xs mt-0.5">
-                  {selectedProduct.minTenor} - {selectedProduct.maxTenor} months
-                </p>
-              )}
-            </div>
-
-            {/* Creation Date */}
-            <div className="col-span-2">
-              <label className="block text-xs text-gray-700 dark:text-gray-300 mb-1">Creation Date *</label>
-              <input
-                type="date"
-                required
-                value={formData.disbursementDate}
-                onChange={(e) => setFormData({ ...formData, disbursementDate: e.target.value })}
-                className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-              />
-            </div>
-
-            {/* Purpose */}
-            <div className="col-span-4">
-              <label className="block text-xs text-gray-700 dark:text-gray-300 mb-1">Loan Purpose *</label>
-              <textarea
-                required
-                rows={1}
-                value={formData.purpose}
-                onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
-                className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm resize-none"
-                placeholder="Working capital, inventory purchase, equipment, etc."
-              />
-            </div>
-
-            {/* Collateral Type */}
-            <div className="col-span-1.5">
-              <label className="block text-xs text-gray-700 dark:text-gray-300 mb-1">Collateral Type</label>
-              <select
-                value={formData.collateralType}
-                onChange={(e) => setFormData({ ...formData, collateralType: e.target.value })}
-                className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-              >
-                <option value="">None</option>
-                <option value="Asset">Business Asset</option>
-                <option value="Property">Property</option>
-                <option value="Vehicle">Vehicle</option>
-                <option value="Equipment">Equipment</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-            {/* Collateral Value */}
-            <div className="col-span-1.5">
-              <label className="block text-xs text-gray-700 dark:text-gray-300 mb-1">Collateral Value ({currencyCode})</label>
-              <input
-                type="text"
-                value={formatNumberWithCommas(formData.collateralValue)}
-                onChange={(e) => setFormData({ ...formData, collateralValue: parseFormattedNumber(e.target.value) })}
-                className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                placeholder="0"
-              />
-            </div>
-
-            {/* Guarantor Name */}
-            <div className="col-span-1.5">
-              <label className="block text-xs text-gray-700 dark:text-gray-300 mb-1">Guarantor Name</label>
-              <input
-                type="text"
-                value={formData.guarantorName}
-                onChange={(e) => setFormData({ ...formData, guarantorName: e.target.value })}
-                className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                placeholder="Full name"
-              />
-            </div>
-
-            {/* Guarantor Phone */}
-            <div className="col-span-1.5">
-              <label className="block text-xs text-gray-700 dark:text-gray-300 mb-1">Guarantor Phone</label>
-              <input
-                type="tel"
-                value={formData.guarantorPhone}
-                onChange={(e) => setFormData({ ...formData, guarantorPhone: e.target.value })}
-                className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                placeholder="0"
-              />
-            </div>
-
-            {/* Document Upload */}
-            <div className="col-span-6">
-              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-2">
-                Upload Documents (Bank Statements, ID, Business Permit, etc.)
-              </label>
-              <div className="flex items-center gap-4 mb-3">
-                <input
-                  type="file"
-                  multiple
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  id="document-upload"
-                />
-                <label
-                  htmlFor="document-upload"
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer flex items-center gap-2"
-                >
-                  <Upload className="size-4" />
-                  Choose Files
+            <div className="grid grid-cols-2 gap-4">
+              {/* Client Selection */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Select Client <span className="text-red-500">*</span>
                 </label>
-                <p className="text-gray-500 text-sm">
-                  {uploadedDocuments.length > 0 ? `${uploadedDocuments.length} document(s) uploaded` : 'No documents uploaded'}
+                <div className="relative">
+                  <User className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
+                  <select
+                    required
+                    value={formData.clientId}
+                    onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  >
+                    <option value="">Choose a client...</option>
+                    {clients.map(client => (
+                      <option key={client.id} value={client.id}>
+                        {client.name} - {client.clientNumber || client.client_number || client.id} ({client.phone}) - Score: {client.creditScore || '300'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Loan Product */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Loan Product <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
+                  <select
+                    required
+                    value={formData.productId}
+                    onChange={(e) => handleProductChange(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  >
+                    <option value="">Select loan product...</option>
+                    {availableProducts.map(product => (
+                      <option key={product.id} value={product.id}>
+                        {product.name} - {product.interestRate}% {product.interestType} | {product.repaymentFrequency} | 
+                        {currencyCode} {(product.minAmount || 0).toLocaleString()} - {(product.maxAmount || 0).toLocaleString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {availableProducts.length === 0 && (
+                  <p className="text-red-600 text-xs mt-1">No active loan products available. Please create one first.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Client & Product Info Boxes - Combined */}
+            {(selectedClient || selectedProduct) && (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                {selectedClient && (
+                  <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center gap-3 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-gray-600 font-medium">Score:</span>
+                        <span className="px-2 py-0.5 bg-blue-600 text-white rounded-full font-semibold">{selectedClient.creditScore || '300'}</span>
+                      </div>
+                      <div className="w-px h-4 bg-blue-300"></div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-gray-600 font-medium">Business:</span>
+                        <span className="text-gray-900 font-semibold truncate">{selectedClient.businessType || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedProduct && (
+                  <div className="p-3 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-lg">
+                    <div className="flex items-center gap-3 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-gray-600 font-medium">Rate:</span>
+                        <span className="text-emerald-700 font-semibold">{selectedProduct.interestRate}% {selectedProduct.interestType}</span>
+                      </div>
+                      <div className="w-px h-4 bg-emerald-300"></div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-gray-600 font-medium">Tenor:</span>
+                        <span className="text-gray-900 font-semibold">{selectedProduct.minTenor}-{selectedProduct.maxTenor}m</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: Loan Details */}
+          <div className="mb-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1 h-5 bg-emerald-600 rounded-full"></div>
+              <h3 className="text-base font-semibold text-gray-800">Loan Details</h3>
+            </div>
+            
+            <div className="grid grid-cols-4 gap-4">
+              {/* Principal Amount */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Principal Amount ({currencyCode}) <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    required
+                    value={formatNumberWithCommas(formData.principalAmount)}
+                    onChange={(e) => setFormData({ ...formData, principalAmount: parseFormattedNumber(e.target.value) })}
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    placeholder="0"
+                  />
+                </div>
+                {creditScore !== null && recommendedAmount > 0 && (
+                  <p className="text-gray-500 text-xs mt-1">
+                    💡 Max: {currencyCode} {(recommendedAmount / 1000).toFixed(0)}K
+                  </p>
+                )}
+              </div>
+              
+              {/* Interest Rate */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Interest Rate (%) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  required
+                  step="0.1"
+                  min="0"
+                  max="100"
+                  value={formData.interestRate}
+                  readOnly
+                  className="w-full px-3 py-2 text-sm border border-gray-300 bg-gray-50 text-gray-700 rounded-lg cursor-not-allowed"
+                  placeholder="10"
+                />
+              </div>
+
+              {/* Loan Term */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Loan Term (months) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  required
+                  min={selectedProduct?.minTenor || 1}
+                  max={selectedProduct?.maxTenor || 60}
+                  value={formData.loanTerm}
+                  onChange={(e) => setFormData({ ...formData, loanTerm: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                  placeholder="0"
+                />
+                {selectedProduct && (
+                  <p className="text-gray-500 text-xs mt-1">
+                    Range: {selectedProduct.minTenor}-{selectedProduct.maxTenor}m
+                  </p>
+                )}
+              </div>
+
+              {/* Creation Date */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Creation Date <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
+                  <input
+                    type="date"
+                    required
+                    value={formData.disbursementDate}
+                    onChange={(e) => setFormData({ ...formData, disbursementDate: e.target.value })}
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Facilitation Fee */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Facilitation Fee ({currencyCode})
+                </label>
+                <input
+                  type="text"
+                  value={formatNumberWithCommas(formData.facilitationFee)}
+                  onChange={(e) => setFormData({ ...formData, facilitationFee: parseFormattedNumber(e.target.value) })}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                  placeholder="0.00"
+                />
+              </div>
+
+              {/* Purpose */}
+              <div className="col-span-3">
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Loan Purpose <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.purpose}
+                  onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                  placeholder="Working capital, equipment, etc."
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Collateral & Guarantor */}
+          <div className="mb-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1 h-5 bg-purple-600 rounded-full"></div>
+              <h3 className="text-base font-semibold text-gray-800">Security & Guarantor Information</h3>
+            </div>
+            
+            <div className="grid grid-cols-4 gap-4">
+              {/* Collateral Type */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Collateral Type</label>
+                <select
+                  value={formData.collateralType}
+                  onChange={(e) => setFormData({ ...formData, collateralType: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                >
+                  <option value="">None</option>
+                  <option value="Asset">Business Asset</option>
+                  <option value="Property">Property</option>
+                  <option value="Vehicle">Vehicle</option>
+                  <option value="Equipment">Equipment</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              {/* Collateral Value */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Collateral Value ({currencyCode})</label>
+                <input
+                  type="text"
+                  value={formatNumberWithCommas(formData.collateralValue)}
+                  onChange={(e) => setFormData({ ...formData, collateralValue: parseFormattedNumber(e.target.value) })}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  placeholder="0"
+                />
+              </div>
+
+              {/* Guarantor Name */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Guarantor Name</label>
+                <input
+                  type="text"
+                  value={formData.guarantorName}
+                  onChange={(e) => setFormData({ ...formData, guarantorName: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  placeholder="Full name"
+                />
+              </div>
+
+              {/* Guarantor Phone */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Guarantor Phone</label>
+                <input
+                  type="tel"
+                  value={formData.guarantorPhone}
+                  onChange={(e) => setFormData({ ...formData, guarantorPhone: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  placeholder="Phone number"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Document Upload */}
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1 h-5 bg-orange-600 rounded-full"></div>
+              <h3 className="text-base font-semibold text-gray-800">Supporting Documents</h3>
+            </div>
+            
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 bg-gray-50/50 hover:border-blue-400 hover:bg-blue-50/30 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-xs font-medium text-gray-700 mb-0.5">Upload Documents (Bank Statements, ID, Business Permit, etc.)</p>
+                  <p className="text-xs text-gray-500">PDF, DOC, DOCX, JPG, PNG (Max 10MB)</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="document-upload"
+                  />
+                  <label
+                    htmlFor="document-upload"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer flex items-center gap-2 text-sm font-medium transition-all shadow-sm hover:shadow"
+                  >
+                    <Upload className="size-4" />
+                    Choose Files
+                  </label>
+                  {uploadedDocuments.length > 0 && (
+                    <span className="px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium">
+                      {uploadedDocuments.length} uploaded
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Credit Score Bonus Info */}
+              <div className="flex items-center gap-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
+                <Info className="size-4 text-blue-600 flex-shrink-0" />
+                <p className="text-xs text-blue-900">
+                  <strong>Credit Bonus:</strong> 6+ docs: <span className="font-semibold text-emerald-600">+30pts</span> • 
+                  3-5: <span className="font-semibold text-blue-600">+15pts</span> • 
+                  1-2: <span className="font-semibold text-gray-600">+5pts</span>
                 </p>
               </div>
+
               {uploadedDocuments.length > 0 && (
-                <div className="space-y-2 border border-gray-200 dark:border-gray-600 rounded-lg p-3 bg-gray-50 dark:bg-gray-700/50 mb-2 px-[12px] py-[0px]">
+                <div className="mt-3 space-y-2 max-h-32 overflow-y-auto">
                   {uploadedDocuments.map(doc => (
-                    <div key={doc.id} className="bg-white dark:bg-gray-700 rounded-lg p-3">
+                    <div key={doc.id} className="bg-white rounded-lg p-2.5 border border-gray-200 hover:border-blue-300 transition-all shadow-sm">
                       <div className="flex items-center gap-3">
-                        <FileText className="size-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                        <div className="flex-1 min-w-0 grid grid-cols-3 gap-3 items-center">
-                          <div className="col-span-1">
-                            <p className="text-gray-900 dark:text-gray-100 truncate text-sm">{doc.name}</p>
-                            <span className="text-gray-500 dark:text-gray-400 text-xs">{(doc.size / 1024).toFixed(1)} KB</span>
+                        <div className="p-1.5 bg-blue-100 rounded-lg">
+                          <FileText className="size-4 text-blue-600" />
+                        </div>
+                        <div className="flex-1 grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-xs font-medium text-gray-900 truncate">{doc.name}</p>
+                            <span className="text-xs text-gray-500">{(doc.size / 1024).toFixed(1)} KB</span>
                           </div>
-                          <div className="col-span-2 flex items-center gap-2">
-                            <label className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Document Type:</label>
+                          <div className="flex items-center gap-2">
                             <select
                               value={doc.category}
                               onChange={(e) => updateDocumentCategory(doc.id, e.target.value)}
-                              className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-500 dark:bg-gray-600 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="flex-1 px-2 py-1 text-xs border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
                               {documentCategories.map(category => (
                                 <option key={category} value={category}>{category}</option>
@@ -529,51 +647,29 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId }: NewLoan
                         <button
                           type="button"
                           onClick={() => removeDocument(doc.id)}
-                          className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 flex-shrink-0"
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-all"
                         >
-                          <Trash2 className="size-4" />
+                          <Trash2 className="size-3.5" />
                         </button>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                6+ documents: +30 points • 3-5 docs: +15 points
-              </p>
               
               {/* Warning for existing client documents */}
               {showExistingDocsWarning && existingClientDocuments.length > 0 && (
-                <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 rounded-lg">
+                <div className="mt-3 p-3 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
                   <div className="flex items-start gap-2">
-                    <Info className="size-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                    <Info className="size-4 text-blue-600 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-2">
-                        This client already has {existingClientDocuments.length} document(s) on file
-                      </p>
-                      <div className="space-y-1 mb-3">
-                        {existingClientDocuments.slice(0, 5).map((doc: any) => (
-                          <div key={doc.id} className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300">
-                            <CheckCircle className="size-3" />
-                            <span>{doc.type} - {doc.fileName}</span>
-                            <span className="text-blue-500 dark:text-blue-400">({doc.uploadDate})</span>
-                          </div>
-                        ))}
-                        {existingClientDocuments.length > 5 && (
-                          <p className="text-xs text-blue-600 dark:text-blue-400 italic">
-                            ... and {existingClientDocuments.length - 5} more
-                          </p>
-                        )}
-                      </div>
-                      <p className="text-xs text-blue-700 dark:text-blue-300">
-                        ✓ You can reuse existing documents without uploading duplicates
-                        <br />
-                        ✓ If needed, you can still upload new/updated documents
+                      <p className="text-xs text-blue-900 font-semibold mb-1">
+                        📁 This client has {existingClientDocuments.length} document(s) on file
                       </p>
                       <button
                         type="button"
                         onClick={() => setShowExistingDocsWarning(false)}
-                        className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 underline"
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium underline"
                       >
                         Dismiss
                       </button>
@@ -585,20 +681,20 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId }: NewLoan
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-3 pt-4 border-t-2 border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+              className="flex-1 px-6 py-2.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!selectedProduct}
-              className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl hover:from-emerald-700 hover:to-green-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all"
             >
-              <DollarSign className="size-4" />
+              <DollarSign className="size-5" />
               Create Loan Application
             </button>
           </div>

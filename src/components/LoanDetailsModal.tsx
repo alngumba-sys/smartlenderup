@@ -599,8 +599,22 @@ export function LoanDetailsModal({ loanId, onClose }: LoanDetailsModalProps) {
                     <DollarSign className="size-5 text-amber-600" />
                     <h4 className="text-gray-900">Fees & Charges</h4>
                   </div>
+                  
+                  {/* Facilitation Fee Display */}
+                  {loan.facilitationFee && loan.facilitationFee > 0 && (
+                    <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 flex justify-between items-center">
+                      <div>
+                        <p className="text-emerald-900 font-medium">Facilitation Fee</p>
+                        <p className="text-emerald-700 text-xs">One-time processing charge</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-emerald-900 text-lg font-semibold">{currencyCode} {loan.facilitationFee.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                      </div>
+                    </div>
+                  )}
+                  
                   {fees.length === 0 ? (
-                    <p className="text-gray-600 text-sm">No fees applied to this loan</p>
+                    <p className="text-gray-600 text-sm">No additional fees applied to this loan</p>
                   ) : (
                     <div className="space-y-2">
                       {fees.map((fee) => (

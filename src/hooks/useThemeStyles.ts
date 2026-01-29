@@ -14,8 +14,8 @@ export function useThemeStyles() {
     
     // Text colors
     textPrimary: isDark ? 'text-gray-100' : 'text-gray-900',
-    textSecondary: isDark ? 'text-gray-400' : 'text-gray-600',
-    textMuted: isDark ? 'text-gray-500' : 'text-gray-500',
+    textSecondary: isDark ? 'text-gray-400' : 'text-gray-800',
+    textMuted: isDark ? 'text-gray-500' : 'text-gray-600',
     
     // Input styles
     input: isDark ? 'bg-gray-700 border-gray-600 text-gray-100' : 'bg-white border-gray-300 text-gray-900',
@@ -57,6 +57,6 @@ export function useThemeStyles() {
     // Chart backgrounds
     chartBackground: isDark ? '#1e293b' : '#ffffff',
     chartGrid: isDark ? '#374151' : '#e5e7eb',
-    chartText: isDark ? '#9ca3af' : '#6b7280',
+    chartText: isDark ? '#9ca3af' : '#1f2937',
   };
 }

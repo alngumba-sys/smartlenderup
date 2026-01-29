@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Building2, Wallet, Smartphone, Calendar } from 'lucide-react';
 import { BankAccount } from '../../contexts/DataContext';
 import { getCurrencyCode, getCurrencyOptions } from '../../utils/currencyUtils';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface BankAccountModalProps {
   onClose: () => void;
@@ -24,6 +25,7 @@ export interface BankAccountFormData {
 }
 
 export function BankAccountModal({ onClose, onSubmit, editingAccount }: BankAccountModalProps) {
+  useEscapeKey(onClose);
   const defaultCurrency = getCurrencyCode();
   
   const [formData, setFormData] = useState<BankAccountFormData>({
@@ -82,31 +84,31 @@ export function BankAccountModal({ onClose, onSubmit, editingAccount }: BankAcco
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[#3a4454] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl border border-gray-600/50">
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl border border-gray-200">
         {/* Header */}
-        <div className="bg-[#003153] px-[27px] py-[23px] flex items-center justify-between border-b border-gray-600/30">
+        <div className="bg-[rgb(208,239,255)] px-[27px] py-[23px] flex items-center justify-between border-b border-gray-200">
           <div className="flex items-center gap-[14px]">
             <div className="p-[9px] bg-emerald-500/20 rounded-lg">
-              <Icon className="size-[27px] text-emerald-400" />
+              <Icon className="size-[27px] text-emerald-600" />
             </div>
-            <h3 className="text-white text-[1.41rem] font-semibold">
+            <h3 className="text-gray-900 text-[1.41rem] font-semibold">
               {editingAccount ? 'Edit Account' : 'Add New Account'}
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-300 hover:text-white hover:bg-white/10 rounded-lg p-[7px] transition-all"
+            className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg p-[7px] transition-all"
           >
             <X className="size-[23px]" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-[20px] space-y-[17px] overflow-y-auto max-h-[calc(90vh-80px)] bg-[#181b21]">
+        <form onSubmit={handleSubmit} className="p-[20px] space-y-[17px] overflow-y-auto max-h-[calc(90vh-80px)] bg-white">
           {/* Account Type Selection */}
           <div>
-            <label className="block text-[#e8d1c9] mb-[9px] font-medium text-[0.96rem]">
-              Account Type <span className="text-red-400">*</span>
+            <label className="block text-gray-700 mb-[9px] font-medium text-[0.96rem]">
+              Account Type <span className="text-red-600">*</span>
             </label>
             <div className="grid grid-cols-2 gap-[9px]">
               {(['Bank', 'Mobile Money'] as const).map((type) => {
@@ -118,12 +120,12 @@ export function BankAccountModal({ onClose, onSubmit, editingAccount }: BankAcco
                     onClick={() => setFormData({ ...formData, accountType: type })}
                     className={`p-[14px] border-2 rounded-lg flex items-center gap-[9px] transition-all ${
                       formData.accountType === type
-                        ? 'border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/20'
-                        : 'border-gray-700/50 hover:border-gray-600 bg-[#242932]'
+                        ? 'border-emerald-500 bg-emerald-50 shadow-lg shadow-emerald-500/20'
+                        : 'border-gray-300 hover:border-gray-400 bg-white'
                     }`}
                   >
-                    <TypeIcon className={`size-[18px] ${formData.accountType === type ? 'text-emerald-400' : 'text-gray-400'}`} />
-                    <span className={`text-[0.96rem] ${formData.accountType === type ? 'text-white font-semibold' : 'text-gray-300'}`}>
+                    <TypeIcon className={`size-[18px] ${formData.accountType === type ? 'text-emerald-600' : 'text-gray-400'}`} />
+                    <span className={`text-[0.96rem] ${formData.accountType === type ? 'text-gray-900 font-semibold' : 'text-gray-600'}`}>
                       {type}
                     </span>
                   </button>
@@ -137,14 +139,14 @@ export function BankAccountModal({ onClose, onSubmit, editingAccount }: BankAcco
             <div className="grid grid-cols-2 gap-[14px]">
               {/* Bank Name */}
               <div>
-                <label className="block text-[#e8d1c9] mb-[7px] font-medium text-[0.96rem]">
-                  Bank Name <span className="text-red-400">*</span>
+                <label className="block text-gray-700 mb-[7px] font-medium text-[0.96rem]">
+                  Bank Name <span className="text-red-600">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.bankName}
                   onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
-                  className="w-full px-[14px] py-2 text-[0.96rem] bg-[#0f1216] border border-gray-800/50 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white placeholder-gray-600 transition-all"
+                  className="w-full px-[14px] py-2 text-[0.96rem] bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900 placeholder-gray-400 transition-all"
                   placeholder="e.g., Bank name"
                   required
                 />
@@ -152,14 +154,14 @@ export function BankAccountModal({ onClose, onSubmit, editingAccount }: BankAcco
 
               {/* Account Name */}
               <div>
-                <label className="block text-[#e8d1c9] mb-[7px] font-medium text-[0.96rem]">
-                  Account Name <span className="text-red-400">*</span>
+                <label className="block text-gray-700 mb-[7px] font-medium text-[0.96rem]">
+                  Account Name <span className="text-red-600">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-[14px] py-2 text-[0.96rem] bg-[#0f1216] border border-gray-800/50 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white placeholder-gray-600 transition-all"
+                  className="w-full px-[14px] py-2 text-[0.96rem] bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900 placeholder-gray-400 transition-all"
                   placeholder="e.g., Main Operating Account"
                   required
                 />
@@ -172,14 +174,14 @@ export function BankAccountModal({ onClose, onSubmit, editingAccount }: BankAcco
             <div className="grid grid-cols-2 gap-[14px]">
               {/* Account Number */}
               <div>
-                <label className="block text-[#e8d1c9] mb-[7px] font-medium text-[0.96rem]">
-                  Account Number <span className="text-red-400">*</span>
+                <label className="block text-gray-700 mb-[7px] font-medium text-[0.96rem]">
+                  Account Number <span className="text-red-600">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.accountNumber}
                   onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-                  className="w-full px-[14px] py-2 text-[0.96rem] bg-[#0f1216] border border-gray-800/50 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white placeholder-gray-600 transition-all"
+                  className="w-full px-[14px] py-2 text-[0.96rem] bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900 placeholder-gray-400 transition-all"
                   placeholder="1234567890"
                   required
                 />
@@ -187,14 +189,14 @@ export function BankAccountModal({ onClose, onSubmit, editingAccount }: BankAcco
 
               {/* Branch */}
               <div>
-                <label className="block text-[#e8d1c9] mb-[7px] font-medium text-[0.96rem]">
+                <label className="block text-gray-700 mb-[7px] font-medium text-[0.96rem]">
                   Branch
                 </label>
                 <input
                   type="text"
                   value={formData.branch}
                   onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-                  className="w-full px-[14px] py-2 text-[0.96rem] bg-[#0f1216] border border-gray-800/50 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white placeholder-gray-600 transition-all"
+                  className="w-full px-[14px] py-2 text-[0.96rem] bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900 placeholder-gray-400 transition-all"
                   placeholder="e.g., ABC Branch"
                 />
               </div>
@@ -206,28 +208,28 @@ export function BankAccountModal({ onClose, onSubmit, editingAccount }: BankAcco
             <div className="grid grid-cols-2 gap-[14px]">
               {/* Account Number */}
               <div>
-                <label className="block text-[#e8d1c9] mb-[7px] font-medium text-[0.96rem]">
+                <label className="block text-gray-700 mb-[7px] font-medium text-[0.96rem]">
                   Account Number
                 </label>
                 <input
                   type="text"
                   value={formData.accountNumber}
                   onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-                  className="w-full px-[14px] py-2 text-[0.96rem] bg-[#0f1216] border border-gray-800/50 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white placeholder-gray-600 transition-all"
+                  className="w-full px-[14px] py-2 text-[0.96rem] bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900 placeholder-gray-400 transition-all"
                   placeholder="0712345678"
                 />
               </div>
 
               {/* Account Name */}
               <div>
-                <label className="block text-[#e8d1c9] mb-[7px] font-medium text-[0.96rem]">
-                  Account Name <span className="text-red-400">*</span>
+                <label className="block text-gray-700 mb-[7px] font-medium text-[0.96rem]">
+                  Account Name <span className="text-red-600">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-[14px] py-2 text-[0.96rem] bg-[#0f1216] border border-gray-800/50 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white placeholder-gray-600 transition-all"
+                  className="w-full px-[14px] py-2 text-[0.96rem] bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900 placeholder-gray-400 transition-all"
                   placeholder="e.g., M-Pesa Account"
                   required
                 />
@@ -239,17 +241,17 @@ export function BankAccountModal({ onClose, onSubmit, editingAccount }: BankAcco
           <div className="grid grid-cols-2 gap-[14px]">
             {/* Currency */}
             <div>
-              <label className="block text-[#e8d1c9] mb-[7px] font-medium text-[0.96rem]">
-                Currency <span className="text-red-400">*</span>
+              <label className="block text-gray-700 mb-[7px] font-medium text-[0.96rem]">
+                Currency <span className="text-red-600">*</span>
               </label>
               <select
                 value={formData.currency}
                 onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                className="w-full px-[14px] py-2 text-[0.96rem] bg-[#0f1216] border border-gray-800/50 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white transition-all"
+                className="w-full px-[14px] py-2 text-[0.96rem] bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900 transition-all"
                 required
               >
                 {getCurrencyOptions().map((option) => (
-                  <option key={option.code} value={option.code} className="bg-[#0f1216]">
+                  <option key={option.code} value={option.code} className="bg-white">
                     {option.code} - {option.name}
                   </option>
                 ))}
@@ -258,14 +260,14 @@ export function BankAccountModal({ onClose, onSubmit, editingAccount }: BankAcco
 
             {/* Opening Balance */}
             <div>
-              <label className="block text-[#e8d1c9] mb-[7px] font-medium text-[0.96rem]">
-                Opening Balance <span className="text-red-400">*</span>
+              <label className="block text-gray-700 mb-[7px] font-medium text-[0.96rem]">
+                Opening Balance <span className="text-red-600">*</span>
               </label>
               <input
                 type="number"
                 value={formData.openingBalance || ''}
                 onChange={(e) => setFormData({ ...formData, openingBalance: parseFloat(e.target.value) || 0 })}
-                className="w-full px-[14px] py-2 text-[0.96rem] bg-[#0f1216] border border-gray-800/50 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white placeholder-gray-600 transition-all"
+                className="w-full px-[14px] py-2 text-[0.96rem] bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900 placeholder-gray-400 transition-all"
                 placeholder="0.00"
                 min="0"
                 step="0.01"
@@ -278,8 +280,8 @@ export function BankAccountModal({ onClose, onSubmit, editingAccount }: BankAcco
           <div className="grid grid-cols-2 gap-[14px]">
             {/* Opening Date */}
             <div>
-              <label className="block text-[#e8d1c9] mb-[7px] font-medium text-[0.96rem]">
-                Opening Date <span className="text-red-400">*</span>
+              <label className="block text-gray-700 mb-[7px] font-medium text-[0.96rem]">
+                Opening Date <span className="text-red-600">*</span>
               </label>
               <div className="relative">
                 <Calendar className="absolute left-[11px] top-1/2 -translate-y-1/2 size-[18px] text-gray-400 pointer-events-none" />
@@ -287,7 +289,7 @@ export function BankAccountModal({ onClose, onSubmit, editingAccount }: BankAcco
                   type="date"
                   value={formData.openingDate}
                   onChange={(e) => setFormData({ ...formData, openingDate: e.target.value })}
-                  className="w-full pl-[41px] pr-[14px] py-2 text-[0.96rem] bg-[#0f1216] border border-gray-800/50 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white transition-all"
+                  className="w-full pl-[41px] pr-[14px] py-2 text-[0.96rem] bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900 transition-all"
                   required
                 />
               </div>
@@ -295,28 +297,28 @@ export function BankAccountModal({ onClose, onSubmit, editingAccount }: BankAcco
 
             {/* Status */}
             <div>
-              <label className="block text-[#e8d1c9] mb-[7px] font-medium text-[0.96rem]">
-                Status <span className="text-red-400">*</span>
+              <label className="block text-gray-700 mb-[7px] font-medium text-[0.96rem]">
+                Status <span className="text-red-600">*</span>
               </label>
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                className="w-full px-[14px] py-2 text-[0.96rem] bg-[#0f1216] border border-gray-800/50 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white transition-all"
+                className="w-full px-[14px] py-2 text-[0.96rem] bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900 transition-all"
                 required
               >
-                <option value="Active" className="bg-[#0f1216]">Active</option>
-                <option value="Inactive" className="bg-[#0f1216]">Inactive</option>
-                <option value="Closed" className="bg-[#0f1216]">Closed</option>
+                <option value="Active" className="bg-white">Active</option>
+                <option value="Inactive" className="bg-white">Inactive</option>
+                <option value="Closed" className="bg-white">Closed</option>
               </select>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-[9px] pt-[14px] border-t border-gray-800/30">
+          <div className="flex justify-end gap-[9px] pt-[14px] border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              className="px-[20px] py-2 text-[0.96rem] text-gray-300 bg-[#0d0f13] border border-gray-800/50 rounded-lg hover:bg-[#14161b] transition-all font-medium"
+              className="px-[20px] py-2 text-[0.96rem] text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all font-medium"
             >
               Cancel
             </button>

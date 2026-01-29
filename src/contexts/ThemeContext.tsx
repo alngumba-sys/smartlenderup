@@ -17,9 +17,10 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>(() => {
-    // Load mode from localStorage or use default
-    const savedMode = localStorage.getItem('bvfunguo-theme-mode');
-    return (savedMode as ThemeMode) || 'light';
+    // ALWAYS default to light mode - ignore saved preferences
+    // Clear any dark mode saved in localStorage
+    localStorage.removeItem('bvfunguo-theme-mode');
+    return 'light';
   });
 
   const [currentTheme, setCurrentTheme] = useState<Theme>(() => {
@@ -41,10 +42,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleMode = () => {
-    const newMode = mode === 'light' ? 'dark' : 'light';
-    setMode(newMode);
-    localStorage.setItem('bvfunguo-theme-mode', newMode);
+    // Temporarily disabled - platform is in light mode only
+    // const newMode = mode === 'light' ? 'dark' : 'light';
+    // setMode(newMode);
+    // localStorage.setItem('bvfunguo-theme-mode', newMode);
+    console.log('Theme toggle disabled - light mode only');
   };
+
+  // Force light mode on every mount
+  useEffect(() => {
+    // Remove any dark mode preference from localStorage
+    localStorage.removeItem('bvfunguo-theme-mode');
+    // Ensure we're in light mode
+    setMode('light');
+    // Remove dark class from document
+    document.documentElement.classList.remove('dark');
+  }, []);
 
   useEffect(() => {
     // Apply theme mode to document

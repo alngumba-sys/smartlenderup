@@ -1646,6 +1646,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   term: l.term_period || 0,
                   termUnit: l.term_period_unit ? (l.term_period_unit.charAt(0).toUpperCase() + l.term_period_unit.slice(1)) : 'Months',
                   repaymentFrequency: l.repayment_frequency ? (l.repayment_frequency.charAt(0).toUpperCase() + l.repayment_frequency.slice(1)) : 'Monthly',
+                  facilitationFee: l.processing_fee || 0,
                   applicationDate: l.application_date?.split('T')[0] || l.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
                   approvedDate: l.approval_date?.split('T')[0] || '',
                   disbursementDate: l.disbursement_date?.split('T')[0] || '',

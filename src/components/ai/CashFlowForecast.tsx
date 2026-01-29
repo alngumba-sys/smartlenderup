@@ -173,84 +173,72 @@ export function CashFlowForecast() {
 
       {/* Current Position */}
       <div className="grid grid-cols-4 gap-4">
-        <div className="p-4 rounded-lg border" style={{
-          backgroundColor: isDark ? '#1e293b' : '#2d3748',
-          borderColor: isDark ? '#334155' : '#4a5568'
-        }}>
+        <div className="p-4 rounded-lg border bg-white border-gray-200">
           <div className="flex items-center gap-2 mb-1">
             <DollarSign className="size-4 text-green-600" />
-            <span className="text-xs" style={{ color: isDark ? '#94a3b8' : '#cbd5e0' }}>Current Cash</span>
+            <span className="text-xs text-gray-600">Current Cash</span>
           </div>
-          <p className="text-2xl" style={{ color: isDark ? '#e2e8f0' : '#f7fafc' }}>
+          <p className="text-2xl text-gray-900">
             {currencyCode} {currentCash > 0 ? (currentCash / 1000000).toFixed(1) : '0.0'}M
           </p>
         </div>
 
-        <div className="p-4 rounded-lg border" style={{
-          backgroundColor: isDark ? '#1e293b' : '#2d3748',
-          borderColor: isDark ? '#334155' : '#4a5568'
-        }}>
+        <div className="p-4 rounded-lg border bg-white border-gray-200">
           <div className="flex items-center gap-2 mb-1">
             <TrendingUp className="size-4 text-blue-600" />
-            <span className="text-xs" style={{ color: isDark ? '#94a3b8' : '#cbd5e0' }}>Expected Inflows</span>
+            <span className="text-xs text-gray-600">Expected Inflows</span>
           </div>
           <p className="text-2xl text-blue-600">
             {currencyCode} {forecastData[0]?.inflows > 0 ? (forecastData[0].inflows / 1000000).toFixed(1) : '0.0'}M
           </p>
         </div>
 
-        <div className="p-4 rounded-lg border" style={{
-          backgroundColor: isDark ? '#1e293b' : '#2d3748',
-          borderColor: isDark ? '#334155' : '#4a5568'
-        }}>
+        <div className="p-4 rounded-lg border bg-white border-gray-200">
           <div className="flex items-center gap-2 mb-1">
             <TrendingDown className="size-4 text-red-600" />
-            <span className="text-xs" style={{ color: isDark ? '#94a3b8' : '#cbd5e0' }}>Expected Outflows</span>
+            <span className="text-xs text-gray-600">Expected Outflows</span>
           </div>
           <p className="text-2xl text-red-600">
             {currencyCode} {forecastData[0]?.outflows > 0 ? (forecastData[0].outflows / 1000000).toFixed(1) : '0.0'}M
           </p>
         </div>
 
-        <div className="p-4 rounded-lg border" style={{
-          backgroundColor: isDark ? '#1e293b' : '#2d3748',
-          borderColor: isDark ? '#334155' : '#4a5568'
-        }}>
+        <div className="p-4 rounded-lg border bg-white border-gray-200">
           <div className="flex items-center gap-2 mb-1">
             <Sparkles className="size-4 text-purple-600" />
-            <span className="text-xs" style={{ color: isDark ? '#94a3b8' : '#cbd5e0' }}>AI Confidence</span>
+            <span className="text-xs text-gray-600">AI Confidence</span>
           </div>
-          <p className="text-2xl" style={{ color: isDark ? '#e2e8f0' : '#f7fafc' }}>
+          <p className="text-2xl text-gray-900">
             {forecastData[0]?.confidence || 0}%
           </p>
         </div>
       </div>
 
-      {/* AI Insights - Darkened cards */}
+      {/* AI Insights */}
       <div className="space-y-2">
         {insights.map((insight, idx) => (
           <div
             key={idx}
             className="p-3 rounded-lg border"
             style={{
-              backgroundColor: insight.type === 'positive' ? '#064e3b' :
-                             insight.type === 'warning' ? '#78350f' :
-                             '#1e293b',
-              borderColor: insight.type === 'positive' ? '#065f46' :
-                          insight.type === 'warning' ? '#92400e' :
-                          '#334155'
+              backgroundColor: insight.type === 'positive' ? '#d1fae5' :
+                             insight.type === 'warning' ? '#fef3c7' :
+                             '#f3f4f6',
+              borderColor: insight.type === 'positive' ? '#10b981' :
+                          insight.type === 'warning' ? '#f59e0b' :
+                          '#d1d5db'
             }}
           >
             <div className="flex items-center gap-2">
               <insight.icon className={`size-5 ${
-                insight.type === 'positive' ? 'text-green-400' :
-                insight.type === 'warning' ? 'text-amber-400' :
-                'text-gray-400'
+                insight.type === 'positive' ? 'text-green-600' :
+                insight.type === 'warning' ? 'text-amber-600' :
+                'text-gray-600'
               }`} />
               <p className={`text-sm ${
-                insight.type === 'positive' ? 'text-green-100' :
-                insight.type === 'warning' ? 'text-amber-100' :
-                'text-gray-300'
+                insight.type === 'positive' ? 'text-green-800' :
+                insight.type === 'warning' ? 'text-amber-800' :
+                'text-gray-700'
               }`}>
                 {insight.message}
               </p>
