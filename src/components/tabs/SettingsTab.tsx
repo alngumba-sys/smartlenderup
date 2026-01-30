@@ -8,6 +8,7 @@ import { usePaymentStatus } from '../../hooks/usePaymentStatus';
 import { StripePayment } from '../StripePayment';
 import { LoanProductDiagnostic } from '../LoanProductDiagnostic';
 import { StaffManagement } from '../StaffManagement';
+import { DataImportExport } from '../DataImportExport';
 import { Users as UsersIcon } from 'lucide-react';
 import { isManager } from '../../utils/staffPermissions';
 
@@ -189,6 +190,18 @@ export function SettingsTab() {
           disabled={isNonPaymentSectionLocked}
         >
           Staff Management
+          {isNonPaymentSectionLocked && <Lock className="size-3" />}
+        </button>
+        <button
+          onClick={() => !isNonPaymentSectionLocked && setActiveSection('data')}
+          className={`px-4 py-2 flex items-center gap-2 ${
+            activeSection === 'data'
+              ? 'border-b-2 border-emerald-600 text-emerald-700'
+              : 'text-gray-600 hover:text-gray-900'
+          } ${isNonPaymentSectionLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={isNonPaymentSectionLocked}
+        >
+          Data Import/Export
           {isNonPaymentSectionLocked && <Lock className="size-3" />}
         </button>
       </div>
@@ -699,13 +712,23 @@ export function SettingsTab() {
         </div>
       )}
 
-      {/* Staff Management */}
-      {activeSection === 'staff' && (
-        <StaffManagement />
+      {/* Data Import/Export */}
+      {activeSection === 'data' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Database className="size-5 text-emerald-600" />
+              <h3 className="text-gray-900">Data Import/Export</h3>
+            </div>
+            <div className="space-y-4">
+              <DataImportExport />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Save Button */}
-      {activeSection !== 'theme' && activeSection !== 'subscription' && activeSection !== 'staff' && (
+      {activeSection !== 'theme' && activeSection !== 'subscription' && activeSection !== 'staff' && activeSection !== 'data' && (
         <div className="flex justify-end">
           <button className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
             Save Changes

@@ -432,6 +432,22 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const atRiskClientsCount = atRiskClientIds.size;
   const potentialDefaults = atRiskLoans.reduce((sum: number, l: any) => sum + (l.outstandingBalance || 0), 0);
   
+  // ✅ Calculate PAR 30: Outstanding balance of loans 30+ days overdue / Total outstanding
+  const par30Loans = contextLoans.filter((l: any) => 
+    isActiveStatus(l.status) && (l.daysInArrears || 0) >= 30
+  );
+  const par30Amount = par30Loans.reduce((sum: number, l: any) => sum + Math.abs(l.outstandingBalance || 0), 0);
+  const par30Rate = totalOutstanding > 0 ? (par30Amount / totalOutstanding) * 100 : 0;
+  
+  // ✅ Calculate Processing Fee Revenue from loans (if no processingFeeRecords, calculate from loans)
+  // Assume 2% processing fee on disbursed loans (adjust as needed)
+  const calculatedProcessingFees = filteredProcessingFeeTotal > 0 
+    ? filteredProcessingFeeTotal 
+    : filteredLoansForDisbursement.reduce((sum: number, l: any) => {
+        const processingFee = (l.processingFee || (l.principalAmount || 0) * 0.02);
+        return sum + processingFee;
+      }, 0);
+  
   // Calculate actual collection rate: Total Collected / Total Disbursed
   const totalDisbursed = contextLoans.reduce((sum: number, l: any) => sum + (l.principalAmount || 0), 0);
   const totalCollected = contextLoans.reduce((sum: number, l: any) => sum + (l.paidAmount || 0), 0);
@@ -614,7 +630,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {/* Gross Loan Portfolio */}
             <div 
-              className="transition-colors rounded-lg p-2 -m-2"
+              className="transition-colors rounded-lg p-4"
+              style={{ 
+                backgroundColor: isDark ? 'rgba(59, 130, 246, 0.08)' : 'rgba(59, 130, 246, 0.05)',
+                border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.15)'}`
+              }}
             >
               <div className="flex items-start gap-3">
                 <DollarSign className="size-6 flex-shrink-0 mt-1" style={{ color: COLORS[0] }} />
@@ -628,8 +648,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
             {/* Outstanding Principal */}
             <div 
-              className="transition-colors rounded-lg p-2 -m-2 border-l pl-6"
-              style={{ borderColor: themeColors.border }}
+              className="transition-colors rounded-lg p-4"
+              style={{ 
+                backgroundColor: isDark ? 'rgba(34, 197, 94, 0.08)' : 'rgba(34, 197, 94, 0.05)',
+                border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)'}`
+              }}
             >
               <div className="flex items-start gap-3">
                 <Banknote className="size-6 flex-shrink-0 mt-1" style={{ color: COLORS[1] }} />
@@ -643,8 +666,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
             {/* Outstanding Interest */}
             <div 
-              className="transition-colors rounded-lg p-2 -m-2 border-l pl-6"
-              style={{ borderColor: themeColors.border }}
+              className="transition-colors rounded-lg p-4"
+              style={{ 
+                backgroundColor: isDark ? 'rgba(251, 146, 60, 0.08)' : 'rgba(251, 146, 60, 0.05)',
+                border: `1px solid ${isDark ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.15)'}`
+              }}
             >
               <div className="flex items-start gap-3">
                 <TrendingUp className="size-6 flex-shrink-0 mt-1" style={{ color: COLORS[4] || COLORS[2] }} />
@@ -658,16 +684,19 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
             {/* Processing Fee Revenue */}
             <div 
-              className="transition-colors rounded-lg p-2 -m-2 border-l pl-6"
-              style={{ borderColor: themeColors.border }}
+              className="transition-colors rounded-lg p-4"
+              style={{ 
+                backgroundColor: isDark ? 'rgba(168, 85, 247, 0.08)' : 'rgba(168, 85, 247, 0.05)',
+                border: `1px solid ${isDark ? 'rgba(168, 85, 247, 0.2)' : 'rgba(168, 85, 247, 0.15)'}`
+              }}
             >
               <div className="flex items-start gap-3">
                 <Receipt className="size-6 flex-shrink-0 mt-1" style={{ color: COLORS[5] || COLORS[1] }} />
                 <div className="flex-1">
                   <p className="text-sm mb-1" style={{ color: themeColors.cardTextSecondary }}>Processing Fee Revenue</p>
-                  <p className="text-2xl mb-1 cursor-pointer" onClick={() => onNavigate?.('accounting')} style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(filteredProcessingFeeTotal || 0).number}{formatSmartNumber(filteredProcessingFeeTotal || 0).suffix}</p>
+                  <p className="text-2xl mb-1 cursor-pointer" onClick={() => onNavigate?.('accounting')} style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(calculatedProcessingFees || 0).number}{formatSmartNumber(calculatedProcessingFees || 0).suffix}</p>
                   <div className="flex items-center gap-2">
-                    <p className="text-xs" style={{ color: themeColors.textSecondary }}>{filteredProcessingFees.length} fees collected</p>
+                    <p className="text-xs" style={{ color: themeColors.textSecondary }}>{filteredLoansForDisbursement.length} fees collected</p>
                     <select
                       value={processingFeeDuration}
                       onChange={(e) => setProcessingFeeDuration(e.target.value as DurationFilter)}
@@ -816,8 +845,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <p className="text-sm mb-2" style={{ color: themeColors.cardTextSecondary }}>PAR 30 Days</p>
-                <p className="text-3xl mb-1" style={{ color: COLORS[3] }}>0%</p>
-                <p className="text-xs" style={{ color: themeColors.textSecondary }}>No arrears</p>
+                <p className="text-3xl mb-1" style={{ color: COLORS[3] }}>{par30Rate.toFixed(2)}%</p>
+                <p className="text-xs" style={{ color: themeColors.textSecondary }}>
+                  {par30Loans.length > 0 ? `${par30Loans.length} loans in arrears` : 'No arrears'}
+                </p>
               </div>
               <AlertTriangle className="size-8 flex-shrink-0 ml-2" style={{ color: COLORS[3] }} />
             </div>

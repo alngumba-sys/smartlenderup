@@ -4,6 +4,7 @@ import { Download, Printer, Calendar, TrendingUp, TrendingDown, AlertCircle, Che
 import { safeToFixed, safePercentage, safeDivide, safeFormat } from '../../utils/safeCalculations';
 import { getCurrencyCode } from '../../utils/currencyUtils';
 import { getOrganizationName, getOrganizationLogo } from '../../utils/organizationUtils';
+import logoImage from "figma:asset/e19de9b1a3313f261c0276da257bd631603f9688.png";
 import { LineChart as RechartsLineChart, Line, BarChart as RechartsBarChart, Bar, XAxis, CartesianGrid, LabelList } from 'recharts';
 import { ResponsiveContainer } from 'recharts';
 
@@ -58,12 +59,29 @@ export function CollectionsReport({ dateRange }: ReportProps) {
   const organizationName = getOrganizationName();
   const organizationLogo = getOrganizationLogo();
 
+  // Filter data by date range
+  const startDate = new Date(dateRange.startDate);
+  const endDate = new Date(dateRange.endDate);
+  
+  // Filter loans by disbursement date within range
+  const filteredLoans = loans.filter(loan => {
+    const disbursementDate = new Date(loan.disbursementDate);
+    return disbursementDate >= startDate && disbursementDate <= endDate;
+  });
+  
+  // Filter payments by payment date within range
+  const filteredPayments = payments?.filter((payment: any) => {
+    if (!payment.paymentDate) return false;
+    const paymentDate = new Date(payment.paymentDate);
+    return paymentDate >= startDate && paymentDate <= endDate;
+  }) || [];
+
   // Real collections data
   // Only include loans that have been DISBURSED (completed all 5 approval steps) and are in Active/Disbursed status
-  const activeLoans = loans.filter(l => l.status === 'Active' || l.status === 'Disbursed');
-  const totalCollections = payments ? payments.reduce((sum: number, p: any) => sum + p.amount, 0) : 817750;
-  const principalCollected = payments ? payments.reduce((sum: number, p: any) => sum + p.principalAmount, 0) : 755000;
-  const interestCollected = payments ? payments.reduce((sum: number, p: any) => sum + p.interestAmount, 0) : 62750;
+  const activeLoans = filteredLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed');
+  const totalCollections = filteredPayments.reduce((sum: number, p: any) => sum + p.amount, 0);
+  const principalCollected = filteredPayments.reduce((sum: number, p: any) => sum + (p.principalAmount || 0), 0);
+  const interestCollected = filteredPayments.reduce((sum: number, p: any) => sum + (p.interestAmount || 0), 0);
   const penaltyCollected = 0; // No penalties in real data
   const totalOutstanding = activeLoans.reduce((sum, l) => sum + l.outstandingBalance, 0);
   
@@ -74,7 +92,7 @@ export function CollectionsReport({ dateRange }: ReportProps) {
   // Calculate real monthly collections from actual payment data
   const monthlyDataMap = new Map<string, { collected: number; due: number; count: number }>();
   
-  payments?.forEach((payment: any) => {
+  filteredPayments?.forEach((payment: any) => {
     const date = new Date(payment.paymentDate);
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     const monthName = date.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
@@ -158,7 +176,7 @@ export function CollectionsReport({ dateRange }: ReportProps) {
         <div className="border-b-2 border-gray-900 dark:!border-gray-900 pb-1.5 mb-2.5 flex-shrink-0">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-3">
-              <img src={organizationLogo} alt="Organization Logo" className="size-12" />
+              <img src={logoImage} alt="Organization Logo" className="h-12 w-auto object-contain" />
               <h1 className="text-gray-900 dark:!text-gray-900 text-xl">{organizationName}</h1>
             </div>
             <div className="text-gray-600 dark:!text-gray-600 text-sm">
@@ -249,7 +267,7 @@ export function CollectionsReport({ dateRange }: ReportProps) {
         <div className="border-b border-gray-300 dark:!border-gray-300 pb-1.5 mb-2.5 flex-shrink-0">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-3">
-              <img src={organizationLogo} alt="Organization Logo" className="size-10" />
+              <img src={logoImage} alt="Organization Logo" className="h-10 w-auto object-contain" />
               <h2 className="text-gray-900 dark:!text-gray-900 text-lg">{organizationName}</h2>
             </div>
             <div className="text-gray-600 dark:!text-gray-600 text-sm">
@@ -329,7 +347,7 @@ export function CollectionsReport({ dateRange }: ReportProps) {
         <div className="border-b border-gray-300 dark:!border-gray-300 pb-1.5 mb-2.5 flex-shrink-0">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-3">
-              <img src={organizationLogo} alt="Organization Logo" className="size-10" />
+              <img src={logoImage} alt="Organization Logo" className="h-10 w-auto object-contain" />
               <h2 className="text-gray-900 dark:!text-gray-900 text-lg">{organizationName}</h2>
             </div>
             <div className="text-gray-600 dark:!text-gray-600 text-sm">

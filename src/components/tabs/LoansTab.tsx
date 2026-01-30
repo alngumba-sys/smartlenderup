@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, Calendar, AlertCircle, CheckCircle, XCircle, DollarSign, TrendingUp, PercentIcon, Wallet, User, Calculator, Upload, X, Info, Filter, Clock, MessageSquare, UserCheck, FileText, Send, Trash2 } from 'lucide-react';
+import { Search, Plus, Calendar, AlertCircle, CheckCircle, XCircle, DollarSign, TrendingUp, PercentIcon, Wallet, User, Calculator, Upload, X, Info, Filter, Clock, MessageSquare, UserCheck, FileText, Send, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { generateInstallments, type LoanDocument, type Guarantor, type Collateral } from '../../data/dummyData';
 import { useData } from '../../contexts/DataContext';
 import { ComprehensiveLoanDetailsModal } from '../modals/ComprehensiveLoanDetailsModal';
@@ -47,6 +47,10 @@ export function LoansTab() {
   const [selectedLoanForComment, setSelectedLoanForComment] = useState<string | null>(null);
   const [showRepaymentSchedule, setShowRepaymentSchedule] = useState<string | null>(null);
   const [showDisbursementModal, setShowDisbursementModal] = useState<string | null>(null);
+  
+  // Sorting state
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // Delete confirmation modal state
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -391,21 +395,44 @@ export function LoansTab() {
   // Filter loans based on active sub-tab
   let displayLoans = loans;
   
+
+  
   switch (activeSubTab) {
     case 'pending-review':
       displayLoans = loans.filter(loan => loan.status === 'Pending');
       break;
     case 'pending-disbursement':
-      displayLoans = loans.filter(loan => loan.status === 'Approved');
+      displayLoans = loans.filter(loan => loan.status === 'Approved' || loan.status === 'approved');
       break;
     case 'active':
-      displayLoans = loans.filter(loan => loan.status === 'Active' || loan.status === 'Disbursed');
+      displayLoans = loans.filter(loan => 
+        loan.status === 'active' || 
+        loan.status === 'Active' || 
+        loan.status === 'Disbursed' ||
+        loan.status === 'disbursed'
+      );
       break;
     case 'settled':
-      displayLoans = loans.filter(loan => loan.status === 'Fully Paid' || loan.status === 'Closed');
+      // Include loans with status 'settled', 'Fully Paid', 'Closed', OR loans where balance is 0
+      displayLoans = loans.filter(loan => {
+        const status = (loan.status || '').toLowerCase();
+        const isSettled = status === 'settled' || 
+               status === 'fully paid' || 
+               status === 'closed' ||
+               (loan.balance !== undefined && parseFloat(loan.balance.toString()) === 0) ||
+               (loan.outstandingBalance !== undefined && parseFloat(loan.outstandingBalance.toString()) === 0);
+        
+        return isSettled;
+      });
+      console.log(`🔍 Settled filter result: ${displayLoans.length} loans found`);
       break;
     case 'defaulted':
-      displayLoans = loans.filter(loan => loan.status === 'Written Off' || (loan.daysInArrears || 0) >= 90);
+      displayLoans = loans.filter(loan => 
+        loan.status === 'Written Off' || 
+        loan.status === 'Default' ||
+        loan.status === 'Default / Past Due' ||
+        (loan.daysInArrears || 0) >= 90
+      );
       break;
     case 'due':
       displayLoans = loans.filter(loan => isDueSoon(loan) && loan.status === 'Active');
@@ -428,12 +455,106 @@ export function LoansTab() {
 
   const filteredLoans = displayLoans.filter(loan => {
     const client = clients.find(c => c.id === loan.clientId);
-    const matchesSearch = loan.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         client?.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const clientName = loan.clientName || (client ? `${client.firstName || ''} ${client.lastName || ''}`.trim() : '') || client?.name || '';
+    const matchesSearch = searchTerm === '' || 
+                         loan.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (loan.loanNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         clientName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || loan.status === statusFilter;
     const matchesDate = isLoanInDateRange(loan);
+    
     return matchesSearch && matchesStatus && matchesDate;
   }).reverse(); // Reverse to show newest loans first (at the top)
+
+  // Sort the filtered loans
+  const sortedLoans = [...filteredLoans].sort((a, b) => {
+    if (!sortField) return 0;
+
+    let aValue: any;
+    let bValue: any;
+
+    switch (sortField) {
+      case 'loanId':
+        aValue = a.loanNumber || a.id;
+        bValue = b.loanNumber || b.id;
+        break;
+      case 'requestDate':
+        aValue = new Date(a.applicationDate || a.createdDate || 0).getTime();
+        bValue = new Date(b.applicationDate || b.createdDate || 0).getTime();
+        break;
+      case 'clientName':
+        const clientA = clients.find(c => c.id === a.clientId);
+        const clientB = clients.find(c => c.id === b.clientId);
+        aValue = (a.clientName || clientA?.name || clientA?.firstName + ' ' + clientA?.lastName || '').toLowerCase();
+        bValue = (b.clientName || clientB?.name || clientB?.firstName + ' ' + clientB?.lastName || '').toLowerCase();
+        break;
+      case 'clientId':
+        const cA = clients.find(c => c.id === a.clientId);
+        const cB = clients.find(c => c.id === b.clientId);
+        aValue = cA?.clientNumber || cA?.client_number || '';
+        bValue = cB?.clientNumber || cB?.client_number || '';
+        break;
+      case 'amount':
+        aValue = a.principalAmount || 0;
+        bValue = b.principalAmount || 0;
+        break;
+      case 'interest':
+        aValue = a.totalInterest || 0;
+        bValue = b.totalInterest || 0;
+        break;
+      case 'paid':
+        aValue = a.paidAmount || 0;
+        bValue = b.paidAmount || 0;
+        break;
+      case 'outstanding':
+        const outstandingA = (a.principalAmount || 0) + (a.totalInterest || 0) - (a.paidAmount || 0);
+        const outstandingB = (b.principalAmount || 0) + (b.totalInterest || 0) - (b.paidAmount || 0);
+        aValue = outstandingA;
+        bValue = outstandingB;
+        break;
+      case 'status':
+        const statusA = ((a.principalAmount || 0) + (a.totalInterest || 0) - (a.paidAmount || 0)) <= 0 ? 'Fully Paid' : a.status;
+        const statusB = ((b.principalAmount || 0) + (b.totalInterest || 0) - (b.paidAmount || 0)) <= 0 ? 'Fully Paid' : b.status;
+        aValue = statusA.toLowerCase();
+        bValue = statusB.toLowerCase();
+        break;
+      default:
+        return 0;
+    }
+
+    // Compare values
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      return sortDirection === 'asc' 
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue);
+    } else {
+      return sortDirection === 'asc'
+        ? (aValue > bValue ? 1 : aValue < bValue ? -1 : 0)
+        : (bValue > aValue ? 1 : bValue < aValue ? -1 : 0);
+    }
+  });
+
+  // Handle sort
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New field, default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Get sort icon for column
+  const getSortIcon = (field: string) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="size-3 opacity-50" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="size-3" />
+      : <ArrowDown className="size-3" />;
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -1043,20 +1164,92 @@ export function LoansTab() {
                 <table className="w-full">
                   <thead className={`sticky top-0 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
                     <tr>
-                      <th className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Loan ID</th>
-                      <th className={`px-4 py-2 text-center text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Request Date</th>
-                      <th className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Client Name</th>
-                      <th className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Client ID</th>
-                      <th className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Amount borrowed</th>
-                      <th className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Interest</th>
-                      <th className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Paid</th>
-                      <th className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Outstanding</th>
-                      <th className={`px-4 py-2 text-center text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Status</th>
+                      <th 
+                        className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        onClick={() => handleSort('loanId')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Loan ID
+                          {getSortIcon('loanId')}
+                        </div>
+                      </th>
+                      <th 
+                        className={`px-4 py-2 text-center text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        onClick={() => handleSort('requestDate')}
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          Request Date
+                          {getSortIcon('requestDate')}
+                        </div>
+                      </th>
+                      <th 
+                        className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        onClick={() => handleSort('clientName')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Client Name
+                          {getSortIcon('clientName')}
+                        </div>
+                      </th>
+                      <th 
+                        className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        onClick={() => handleSort('clientId')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Client ID
+                          {getSortIcon('clientId')}
+                        </div>
+                      </th>
+                      <th 
+                        className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        onClick={() => handleSort('amount')}
+                      >
+                        <div className="flex items-center justify-end gap-1">
+                          Amount borrowed
+                          {getSortIcon('amount')}
+                        </div>
+                      </th>
+                      <th 
+                        className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        onClick={() => handleSort('interest')}
+                      >
+                        <div className="flex items-center justify-end gap-1">
+                          Interest
+                          {getSortIcon('interest')}
+                        </div>
+                      </th>
+                      <th 
+                        className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        onClick={() => handleSort('paid')}
+                      >
+                        <div className="flex items-center justify-end gap-1">
+                          Paid
+                          {getSortIcon('paid')}
+                        </div>
+                      </th>
+                      <th 
+                        className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        onClick={() => handleSort('outstanding')}
+                      >
+                        <div className="flex items-center justify-end gap-1">
+                          Outstanding
+                          {getSortIcon('outstanding')}
+                        </div>
+                      </th>
+                      <th 
+                        className={`px-4 py-2 text-center text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        onClick={() => handleSort('status')}
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          Status
+                          {getSortIcon('status')}
+                        </div>
+                      </th>
                       <th className={`px-4 py-2 text-center text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredLoans.map(loan => {
+                    {sortedLoans.map(loan => {
                       const client = clients.find(c => c.id === loan.clientId);
                       const principalAmt = loan.principalAmount || 0;
                       const paidAmt = loan.paidAmount || 0;
@@ -1128,6 +1321,33 @@ export function LoansTab() {
                       );
                     })}
                   </tbody>
+                  <tfoot className={`sticky bottom-0 ${isDark ? 'bg-gray-800 border-t-2 border-gray-600' : 'bg-gray-100 border-t-2 border-gray-300'}`}>
+                    <tr className="font-semibold">
+                      <td className={`px-4 py-3 text-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`} colSpan={4}>
+                        TOTAL
+                      </td>
+                      <td className={`px-4 py-3 text-right text-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                        KES {sortedLoans.reduce((sum, loan) => sum + (loan.principalAmount || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      </td>
+                      <td className={`px-4 py-3 text-right text-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                        KES {sortedLoans.reduce((sum, loan) => sum + (loan.totalInterest || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      </td>
+                      <td className={`px-4 py-3 text-right text-xs text-emerald-700 dark:text-emerald-400 font-semibold`}>
+                        KES {sortedLoans.reduce((sum, loan) => sum + (loan.paidAmount || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      </td>
+                      <td className={`px-4 py-3 text-right text-xs text-orange-600 dark:text-orange-400 font-semibold`}>
+                        KES {sortedLoans.reduce((sum, loan) => {
+                          const principalAmt = loan.principalAmount || 0;
+                          const paidAmt = loan.paidAmount || 0;
+                          const outstandingAmt = principalAmt + (loan.totalInterest || 0) - paidAmt;
+                          return sum + outstandingAmt;
+                        }, 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      </td>
+                      <td className={`px-4 py-3 text-center text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`} colSpan={2}>
+                        {sortedLoans.length} {sortedLoans.length === 1 ? 'Loan' : 'Loans'}
+                      </td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </div>

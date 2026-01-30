@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { Download, Printer, Calendar, TrendingUp, TrendingDown, AlertCircle, CheckCircle, DollarSign, Users, PieChart as PieChartIcon, Filter } from 'lucide-react';
 import { getOrganizationName, getOrganizationLogo } from '../../utils/organizationUtils';
+import logoImage from "figma:asset/e19de9b1a3313f261c0276da257bd631603f9688.png";
 import { getCurrencyCode } from '../../utils/currencyUtils';
 import { safeToFixed, safePercentage, safeDivide, safeFormat } from '../../utils/safeCalculations';
 import { 
@@ -19,9 +20,6 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-
-// Placeholder logo
-const logo = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iOCIgZmlsbD0iIzM0NzVkOSIvPgo8dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjI0IiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+TEw8L3RleHQ+Cjwvc3ZnPg==';
 
 interface ReportProps {
   dateRange: {
@@ -145,12 +143,29 @@ export function ManagementReport({ dateRange }: ReportProps) {
     });
   }, []);
   
-  // Portfolio summary - using real data
+  // Filter data by date range
+  const startDate = new Date(dateRange.startDate);
+  const endDate = new Date(dateRange.endDate);
+  
+  // Filter loans by disbursement date within range
+  const filteredLoans = loans.filter(loan => {
+    const disbursementDate = new Date(loan.disbursementDate);
+    return disbursementDate >= startDate && disbursementDate <= endDate;
+  });
+  
+  // Filter payments by payment date within range
+  const filteredPayments = payments?.filter((payment: any) => {
+    if (!payment.paymentDate) return false;
+    const paymentDate = new Date(payment.paymentDate);
+    return paymentDate >= startDate && paymentDate <= endDate;
+  }) || [];
+  
+  // Portfolio summary - using filtered data
   // Only include loans that have been DISBURSED (completed all 5 approval steps) and are in Active/Disbursed status
-  const activeLoans = loans.filter(l => l.status === 'Active' || l.status === 'Disbursed');
-  const fullyPaidLoans = loans.filter(l => l.status === 'Fully Paid' || l.status === 'Closed');
-  const defaultLoans = loans.filter(l => l.status === 'Written Off');
-  const totalDisbursed = loans.filter(l => l.status === 'Active' || l.status === 'Disbursed').reduce((sum, l) => sum + l.principalAmount, 0);
+  const activeLoans = filteredLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed');
+  const fullyPaidLoans = filteredLoans.filter(l => l.status === 'Fully Paid' || l.status === 'Closed');
+  const defaultLoans = filteredLoans.filter(l => l.status === 'Written Off');
+  const totalDisbursed = filteredLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed').reduce((sum, l) => sum + l.principalAmount, 0);
   const totalOutstanding = activeLoans.reduce((sum, l) => sum + l.outstandingBalance, 0);
   
   // Calculate outstanding breakdown from real data
@@ -168,7 +183,7 @@ export function ManagementReport({ dateRange }: ReportProps) {
   // Calculate real monthly disbursements from loan data
   // Only include loans that have been DISBURSED (completed all 5 approval steps) and are in Active/Disbursed status
   const disbursementMap = new Map<string, { amount: number; count: number }>();
-  loans.filter(l => l.status === 'Active' || l.status === 'Disbursed').forEach(loan => {
+  filteredLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed').forEach(loan => {
     const date = new Date(loan.disbursementDate);
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     
@@ -194,7 +209,7 @@ export function ManagementReport({ dateRange }: ReportProps) {
 
   // Calculate real monthly collections from payment data
   const collectionMap = new Map<string, { collected: number; due: number }>();
-  payments?.forEach((payment: any) => {
+  filteredPayments?.forEach((payment: any) => {
     const date = new Date(payment.paymentDate);
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     
@@ -220,7 +235,7 @@ export function ManagementReport({ dateRange }: ReportProps) {
 
   // Calculate cumulative open loans by month
   const openLoansMap = new Map<string, number>();
-  const sortedLoans = [...loans].sort((a, b) => 
+  const sortedLoans = [...filteredLoans].sort((a, b) => 
     new Date(a.disbursementDate).getTime() - new Date(b.disbursementDate).getTime()
   );
   
@@ -270,7 +285,7 @@ export function ManagementReport({ dateRange }: ReportProps) {
 
   // Count repayments per month
   const repaymentCountMap = new Map<string, number>();
-  payments?.forEach((payment: any) => {
+  filteredPayments?.forEach((payment: any) => {
     const date = new Date(payment.paymentDate);
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     
@@ -310,7 +325,7 @@ export function ManagementReport({ dateRange }: ReportProps) {
 
   // Count new borrowers per month (first loan)
   const newBorrowersMap = new Map<string, Set<string>>();
-  loans.forEach(loan => {
+  filteredLoans.forEach(loan => {
     const date = new Date(loan.disbursementDate);
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     
@@ -336,7 +351,7 @@ export function ManagementReport({ dateRange }: ReportProps) {
   const loanStatusData = [
     { id: 0, label: 'Active', value: activeLoans.length, color: '#10b981' },
     { id: 1, label: 'Fully Paid', value: fullyPaidLoans.length, color: '#3b82f6' },
-    { id: 2, label: 'In Arrears', value: loans.filter(l => l.status === 'In Arrears').length, color: '#f59e0b' },
+    { id: 2, label: 'In Arrears', value: filteredLoans.filter(l => l.status === 'In Arrears').length, color: '#f59e0b' },
     { id: 3, label: 'Written Off', value: defaultLoans.length, color: '#ef4444' }
   ];
 
@@ -365,8 +380,8 @@ export function ManagementReport({ dateRange }: ReportProps) {
   ];
 
   // Calculate recovery rates
-  const totalDisbursedAmount = loans.reduce((sum, l) => sum + l.principalAmount, 0);
-  const totalRepaidAmount = loans.reduce((sum, l) => sum + (l.paidAmount || 0), 0);
+  const totalDisbursedAmount = filteredLoans.reduce((sum, l) => sum + l.principalAmount, 0);
+  const totalRepaidAmount = filteredLoans.reduce((sum, l) => sum + (l.paidAmount || 0), 0);
   const overallRecoveryRate = safePercentage(totalRepaidAmount, totalDisbursedAmount, 2);
   
   const openLoansRepaidAmount = activeLoans.reduce((sum, l) => sum + (l.paidAmount || 0), 0);
@@ -378,16 +393,16 @@ export function ManagementReport({ dateRange }: ReportProps) {
   const rateOfReturn = safePercentage(totalInterestEarned, totalDisbursedAmount, 2);
   
   // Average loan tenure - calculate from loan products
-  const avgTenure = loans.length > 0 
-    ? (loans.reduce((sum, l) => {
+  const avgTenure = filteredLoans.length > 0 
+    ? (filteredLoans.reduce((sum, l) => {
         const product = loanProducts.find(p => p.id === l.productId);
         return sum + (product?.tenorMonths || 12);
-      }, 0) / loans.length).toFixed(1)
+      }, 0) / filteredLoans.length).toFixed(1)
     : '12.0';
   
   // Average disbursement size
-  const avgDisbursement = loans.length > 0
-    ? (totalDisbursedAmount / loans.length).toLocaleString(undefined, { minimumFractionDigits: 0 })
+  const avgDisbursement = filteredLoans.length > 0
+    ? (totalDisbursedAmount / filteredLoans.length).toLocaleString(undefined, { minimumFractionDigits: 0 })
     : '450,000';
 
   // Component breakdown for Due vs Collections
@@ -415,7 +430,7 @@ export function ManagementReport({ dateRange }: ReportProps) {
           <div className="border-b-2 border-gray-900 dark:!border-gray-900 pb-1.5 mb-2.5 flex-shrink-0">
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-3">
-                <img src={organizationLogo} alt="Organization Logo" className="size-12" />
+                <img src={logoImage} alt="Organization Logo" className="h-12 w-auto object-contain" />
                 <h1 className="text-gray-900 dark:!text-gray-900 text-xl">{organizationName}</h1>
               </div>
               <div className="text-gray-600 dark:!text-gray-600 text-sm">
@@ -610,7 +625,7 @@ export function ManagementReport({ dateRange }: ReportProps) {
           <div className="border-b border-gray-300 dark:!border-gray-300 pb-1.5 mb-2.5 flex-shrink-0">
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-3">
-                <img src={organizationLogo} alt="Organization Logo" className="size-10" />
+                <img src={logoImage} alt="Organization Logo" className="h-10 w-auto object-contain" />
                 <h2 className="text-gray-900 dark:!text-gray-900 text-lg">{organizationName}</h2>
               </div>
               <div className="text-gray-600 dark:!text-gray-600 text-sm">

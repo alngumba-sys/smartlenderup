@@ -1647,9 +1647,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   termUnit: l.term_period_unit ? (l.term_period_unit.charAt(0).toUpperCase() + l.term_period_unit.slice(1)) : 'Months',
                   repaymentFrequency: l.repayment_frequency ? (l.repayment_frequency.charAt(0).toUpperCase() + l.repayment_frequency.slice(1)) : 'Monthly',
                   facilitationFee: l.processing_fee || 0,
-                  applicationDate: l.application_date?.split('T')[0] || l.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
-                  approvedDate: l.approval_date?.split('T')[0] || '',
-                  disbursementDate: l.disbursement_date?.split('T')[0] || '',
+                  applicationDate: (() => {
+                    // ✅ Fix 2020 dates to 2026
+                    const rawDate = l.application_date?.split('T')[0] || l.created_at?.split('T')[0] || new Date().toISOString().split('T')[0];
+                    return rawDate.startsWith('2020') ? rawDate.replace('2020', '2026') : rawDate;
+                  })(),
+                  approvedDate: (() => {
+                    const rawDate = l.approval_date?.split('T')[0] || '';
+                    return rawDate.startsWith('2020') ? rawDate.replace('2020', '2026') : rawDate;
+                  })(),
+                  disbursementDate: (() => {
+                    const rawDate = l.disbursement_date?.split('T')[0] || '';
+                    return rawDate.startsWith('2020') ? rawDate.replace('2020', '2026') : rawDate;
+                  })(),
                   firstRepaymentDate: '',
                   maturityDate: '',
                   status: capitalizeStatus(l.status),
@@ -1673,10 +1683,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   paymentSource: '',
                   gracePeriod: 0,
                   latePaymentPenalty: 0,
-                  daysInArrears: 0,
-                  arrearsAmount: 0,
-                  overdueAmount: 0,
-                  penaltyAmount: 0,
+                  daysInArrears: l.days_in_arrears || 0,  // ✅ Read from database
+                  arrearsAmount: l.arrears_amount || 0,   // ✅ Read from database
+                  overdueAmount: l.overdue_amount || 0,   // ✅ Read from database
+                  penaltyAmount: l.penalty_amount || 0,   // ✅ Read from database
                   collateral: [],
                   guarantors: []
                 };
@@ -3070,7 +3080,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
       
       // Create journal entry for repayment
-      const journalEntryData = createLoanRepaymentEntry(newRepayment, loan.clientName, repaymentData.receivedBy || 'System');
+      const journalEntryData = createLoanRepaymentEntry(
+        newRepayment, 
+        newRepayment.clientName || loan?.clientName || 'Unknown Client', 
+        repaymentData.receivedBy || 'System'
+      );
       addJournalEntry(journalEntryData);
       
       // Recalculate client's credit score after successful payment
@@ -3177,7 +3191,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
         
         // Create journal entry for repayment
-        const journalEntryData = createLoanRepaymentEntry(repayment, loan.clientName, approvedBy);
+        const journalEntryData = createLoanRepaymentEntry(
+          repayment, 
+          repayment.clientName || loan?.clientName || 'Unknown Client', 
+          approvedBy
+        );
         addJournalEntry(journalEntryData);
         
         // Recalculate client's credit score

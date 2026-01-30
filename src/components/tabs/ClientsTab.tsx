@@ -363,7 +363,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
             <div className="flex-1">
               <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Active (Last 3 months)</p>
               <p className={`text-2xl mt-1 mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{activeClients}</p>
-              <p className="text-emerald-600 dark:text-emerald-400 text-xs">{safePercentage(activeClients, totalClients, 1)}%</p>
+              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{safePercentage(activeClients, totalClients, 1)}%</p>
             </div>
           </div>
         </div>
@@ -378,7 +378,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
             <div className="flex-1">
               <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>In Arrears</p>
               <p className={`text-2xl mt-1 mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{clientsInArrears}</p>
-              <p className="text-red-600 dark:text-red-400 text-xs">{safePercentage(clientsInArrears, totalClients, 1)}%</p>
+              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{safePercentage(clientsInArrears, totalClients, 1)}%</p>
             </div>
           </div>
         </div>
@@ -407,7 +407,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
             <div className="flex-1">
               <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Outstanding</p>
               <p className={`text-xl mt-1 mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>KES {safeToFixed(totalOutstandingAll / 1000000, 1)}M</p>
-              <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>KES {totalOutstandingAll.toLocaleString()}</p>
+              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>KES {totalOutstandingAll.toLocaleString()}</p>
             </div>
           </div>
         </div>

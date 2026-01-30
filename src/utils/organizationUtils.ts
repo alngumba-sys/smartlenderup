@@ -88,8 +88,8 @@ export function getOrganizationLogo(): string {
   } catch (error) {
     console.error('Error retrieving organization logo:', error);
   }
-  // Default BV Funguo logo - base64 encoded SVG
-  return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDEyMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPHJlY3Qgd2lkdGg9IjEyMCIgaGVpZ2h0PSIxMjAiIHJ4PSIyMCIgZmlsbD0iIzFGMkU0RCIvPgogIDx0ZXh0IHg9IjYwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjM2IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0iIzNCODJGNiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+QlY8L3RleHQ+CiAgPHRleHQgeD0iNjAiIHk9Ijg1IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSI2MDAiIGZpbGw9IiMzQjgyRjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPmJ2ZnVuZ3VvPC90ZXh0Pgo8L3N2Zz4=';
+  // Default BV Funguo logo - Official branding image
+  return 'https://i.postimg.cc/QtQMqfbL/BV-Funguo-Logo.png';
 }
 
 export function getOrganizationData() {

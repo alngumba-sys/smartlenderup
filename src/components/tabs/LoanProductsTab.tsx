@@ -190,18 +190,18 @@ export function LoanProductsTab() {
               {/* Product Card - Reduced Size */}
               <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-shadow flex flex-col min-h-[420px]">
                 {/* Product Header */}
-                <div className="p-3 bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-gray-700 dark:to-gray-700 border-b border-gray-200 dark:border-gray-600 px-[12px] py-[0px]">
+                <div className="p-3 bg-gradient-to-r from-slate-700 to-slate-800 dark:from-gray-700 dark:to-gray-700 border-b border-slate-600 dark:border-gray-600 px-[12px] py-[10px]">
                   <div className="flex items-start justify-between mb-1">
                     <div className="flex-1">
-                      <h3 className="text-gray-900 dark:text-white text-sm text-[16px] px-[0px] py-[5px]">{product.name}</h3>
+                      <h3 className="text-white text-sm text-[16px] px-[0px] py-[5px] font-semibold">{product.name}</h3>
                       <div className="min-h-[2rem]">
-                        <p className="text-gray-600 dark:text-gray-400 text-xs mt-0.5 line-clamp-2">{product.description}</p>
+                        <p className="text-gray-200 dark:text-gray-300 text-xs mt-0.5 line-clamp-2">{product.description}</p>
                       </div>
                     </div>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] ml-2 ${
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] ml-2 font-medium ${
                       product.status === 'Active' 
-                        ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200' 
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+                        ? 'bg-emerald-500 text-white' 
+                        : 'bg-gray-400 text-white'
                     }`}>
                       {product.status}
                     </span>
@@ -209,14 +209,14 @@ export function LoanProductsTab() {
                 </div>
 
                 {/* Interest Rate - Compact Display */}
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 p-[12px]">
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 p-[12px]">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-blue-600 dark:text-blue-400 text-[10px] uppercase tracking-wide">Interest Rate</p>
-                      <p className="text-blue-900 dark:text-blue-100 text-2xl">{product.interestRate || 0}%</p>
-                      <p className="text-blue-700 dark:text-blue-300 text-[10px] mt-0.5">{product.interestType || 'N/A'} / {product.repaymentFrequency || 'N/A'}</p>
+                      <p className="text-blue-800 dark:text-blue-400 text-[10px] uppercase tracking-wide font-semibold">Interest Rate</p>
+                      <p className="text-blue-900 dark:text-blue-100 text-2xl font-bold">{product.interestRate || 0}%</p>
+                      <p className="text-blue-800 dark:text-blue-300 text-[10px] mt-0.5 font-medium">{product.interestType || 'N/A'} / {product.repaymentFrequency || 'N/A'}</p>
                     </div>
-                    <PercentIcon className="size-6 text-blue-400 dark:text-blue-500" />
+                    <PercentIcon className="size-6 text-blue-600 dark:text-blue-500" />
                   </div>
                 </div>
 

@@ -154,10 +154,73 @@ export function getVisibleTabs(): TabKey[] {
       }
       
       // Staff can only see tabs they have view permission for
-      const permissions = user.permissions || [];
-      return permissions
-        .filter((p: TabPermission) => p.can_view)
-        .map((p: TabPermission) => p.tab_name as TabKey);
+      const permissions = user.permissions || {};
+      
+      // Handle object-based permissions (new format)
+      if (!Array.isArray(permissions) && typeof permissions === 'object') {
+        const visibleTabs: TabKey[] = [];
+        
+        // Map permission flags to tabs
+        if (permissions.viewDashboard) {
+          visibleTabs.push('dashboard');
+        }
+        
+        // Operations tabs
+        if (permissions.canAccessOperations || permissions.viewLoans) {
+          visibleTabs.push('operations_loans');
+        }
+        if (permissions.canAccessOperations || permissions.manageProducts) {
+          visibleTabs.push('operations_products');
+        }
+        if (permissions.canAccessOperations || permissions.viewClients) {
+          visibleTabs.push('operations_clients');
+        }
+        if (permissions.canAccessOperations) {
+          visibleTabs.push('operations_groups');
+        }
+        
+        // Accounting tabs
+        if (permissions.canAccessTransactions || permissions.viewTransactions) {
+          visibleTabs.push('accounting_chart');
+          visibleTabs.push('accounting_journal');
+          visibleTabs.push('accounting_trial');
+        }
+        
+        // Reports tabs
+        if (permissions.viewPortfolioReport || permissions.viewLoanPerformanceReport || 
+            permissions.viewCollectionReport || permissions.viewClientReport) {
+          visibleTabs.push('reports_par');
+          visibleTabs.push('reports_collections');
+          visibleTabs.push('reports_management');
+        }
+        
+        // Payroll
+        if (permissions.canAccessManagement) {
+          visibleTabs.push('payroll');
+        }
+        
+        // AI Tools
+        if (permissions.canAccessRiskAI || permissions.viewRiskInsights) {
+          visibleTabs.push('ai_tools');
+        }
+        
+        // Settings - only admins
+        if (permissions.canAccessAdmin) {
+          visibleTabs.push('settings');
+        }
+        
+        return visibleTabs.length > 0 ? visibleTabs : ['dashboard'];
+      }
+      
+      // Handle array-based permissions (old format)
+      if (Array.isArray(permissions)) {
+        return permissions
+          .filter((p: TabPermission) => p.can_view)
+          .map((p: TabPermission) => p.tab_name as TabKey);
+      }
+      
+      console.warn('Permissions format not recognized:', permissions);
+      return ['dashboard']; // Default to dashboard only
     }
   } catch (error) {
     console.error('Error getting visible tabs:', error);

@@ -237,7 +237,7 @@ export function PaymentsTab() {
                         <td className="px-4 py-3 text-gray-900">{payment.paymentDate}</td>
                         <td className="px-4 py-3 text-gray-900 font-mono text-xs">{payment.paymentReference}</td>
                         <td className="px-4 py-3 text-gray-900">{client?.name}</td>
-                        <td className="px-4 py-3 text-gray-900">{loan?.loan_number || payment.loanId}</td>
+                        <td className="px-4 py-3 text-gray-900">{loan?.loanNumber || payment.loanId}</td>
                         <td className="px-4 py-3 text-right text-gray-900">KES {payment.amount.toLocaleString()}</td>
                         <td className="px-4 py-3 text-center">
                           <span className="flex items-center justify-center gap-1">

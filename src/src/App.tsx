@@ -36,7 +36,7 @@ import { AuthProvider } from '../contexts/AuthContext';
 import { DataProvider } from '../contexts/DataContext';
 import { NavigationProvider } from '../contexts/NavigationContext';
 import { BV_FUNGUO_LOGO } from '../assets/BVFunguoLogo';
-import logoImage from "figma:asset/8c9a9782f822a04113fd7bff4f68f1bc0ac7a2af.png";
+import logoImage from "figma:asset/e19de9b1a3313f261c0276da257bd631603f9688.png";
 // Disabled temporarily to debug loading issues
 // import '../utils/devMigrationTools'; // Import developer migration tools for data updates
 
