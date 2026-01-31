@@ -1441,6 +1441,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           <div className="space-y-2">
             {overdueLoans.slice(0, 5).map((loan) => {
               const client = contextClients.find(c => c.id === loan.clientId);
+              
+              // Use loan.clientName directly (from Supabase join) with fallback
+              const displayName = loan.clientName || client?.name || 'Unknown Client';
+              
               return (
                 <div key={loan.id} className="p-2 rounded border" style={{ 
                   backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -1448,7 +1452,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 }}>
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>{client?.name}</p>
+                      <p className="text-sm font-medium" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>{displayName}</p>
                       <p className="text-xs" style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>{loan.loanNumber || loan.id} - {loan.daysInArrears} days overdue</p>
                     </div>
                     <span className="text-sm text-red-400">{currencySymbol} {safeFormat(loan.outstandingBalance || 0)}</span>
@@ -2055,8 +2059,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   <div className="flex items-center gap-3 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
                     <Activity className="size-8 text-purple-600 dark:text-purple-400" />
                     <div>
-                      <p className="dark:text-purple-200 text-sm font-semibold text-[rgb(98,54,144)]">AI-Powered Risk Analysis</p>
-                      <p className="dark:text-purple-100 text-3xl font-bold text-[rgb(68,36,103)]">{atRiskClientsCount} client{atRiskClientsCount !== 1 ? 's' : ''} at risk</p>
+                      <p className="dark:text-purple-200 text-sm font-semibold text-[rgb(138,82,197)]">AI-Powered Risk Analysis</p>
+                      <p className="dark:text-purple-100 text-3xl font-bold text-[rgb(98,51,149)]">{atRiskClientsCount} client{atRiskClientsCount !== 1 ? 's' : ''} at risk</p>
                     </div>
                   </div>
                   
@@ -2108,7 +2112,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                     ) : (
                       <>
                         <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                          <p className="dark:text-emerald-100 text-[rgb(56,157,106)]">
+                          <p className="dark:text-emerald-100 text-[rgb(22,125,73)]">
                             ✓ Excellent portfolio health! No clients currently at high risk of default.
                           </p>
                         </div>
