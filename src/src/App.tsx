@@ -36,7 +36,7 @@ import { AuthProvider } from '../contexts/AuthContext';
 import { DataProvider } from '../contexts/DataContext';
 import { NavigationProvider } from '../contexts/NavigationContext';
 import { BV_FUNGUO_LOGO } from '../assets/BVFunguoLogo';
-import logoImage from "figma:asset/e19de9b1a3313f261c0276da257bd631603f9688.png";
+import logoImage from "figma:asset/8c9a9782f822a04113fd7bff4f68f1bc0ac7a2af.png";
 // Disabled temporarily to debug loading issues
 // import '../utils/devMigrationTools'; // Import developer migration tools for data updates
 
@@ -270,7 +270,7 @@ function AppContent() {
               <h1 className="text-sm sm:text-base md:text-lg truncate text-white">
                 {organizationName}
               </h1>
-              <p className="text-xs hidden sm:block truncate text-white/70">
+              <p className="text-xs hidden sm:block truncate text-white/70 text-[rgba(155,159,190,0.7)]">
                 Empowering {countryDemonym} Entrepreneurs
               </p>
             </div>
@@ -544,7 +544,7 @@ function AppContent() {
                     return currentUser?.userType === 'staff' ? 'Staff' : currentUser?.role;
                   })()}
                 </p>
-                <p className="text-xs text-white/70">
+                <p className="text-xs text-white/70 text-[rgba(175,175,182,0.7)]">
                   {currentUser?.email}
                 </p>
               </div>

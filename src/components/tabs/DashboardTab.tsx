@@ -100,6 +100,47 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const currencySymbol = getCurrencySymbol();
   const currencyCode = getCurrencyCode();
   
+  // Helper function to calculate accurate days in arrears based on disbursement date and repayment frequency
+  const calculateDaysInArrears = (loan: any): number => {
+    if (!loan.disbursementDate || loan.status === 'Fully Paid' || loan.status === 'Settled') {
+      return 0;
+    }
+    
+    const today = new Date();
+    const disbursementDate = new Date(loan.disbursementDate);
+    
+    // Calculate first payment due date based on repayment frequency
+    const firstPaymentDue = new Date(disbursementDate);
+    const frequency = loan.repaymentFrequency?.toLowerCase() || 'monthly';
+    
+    switch (frequency) {
+      case 'daily':
+        firstPaymentDue.setDate(disbursementDate.getDate() + 1);
+        break;
+      case 'weekly':
+        firstPaymentDue.setDate(disbursementDate.getDate() + 7);
+        break;
+      case 'biweekly':
+        firstPaymentDue.setDate(disbursementDate.getDate() + 14);
+        break;
+      case 'monthly':
+      default:
+        firstPaymentDue.setMonth(disbursementDate.getMonth() + 1);
+        break;
+    }
+    
+    // If we haven't reached the first payment date yet, no arrears
+    if (today < firstPaymentDue) {
+      return 0;
+    }
+    
+    // Calculate days overdue from first payment date
+    const daysOverdue = Math.floor((today.getTime() - firstPaymentDue.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Only return positive arrears if the loan has outstanding balance
+    return (loan.outstandingBalance > 0 && daysOverdue > 0) ? daysOverdue : 0;
+  };
+  
   // Helper function to filter by date range
   const filterByDuration = (items: any[], dateField: string, duration: DurationFilter) => {
     const now = new Date();
@@ -295,8 +336,21 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     const now = new Date();
     const weeks = [];
     
-    // Get last 5 weeks (past weeks only, not including current incomplete week)
-    for (let i = 5; i >= 1; i--) {
+    // Debug: Log payments data structure
+    console.log('📊 Collection Rate Debug:', {
+      totalPayments: payments.length,
+      samplePayments: payments.slice(0, 3).map((p: any) => ({
+        id: p.id,
+        amount: p.amount,
+        paymentDate: p.paymentDate,
+        date: p.date,
+        createdAt: p.createdAt,
+        allFields: Object.keys(p)
+      }))
+    });
+    
+    // Get last 5 weeks (including current week)
+    for (let i = 4; i >= 0; i--) {
       const weekEnd = new Date(now);
       weekEnd.setDate(now.getDate() - (i * 7)); // End is i weeks ago
       weekEnd.setDate(weekEnd.getDate() - weekEnd.getDay() + 6); // Saturday
@@ -313,23 +367,113 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       
       const weekLabel = `${formatDate(weekStart)}-${formatDate(weekEnd).split(' ')[1]}`; // e.g., "Dec 1-7"
       
-      // Filter payments made during this week
+      // Filter payments made during this week (using repayments data)
       const weekPayments = payments.filter((payment: any) => {
-        if (!payment.paymentDate) return false;
-        const paymentDate = new Date(payment.paymentDate);
+        // Check multiple possible date field names
+        const dateField = payment.paymentDate || payment.date || payment.createdAt || payment.created_at || payment.transactionDate;
+        if (!dateField) return false;
+        const paymentDate = new Date(dateField);
         return paymentDate >= weekStart && paymentDate <= weekEnd;
       });
       
       const collected = weekPayments.reduce((sum: number, payment: any) => sum + (payment.amount || 0), 0);
       
-      // Calculate expected: sum of installments due during this week
-      // For simplicity, we'll use a proportion of total outstanding
-      const expectedBase = contextLoans
-        .filter((l: any) => l.status === 'Active' || l.status === 'Disbursed')
-        .reduce((sum: number, l: any) => sum + (l.outstandingBalance || 0), 0) / 52; // Weekly average
+      // Debug: Log collected data for this week
+      if (i === 0) { // Only log for the current week (most recent)
+        console.log(`Week ${weekLabel} Collections:`, {
+          weekStart: weekStart.toISOString(),
+          weekEnd: weekEnd.toISOString(),
+          paymentsThisWeek: weekPayments.length,
+          collected,
+          samplePayment: weekPayments[0]
+        });
+      }
       
-      const expected = expectedBase;
-      const rate = expected > 0 ? (collected / expected) * 100 : 100;
+      // Calculate expected: sum of installment amounts due during this week
+      // For each active loan, calculate if payment was due this week based on disbursement date and frequency
+      const expected = contextLoans
+        .filter((l: any) => {
+          const status = (l.status || '').toLowerCase().trim();
+          return status === 'active' || status === 'disbursed' || status === 'in arrears' || status === 'settled';
+        })
+        .reduce((sum: number, loan: any) => {
+          if (!loan.disbursementDate) return sum;
+          
+          const disbursementDate = new Date(loan.disbursementDate);
+          const paymentFrequency = (loan.paymentFrequency || 'Monthly').toLowerCase();
+          const loanTermMonths = loan.loanTerm || 12;
+          const principalAmount = loan.principalAmount || 0;
+          const totalInterest = loan.totalInterest || 0;
+          const totalRepayable = loan.totalRepayable || (principalAmount + totalInterest);
+          
+          // Calculate installment amount
+          let installmentAmount = loan.installmentAmount;
+          if (!installmentAmount) {
+            // Calculate based on frequency and term
+            if (paymentFrequency.includes('week')) {
+              const numPayments = loanTermMonths * 4.33; // Convert months to weeks
+              installmentAmount = totalRepayable / numPayments;
+            } else if (paymentFrequency.includes('month')) {
+              installmentAmount = totalRepayable / loanTermMonths;
+            } else if (paymentFrequency.includes('daily')) {
+              const numPayments = loanTermMonths * 30; // Convert months to days
+              installmentAmount = totalRepayable / numPayments;
+            } else {
+              // Default to monthly
+              installmentAmount = totalRepayable / loanTermMonths;
+            }
+          }
+          
+          // Check if a payment was due during this week
+          let paymentDueThisWeek = false;
+          
+          if (paymentFrequency.includes('week')) {
+            // Weekly payments - check if any payment number falls in this week
+            const daysSinceDisbursement = Math.floor((weekEnd.getTime() - disbursementDate.getTime()) / (1000 * 60 * 60 * 24));
+            const weeksSinceDisbursement = Math.floor(daysSinceDisbursement / 7);
+            
+            // Check if any weekly payment date falls within this week
+            for (let w = 0; w <= weeksSinceDisbursement; w++) {
+              const paymentDate = new Date(disbursementDate);
+              paymentDate.setDate(paymentDate.getDate() + (w * 7));
+              
+              if (paymentDate >= weekStart && paymentDate <= weekEnd) {
+                paymentDueThisWeek = true;
+                break;
+              }
+            }
+          } else if (paymentFrequency.includes('month')) {
+            // Monthly payments - check if payment date (same day of month) falls in this week
+            const monthsSinceDisbursement = Math.floor((weekEnd.getTime() - disbursementDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
+            
+            for (let m = 0; m <= monthsSinceDisbursement; m++) {
+              const paymentDate = new Date(disbursementDate);
+              paymentDate.setMonth(paymentDate.getMonth() + m);
+              
+              if (paymentDate >= weekStart && paymentDate <= weekEnd) {
+                paymentDueThisWeek = true;
+                break;
+              }
+            }
+          } else if (paymentFrequency.includes('daily')) {
+            // Daily payments - always due during this week
+            paymentDueThisWeek = true;
+            // For daily, multiply by days in week that the loan was active
+            const loanStartDate = disbursementDate > weekStart ? disbursementDate : weekStart;
+            const loanEndDate = weekEnd;
+            const daysInWeek = Math.max(0, Math.ceil((loanEndDate.getTime() - loanStartDate.getTime()) / (1000 * 60 * 60 * 24)));
+            return sum + (installmentAmount * Math.min(daysInWeek, 7));
+          }
+          
+          // Add installment amount if payment was due this week
+          if (paymentDueThisWeek) {
+            return sum + (installmentAmount || 0);
+          }
+          
+          return sum;
+        }, 0);
+      
+      const rate = expected > 0 ? (collected / expected) * 100 : 0;
       
       weeks.push({
         week: weekLabel,
@@ -427,15 +571,24 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   });
   
   // Calculate AI Insights - clients at risk (loans with arrears >= 30 days)
-  const atRiskLoans = contextLoans.filter((l: any) => (l.daysInArrears || 0) >= 30);
+  // ✅ Use calculated daysInArrears instead of database value to fix incorrect 1500+ days
+  const atRiskLoans = contextLoans
+    .map((l: any) => ({
+      ...l,
+      daysInArrears: calculateDaysInArrears(l) // Override with calculated value
+    }))
+    .filter((l: any) => l.daysInArrears >= 30);
   const atRiskClientIds = new Set(atRiskLoans.map((l: any) => l.clientId));
   const atRiskClientsCount = atRiskClientIds.size;
   const potentialDefaults = atRiskLoans.reduce((sum: number, l: any) => sum + (l.outstandingBalance || 0), 0);
   
   // ✅ Calculate PAR 30: Outstanding balance of loans 30+ days overdue / Total outstanding
-  const par30Loans = contextLoans.filter((l: any) => 
-    isActiveStatus(l.status) && (l.daysInArrears || 0) >= 30
-  );
+  const par30Loans = contextLoans
+    .map((l: any) => ({
+      ...l,
+      daysInArrears: calculateDaysInArrears(l) // Override with calculated value
+    }))
+    .filter((l: any) => isActiveStatus(l.status) && l.daysInArrears >= 30);
   const par30Amount = par30Loans.reduce((sum: number, l: any) => sum + Math.abs(l.outstandingBalance || 0), 0);
   const par30Rate = totalOutstanding > 0 ? (par30Amount / totalOutstanding) * 100 : 0;
   
@@ -495,7 +648,13 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   // Calculate total collections from payments
   const totalCollections = payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
   
-  const overdueLoans = contextLoans.filter((l: any) => l.daysInArrears > 0);
+  // ✅ Calculate overdueLoans with corrected daysInArrears
+  const overdueLoans = contextLoans
+    .map((l: any) => ({
+      ...l,
+      daysInArrears: calculateDaysInArrears(l) // Override with calculated value
+    }))
+    .filter((l: any) => l.daysInArrears > 0);
   const recentApplications = contextLoans.slice(-5).reverse();
 
   // Use theme colors
@@ -516,10 +675,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         color: '#4ade80' 
       },
       { 
-        status: 'Fully Paid', 
+        status: 'Settled', 
         count: contextLoans.filter((l: any) => {
           const s = normalizeStatus(l.status);
-          return s === 'fully paid' || s === 'closed' || s === 'paid off';
+          return s === 'settled' || s === 'fully paid' || s === 'closed' || s === 'paid off';
         }).length, 
         color: '#60a5fa' 
       },
@@ -532,10 +691,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         color: '#fbbf24' 
       },
       { 
-        status: 'Written Off', 
+        status: 'Default', 
         count: contextLoans.filter((l: any) => {
           const s = normalizeStatus(l.status);
-          return s === 'written off' || s === 'defaulted';
+          return s === 'default' || s === 'written off' || s === 'defaulted';
         }).length, 
         color: '#f87171' 
       },
@@ -547,8 +706,9 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   // Enhanced debug logging for loan status
   console.log('=== LOAN STATUS DEBUG ===');
   console.log('Total loans in context:', contextLoans.length);
-  console.log('Loan Status Distribution (FIXED):', loanStatusDistribution);
+  console.log('Loan Status Distribution:', loanStatusDistribution);
   console.log('All loan statuses:', contextLoans.map((l: any) => l.status));
+  console.log('Unique statuses:', [...new Set(contextLoans.map((l: any) => l.status))]);
   
   // Case-insensitive status breakdown for debugging
   const normalizeStatusDebug = (status: string) => (status || '').toLowerCase().trim();
@@ -701,11 +861,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                       value={processingFeeDuration}
                       onChange={(e) => setProcessingFeeDuration(e.target.value as DurationFilter)}
                       onClick={(e) => e.stopPropagation()}
-                      className="text-[9px] px-1 py-0.5 rounded border cursor-pointer opacity-40 hover:opacity-100 transition-opacity ml-auto"
+                      className="text-[9px] px-1.5 py-1 rounded border cursor-pointer opacity-40 hover:opacity-70 transition-opacity ml-auto"
                       style={{ 
-                        backgroundColor: 'rgba(13, 40, 56, 0.3)',
-                        borderColor: 'rgba(59, 130, 246, 0.2)',
-                        color: '#3b82f6'
+                        backgroundColor: isDark ? 'rgba(30, 58, 138, 0.2)' : 'rgba(219, 234, 254, 0.3)',
+                        borderColor: isDark ? 'rgba(96, 165, 250, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                        color: isDark ? '#93c5fd' : '#3b82f6'
                       }}
                     >
                       <option value="today">1D</option>
@@ -959,7 +1119,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           backgroundColor: isDark ? '#15233a' : '#ffffff',
           borderColor: isDark ? '#1e2f42' : '#e5e7eb'
         }}>
-          <h3 className="mb-3 text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Portfolio by Product</h3>
+          <h3 className="mb-3 text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Active Portfolio by Product</h3>
           {loansByProduct.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {/* Donut Chart */}
@@ -1289,7 +1449,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>{client?.name}</p>
-                      <p className="text-xs" style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>{loan.id} - {loan.daysInArrears} days overdue</p>
+                      <p className="text-xs" style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>{loan.loanNumber || loan.id} - {loan.daysInArrears} days overdue</p>
                     </div>
                     <span className="text-sm text-red-400">{currencySymbol} {safeFormat(loan.outstandingBalance || 0)}</span>
                   </div>
@@ -1311,11 +1471,27 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           <div className="space-y-2">
             {recentApplications.map((loan) => {
               const client = contextClients.find(c => c.id === loan.clientId);
+              
+              // Debug: Log client matching
+              console.log('Recent Activity Client Match:', {
+                loanId: loan.id,
+                loanNumber: loan.loanNumber,
+                clientId: loan.clientId,
+                clientName: loan.clientName, // This should already be populated from Supabase join
+                clientFound: client,
+                clientFromArray: client?.name,
+                totalClients: contextClients.length,
+                loanKeys: Object.keys(loan)
+              });
+              
               // Determine the activity description based on loan status
               const isActive = loan.status === 'Active';
               const activityDescription = isActive 
                 ? `New loan disbursed - ${loan.disbursementDate}` 
                 : `Loan requested - ${loan.disbursementDate}`;
+              
+              // Use loan.clientName directly (already populated from Supabase join)
+              const displayName = loan.clientName || client?.name || 'Unknown Client';
               
               return (
                 <div key={loan.id} className="p-2 rounded border" style={{ 
@@ -1323,9 +1499,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   borderColor: 'rgba(16, 185, 129, 0.2)'
                 }}>
                   <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>{client?.name}</p>
-                      <p className="text-xs" style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>{activityDescription}</p>
+                    <div className="flex-1">
+                      <p className="text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>
+                        {displayName} - {activityDescription}
+                      </p>
                     </div>
                     <span className="text-sm text-emerald-400">{currencySymbol} {safeFormat(loan.principalAmount || 0)}</span>
                   </div>
@@ -1878,8 +2055,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   <div className="flex items-center gap-3 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
                     <Activity className="size-8 text-purple-600 dark:text-purple-400" />
                     <div>
-                      <p className="text-purple-900 dark:text-purple-100 text-sm">AI-Powered Risk Analysis</p>
-                      <p className="text-purple-900 dark:text-purple-100 text-3xl">{atRiskClientsCount} client{atRiskClientsCount !== 1 ? 's' : ''} at risk</p>
+                      <p className="dark:text-purple-200 text-sm font-semibold text-[rgb(98,54,144)]">AI-Powered Risk Analysis</p>
+                      <p className="dark:text-purple-100 text-3xl font-bold text-[rgb(68,36,103)]">{atRiskClientsCount} client{atRiskClientsCount !== 1 ? 's' : ''} at risk</p>
                     </div>
                   </div>
                   
@@ -1901,7 +2078,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                                 <span className="text-xs text-red-600 dark:text-red-400">{loan.daysInArrears} days overdue</span>
                               </div>
                               <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-600 dark:text-gray-400">Loan: {loan.id}</span>
+                                <span className="text-gray-600 dark:text-gray-400">Loan ID: {loan.loanNumber || loan.id}</span>
                                 <span className="text-gray-900 dark:text-white">{currencyCode} {(loan.outstandingBalance / 1000).toFixed(1)}K outstanding</span>
                               </div>
                             </div>
@@ -1931,7 +2108,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                     ) : (
                       <>
                         <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                          <p className="text-emerald-900 dark:text-emerald-100">
+                          <p className="dark:text-emerald-100 text-[rgb(56,157,106)]">
                             ✓ Excellent portfolio health! No clients currently at high risk of default.
                           </p>
                         </div>

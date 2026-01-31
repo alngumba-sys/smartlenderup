@@ -216,15 +216,26 @@ export function DataImportExport() {
       let parsedData: any[] = [];
 
       if (isCSV) {
-        // Parse CSV file
+        // Parse CSV file using native JavaScript (no external library needed)
         const text = await file.text();
-        const Papa = await import('papaparse');
-        const result = Papa.parse(text, {
-          header: true,
-          skipEmptyLines: true,
-          transformHeader: (header: string) => header.trim()
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        if (lines.length < 2) {
+          throw new Error('CSV file is empty or has no data rows');
+        }
+        
+        // Parse header row
+        const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
+        
+        // Parse data rows
+        parsedData = lines.slice(1).map(line => {
+          const values = line.split(',').map(v => v.trim().replace(/^["']|["']$/g, ''));
+          const obj: any = {};
+          headers.forEach((header, index) => {
+            obj[header] = values[index] || '';
+          });
+          return obj;
         });
-        parsedData = result.data;
       } else {
         // Parse Excel file
         const XLSX = await import('xlsx');

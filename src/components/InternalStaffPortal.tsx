@@ -30,6 +30,7 @@ import { LoanProductsTab } from './tabs/LoanProductsTab';
 import { ExpensesTab } from './tabs/ExpensesTab';
 import { PayrollTab } from './tabs/PayrollTab';
 import { LoanReconciliationTab } from './tabs/LoanReconciliationTab';
+import { FinancialStatementsTab } from './tabs/FinancialStatementsTab';
 import { 
   LayoutDashboard, Users, DollarSign, CreditCard, TrendingUp, 
   Settings, FileText, Calculator, CheckSquare, Briefcase, 
@@ -160,6 +161,7 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
       items: [
         { id: 'staff-management', label: 'Staff Management', icon: Users, permission: 'manageStaff' },
         { id: 'loan-products', label: 'Loan Products', icon: Package, permission: 'manageProducts' },
+        { id: 'financial-statements', label: 'Financial Statements', icon: TrendingUp, permission: 'viewTransactions' },
         { id: 'documents', label: 'Documents', icon: FileText, permission: 'viewDashboard' },
         { id: 'settings', label: 'Settings', icon: Settings, permission: 'canAccessAdmin' }
       ]
@@ -296,6 +298,8 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
         {activeTab === 'expenses' && <ExpensesTab />}
         
         {activeTab === 'payroll' && <PayrollTab />}
+        
+        {activeTab === 'financial-statements' && <FinancialStatementsTab />}
       </div>
     </div>
   );

@@ -24,7 +24,8 @@ export function BankAccountsTab() {
     shareholders,
     updateShareholder,
     loans,
-    repayments
+    repayments,
+    clients
   } = useData();
   
   console.log('');
@@ -683,14 +684,14 @@ export function BankAccountsTab() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Repayment #</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loan #</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Depositor</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Debit</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Credit</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount Paid</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Opening balance</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Closing balance</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment method</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -701,57 +702,66 @@ export function BankAccountsTab() {
                   </td>
                 </tr>
               ) : (
-                statementTransactions.map((transaction) => (
-                  <tr key={transaction.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      <div>
-                        <div className="font-medium">
-                          {new Date(transaction.date).toLocaleDateString('en-US', { 
-                            year: 'numeric', 
-                            month: 'short', 
-                            day: 'numeric' 
-                          })}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {new Date(transaction.date).toLocaleTimeString('en-US', { 
-                            hour: '2-digit', 
-                            minute: '2-digit',
-                            hour12: true
-                          })}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {transaction.description}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 font-mono">
-                      {shortenReferenceUUID(transaction.reference)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs ${
-                        transaction.type === 'Funding' 
-                          ? 'bg-emerald-100 text-emerald-800' 
-                          : transaction.type === 'Loan Disbursement'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {transaction.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
-                      {transaction.depositor || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right text-red-600">
-                      {transaction.debit > 0 ? formatCurrency(transaction.debit, { showCode: false, decimals: 0 }) : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right text-emerald-600">
-                      {transaction.credit > 0 ? formatCurrency(transaction.credit, { showCode: false, decimals: 0 }) : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
-                      {formatCurrency(transaction.balance, { showCode: false, decimals: 0 })}
-                    </td>
-                  </tr>
-                ))
+                statementTransactions
+                  .filter((transaction) => transaction.type === 'Loan Repayment')
+                  .map((transaction, index, filteredArray) => {
+                    // Extract repayment ID from transaction ID
+                    const repaymentId = transaction.id.replace('repayment-', '');
+                    const repayment = repayments.find(r => r.id === repaymentId);
+                    const loan = loans.find(l => l.id === repayment?.loanId);
+                    const client = clients.find(c => c.id === loan?.clientId);
+                    
+                    // Debug logging
+                    if (!client && loan) {
+                      console.log('🔍 Client lookup failed for loan:', {
+                        loanId: loan.id,
+                        loanClientId: loan.clientId,
+                        availableClients: clients.map(c => ({ id: c.id, clientId: c.clientId, name: c.name }))
+                      });
+                    }
+                    
+                    const loanNumber = loan?.loanNumber || loan?.id || '-';
+                    const loanId = loan?.id || '-';
+                    const clientId = client?.clientId || '-';
+                    const clientName = client?.name || loan?.borrowerName || loan?.clientName || repayment?.clientName || transaction.depositor || '-';
+                    const openingBalance = index < filteredArray.length - 1 
+                      ? filteredArray[index + 1].balance 
+                      : (transaction.balance - transaction.credit);
+                    const closingBalance = transaction.balance;
+                    const amountPaid = transaction.credit;
+                    const paymentMethod = repayment?.paymentMethod || 'Bank Deposit';
+                    
+                    return (
+                      <tr key={transaction.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm text-blue-600 underline cursor-pointer">
+                          {repayment?.receiptNumber || transaction.id.replace('repayment-', '').substring(0, 5)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-blue-600 underline cursor-pointer">
+                          <div>{loanNumber}</div>
+                          <div className="text-xs text-gray-500">{loanId}</div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-blue-600 underline cursor-pointer">
+                          {clientId !== '-' && <div>{clientId}</div>}
+                          <div className={clientId !== '-' ? "text-xs text-gray-500" : ""}>{clientName}</div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          {new Date(transaction.date).toLocaleDateString('en-CA')} {new Date(transaction.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-gray-900">
+                          {formatCurrency(amountPaid, { showCode: false, decimals: 2 })}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-gray-900">
+                          {formatCurrency(openingBalance, { showCode: false, decimals: 2 })}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-red-600">
+                          {formatCurrency(closingBalance, { showCode: false, decimals: 2 })}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          {paymentMethod}
+                        </td>
+                      </tr>
+                    );
+                  })
               )}
             </tbody>
           </table>

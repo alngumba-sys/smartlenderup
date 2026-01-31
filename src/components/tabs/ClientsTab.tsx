@@ -541,7 +541,6 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
                   <th className={`px-4 py-2 text-left text-[11px] ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>ID</th>
                   <th className={`px-4 py-2 text-center text-[11px] ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Status</th>
                   <th className={`px-4 py-2 text-left text-[11px] ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Contact</th>
-                  <th className={`px-4 py-2 text-left text-[11px] ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Business / Location</th>
                   <th className={`px-4 py-2 text-center text-[11px] ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Score</th>
                   <th 
                     className={`px-4 py-2 text-right text-[11px] cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
@@ -631,35 +630,6 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
                         <div className="flex items-center gap-1">
                           <Phone className="size-3 flex-shrink-0" />
                           <span className="truncate">{client.phone}</span>
-                        </div>
-                      </td>
-
-                      {/* Business & Location */}
-                      <td className={`px-4 py-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                        <div className="flex flex-col gap-0.5">
-                          {client.clientType === 'business' ? (
-                            <>
-                              <div className="flex items-center gap-1">
-                                <Building2 className="size-2.5 flex-shrink-0" />
-                                <span className="truncate">{client.occupation || client.businessType || 'N/A'}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <MapPin className="size-2.5 flex-shrink-0" />
-                                <span className="truncate">{client.address || client.branch || 'N/A'}</span>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex items-center gap-1">
-                                <Building2 className="size-2.5 flex-shrink-0" />
-                                <span className="truncate">{client.occupation || 'N/A'}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <MapPin className="size-2.5 flex-shrink-0" />
-                                <span className="truncate">{client.town || client.branch || 'N/A'}</span>
-                              </div>
-                            </>
-                          )}
                         </div>
                       </td>
 

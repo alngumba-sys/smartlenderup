@@ -14,6 +14,7 @@ import {
 import { initializeAutoBackup } from '../utils/dataBackup';
 // ✅ NEW: Supabase-First Architecture
 import { supabaseDataService } from '../services/supabaseDataService';
+import { supabase } from '../lib/supabase';
 // ✅ DEPRECATED: Old sync patterns (keeping for backwards compatibility during transition)
 import { saveProjectState, loadProjectState, type ProjectState } from '../utils/singleObjectSync';
 import { ensureSupabaseSync, type SyncResult } from '../utils/ensureSupabaseSync';
@@ -737,6 +738,7 @@ interface DataContextType {
   updateLoanProduct: (id: string, updates: Partial<LoanProduct>) => Promise<void>;
   deleteLoanProduct: (id: string) => Promise<void>;
   getLoanProduct: (id: string) => LoanProduct | undefined;
+  resetLoanProductsToDefault: () => Promise<void>;
   
   // Shareholders
   shareholders: Shareholder[];
@@ -1613,6 +1615,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
             if (supabaseLoans && supabaseLoans.length > 0) {
               console.log(`✅ Loaded ${supabaseLoans.length} loans from individual table`);
               
+              // Debug: Log first loan to see ALL available fields
+              console.log('🔍 DEBUG: First loan raw data:');
+              console.log(JSON.stringify(supabaseLoans[0], null, 2));
+              console.log('🔍 Product-related fields in first loan:');
+              console.log('   - product_id:', supabaseLoans[0].product_id);
+              console.log('   - product_name:', supabaseLoans[0].product_name);
+              console.log('   - product_code:', supabaseLoans[0].product_code);
+              console.log('   - product_type:', supabaseLoans[0].product_type);
+              console.log('   - product (joined):', supabaseLoans[0].product);
+              
               // Map Supabase schema to frontend Loan type
               const mappedLoans = supabaseLoans.map((l: any) => {
                 // Capitalize status properly
@@ -1639,7 +1651,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   clientUuid: l.client_id || '', // ✅ Store the actual UUID for Supabase operations
                   clientName: l.client ? `${l.client.first_name} ${l.client.last_name}` : l.client_name || '',
                   productId: l.product_id || '', // ✅ Use product_id (UUID) not product_code
-                  productName: l.product?.product_name || l.product_name || '',
+                  productName: l.product?.product_name || l.product_name || l.product_type || '',
+                  product: l.product_type || l.product_name || '', // ✅ Add product field for backwards compatibility
                   principalAmount: principalAmount,
                   interestRate: l.interest_rate || l.product?.interest_rate || 0,
                   interestType: 'Flat',
@@ -3525,6 +3538,176 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const resetLoanProductsToDefault = async () => {
+    try {
+      console.log('🔄 Resetting loan products to default...');
+      
+      if (!currentUser?.organizationId) {
+        throw new Error('No organization selected');
+      }
+      
+      // ✅ 1. DELETE ALL EXISTING LOAN PRODUCTS FROM SUPABASE
+      const { data: existingProducts, error: fetchError } = await supabase
+        .from('loan_products')
+        .select('id')
+        .eq('organization_id', currentUser.organizationId);
+      
+      if (fetchError) throw fetchError;
+      
+      if (existingProducts && existingProducts.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('loan_products')
+          .delete()
+          .eq('organization_id', currentUser.organizationId);
+        
+        if (deleteError) throw deleteError;
+        console.log(`✅ Deleted ${existingProducts.length} existing loan products`);
+      }
+      
+      // ✅ 2. CREATE THE 3 DEFAULT LOAN PRODUCTS
+      const defaultProducts = [
+        {
+          id: crypto.randomUUID(),
+          organization_id: currentUser.organizationId,
+          product_code: 'ADVANCE-SALARY',
+          product_name: 'ADVANCE SALARY',
+          name: 'ADVANCE SALARY',
+          description: 'Advance salary loan product',
+          min_amount: 10000,
+          max_amount: 50000,
+          minimum_amount: 10000,
+          maximum_amount: 50000,
+          interest_rate: 10.00,
+          interest_method: 'flat',
+          interest_type: 'Flat',
+          min_term: 1,
+          max_term: 12,
+          minimum_term: 1,
+          maximum_term: 12,
+          term_unit: 'Months',
+          repayment_frequency: 'monthly',
+          processing_fee_percentage: 1.00, // 1% fee
+          processing_fee_fixed: 0,
+          insurance_fee_fixed: 0,
+          guarantor_required: false,
+          collateral_required: false,
+          require_guarantor: false,
+          require_collateral: false,
+          status: 'inactive', // DEACTIVATED
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: crypto.randomUUID(),
+          organization_id: currentUser.organizationId,
+          product_code: 'PERSONAL-LOAN',
+          product_name: 'PERSONAL LOAN',
+          name: 'PERSONAL LOAN',
+          description: 'Personal loan product',
+          min_amount: 10000,
+          max_amount: 250000,
+          minimum_amount: 10000,
+          maximum_amount: 250000,
+          interest_rate: 10.00,
+          interest_method: 'flat',
+          interest_type: 'Flat',
+          min_term: 1,
+          max_term: 12,
+          minimum_term: 1,
+          maximum_term: 12,
+          term_unit: 'Months',
+          repayment_frequency: 'monthly',
+          processing_fee_percentage: 0.00,
+          processing_fee_fixed: 0,
+          insurance_fee_fixed: 0,
+          guarantor_required: false,
+          collateral_required: false,
+          require_guarantor: false,
+          require_collateral: false,
+          status: 'active', // ACTIVE
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: crypto.randomUUID(),
+          organization_id: currentUser.organizationId,
+          product_code: 'BUSINESS-LOAN',
+          product_name: 'BUSINESS LOAN',
+          name: 'BUSINESS LOAN',
+          description: 'Business loan product',
+          min_amount: 50000,
+          max_amount: 300000,
+          minimum_amount: 50000,
+          maximum_amount: 300000,
+          interest_rate: 10.00,
+          interest_method: 'flat',
+          interest_type: 'Flat',
+          min_term: 1,
+          max_term: 12,
+          minimum_term: 1,
+          maximum_term: 12,
+          term_unit: 'Months',
+          repayment_frequency: 'monthly',
+          processing_fee_percentage: 0.00,
+          processing_fee_fixed: 0,
+          insurance_fee_fixed: 0,
+          guarantor_required: false,
+          collateral_required: false,
+          require_guarantor: false,
+          require_collateral: false,
+          status: 'active', // ACTIVE
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ];
+      
+      const { data: newProducts, error: insertError } = await supabase
+        .from('loan_products')
+        .insert(defaultProducts)
+        .select();
+      
+      if (insertError) throw insertError;
+      
+      console.log('✅ Created 3 default loan products');
+      
+      // ✅ 3. UPDATE LOCAL STATE
+      const mappedProducts = newProducts.map((p: any) => ({
+        id: p.id,
+        productCode: p.product_code,
+        name: p.name,
+        code: p.product_code || '',
+        description: p.description || '',
+        minAmount: p.min_amount || 0,
+        maxAmount: p.max_amount || 0,
+        defaultAmount: 0,
+        minTerm: p.min_term || 1,
+        maxTerm: p.max_term || 12,
+        defaultTerm: 6,
+        termUnit: 'Months',
+        interestRate: p.interest_rate || 0,
+        interestType: 'Flat',
+        processingFee: p.processing_fee_percentage || p.processing_fee_fixed || 0,
+        processingFeeType: (p.processing_fee_percentage > 0 ? 'Percentage' : 'Fixed') as 'Percentage' | 'Fixed',
+        latePaymentPenalty: 0,
+        penaltyType: 'Percentage' as 'Percentage' | 'Fixed',
+        collateralRequired: p.collateral_required || false,
+        guarantorsRequired: 0,
+        status: p.status === 'active' ? 'Active' : 'Inactive',
+        lastUpdated: new Date().toISOString().split('T')[0]
+      }));
+      
+      setLoanProducts(mappedProducts);
+      
+      toast.success('Loan products reset to defaults successfully!');
+      console.log('✅ Loan products reset complete');
+      
+    } catch (error: any) {
+      console.error('❌ Error resetting loan products:', error);
+      toast.error(`Failed to reset loan products: ${error.message}`);
+      throw error;
+    }
+  };
+
   const getLoanProduct = (id: string) => {
     return loanProducts.find(p => p.id === id);
   };
@@ -5052,6 +5235,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     updateLoanProduct,
     deleteLoanProduct,
     getLoanProduct,
+    resetLoanProductsToDefault,
     
     shareholders,
     addShareholder,
