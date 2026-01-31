@@ -268,7 +268,7 @@ export function PaymentsTab() {
           }`}
           >
             <h3 className="text-gray-900 dark:text-white mb-4">Arrears Aging Analysis</h3>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {arrearsData.map((item) => (
                 <div 
                   key={item.range} 

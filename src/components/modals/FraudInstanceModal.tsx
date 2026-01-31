@@ -271,10 +271,10 @@ export function FraudInstanceModal({ isOpen, onClose, fraudType }: FraudInstance
   const colors = colorClasses[data.color as 'red' | 'amber' | 'yellow'];
 
   return (
-    <div className={`fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto ${isDark ? 'dark' : ''}`}>
-      <div className="bg-white rounded-lg w-full max-w-6xl my-8">
+    <div className={`fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-2 sm:p-4 overflow-y-auto ${isDark ? 'dark' : ''}`}>
+      <div className="bg-white rounded-lg w-full max-w-6xl my-4 sm:my-8">
         {/* Header */}
-        <div className={`${colors.bg} ${colors.border} border-b px-6 py-4 flex items-center justify-between rounded-t-lg`}>
+        <div className={`${colors.bg} ${colors.border} border-b px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between rounded-t-lg`}>
           <div className="flex items-center gap-3">
             <div className={`p-2 bg-white rounded-lg ${colors.border} border`}>
               <Icon className={`size-6 ${colors.icon}`} />

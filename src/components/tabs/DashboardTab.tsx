@@ -771,23 +771,23 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const totalLoans = loanStatusDistribution.reduce((sum, item) => sum + item.count, 0);
 
   return (
-    <div className="p-6 space-y-6" style={{
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-5 md:space-y-6" style={{
       backgroundColor: 'transparent'
     }}>
       {/* Header */}
       <div>
-        <h2 className={theme.textPrimary}>Dashboard</h2>
-        <p className={theme.textSecondary}>Overview of portfolio performance and key metrics</p>
+        <h2 className={`${theme.textPrimary} text-xl sm:text-2xl`}>Dashboard</h2>
+        <p className={`${theme.textSecondary} text-sm sm:text-base`}>Overview of portfolio performance and key metrics</p>
       </div>
 
       {/* Loan Health Metrics - Top Row */}
       <div>
-        <h3 className={`${theme.textPrimary} mb-3`}>Loan Health Metrics</h3>
-        <div className="rounded-lg shadow-sm border p-6" style={{
+        <h3 className={`${theme.textPrimary} mb-2 sm:mb-3 text-base sm:text-lg`}>Loan Health Metrics</h3>
+        <div className="rounded-lg shadow-sm border p-3 sm:p-4 md:p-6" style={{
           backgroundColor: isDark ? '#1a1d29' : '#ffffff',
           borderColor: isDark ? '#252932' : '#e5e7eb'
         }}>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {/* Gross Loan Portfolio */}
             <div 
               className="transition-colors rounded-lg p-4"
@@ -884,8 +884,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
       {/* Operational Health & Risk - Bottom Row */}
       <div>
-        <h3 className="mb-3" style={{ color: themeColors.cardText }}>Operational Health & Risk</h3>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <h3 className="mb-2 sm:mb-3 text-base sm:text-lg" style={{ color: themeColors.cardText }}>Operational Health & Risk</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
           <div 
             className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all"
             style={{ 
@@ -1035,13 +1035,13 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       </div>
 
       {/* Charts Row - Compact */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         {/* Portfolio Growth Trend */}
-        <div className="p-4 rounded-lg border" style={{ 
+        <div className="p-3 sm:p-4 rounded-lg border" style={{ 
           backgroundColor: isDark ? '#15233a' : '#ffffff',
           borderColor: isDark ? '#1e2f42' : '#e5e7eb'
         }}>
-          <h3 className="mb-3 text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Portfolio Growth & PAR Trend</h3>
+          <h3 className="mb-2 sm:mb-3 text-sm sm:text-base" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Portfolio Growth & PAR Trend</h3>
           <div style={{ width: '100%', height: '250px', minHeight: '250px', minWidth: '100px', position: 'relative' }}>
             {isMounted && <ResponsiveContainer width="100%" height={250} aspect={undefined}>
               <LineChart 
@@ -1115,13 +1115,13 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         </div>
 
         {/* Loans by Product */}
-        <div className="p-4 rounded-lg border" style={{ 
+        <div className="p-3 sm:p-4 rounded-lg border" style={{ 
           backgroundColor: isDark ? '#15233a' : '#ffffff',
           borderColor: isDark ? '#1e2f42' : '#e5e7eb'
         }}>
-          <h3 className="mb-3 text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Active Portfolio by Product</h3>
+          <h3 className="mb-2 sm:mb-3 text-sm sm:text-base" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Active Portfolio by Product</h3>
           {loansByProduct.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {/* Donut Chart */}
               <div className="flex items-center justify-center relative" style={{ width: '100%', height: '200px', minHeight: '200px', minWidth: '100px' }}>
                 {isMounted && <ResponsiveContainer width="100%" height={200} aspect={undefined}>
@@ -1204,13 +1204,13 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       </div>
 
       {/* New Charts Row 1 - Compact */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         {/* Monthly Disbursements */}
-        <div className="p-4 rounded-lg border" style={{ 
+        <div className="p-3 sm:p-4 rounded-lg border" style={{ 
           backgroundColor: isDark ? '#15233a' : '#ffffff',
           borderColor: isDark ? '#1e2f42' : '#e5e7eb'
         }}>
-          <h3 className="mb-3 text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Monthly Disbursements (Last 7 Months)</h3>
+          <h3 className="mb-2 sm:mb-3 text-sm sm:text-base" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Monthly Disbursements (Last 7 Months)</h3>
           <div style={{ width: '100%', height: '250px', minHeight: '250px', minWidth: '100px', position: 'relative' }}>
             {isMounted && <ResponsiveContainer width="100%" height={250} aspect={undefined}>
               <BarChart 
@@ -1252,11 +1252,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         </div>
 
         {/* Collection Rate by Week */}
-        <div className="p-4 rounded-lg border" style={{ 
+        <div className="p-3 sm:p-4 rounded-lg border" style={{ 
           backgroundColor: isDark ? '#15233a' : '#ffffff',
           borderColor: isDark ? '#1e2f42' : '#e5e7eb'
         }}>
-          <h3 className="mb-3 text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Collection Rate (Last 5 Weeks)</h3>
+          <h3 className="mb-2 sm:mb-3 text-sm sm:text-base" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Collection Rate (Last 5 Weeks)</h3>
           <div style={{ width: '100%', height: '250px', minHeight: '250px', minWidth: '100px', position: 'relative' }}>
             {isMounted && <ResponsiveContainer width="100%" height={250} aspect={undefined}>
               <AreaChart 
@@ -1323,13 +1323,13 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       </div>
 
       {/* New Charts Row 2 - Compact */}
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4">
         {/* Loan Status Distribution */}
-        <div className="p-4 rounded-lg border" style={{ 
+        <div className="p-3 sm:p-4 rounded-lg border" style={{ 
           backgroundColor: isDark ? '#15233a' : '#ffffff',
           borderColor: isDark ? '#1e2f42' : '#e5e7eb'
         }}>
-          <h3 className="mb-3 text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Loan Status Distribution</h3>
+          <h3 className="mb-2 sm:mb-3 text-sm sm:text-base" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Loan Status Distribution</h3>
           <div style={{ width: '100%', height: '250px', minHeight: '250px', minWidth: '100px', position: 'relative' }}>
             {isMounted && <ResponsiveContainer width="100%" height={250} aspect={undefined}>
               <BarChart
@@ -1428,15 +1428,15 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       </div>
 
       {/* Activity Feed & Alerts - Compact */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         {/* Overdue Loans Alert */}
-        <div className="p-4 rounded-lg border" style={{ 
+        <div className="p-3 sm:p-4 rounded-lg border" style={{ 
           backgroundColor: isDark ? '#15233a' : '#ffffff',
           borderColor: isDark ? '#1e2f42' : '#e5e7eb'
         }}>
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-2 sm:mb-3">
             <AlertTriangle className="size-4 text-red-600" />
-            <h3 className="text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Overdue Loan Alerts</h3>
+            <h3 className="text-sm sm:text-base" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Overdue Loan Alerts</h3>
           </div>
           <div className="space-y-2">
             {overdueLoans.slice(0, 5).map((loan) => {
@@ -1464,13 +1464,13 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         </div>
 
         {/* Recent Applications */}
-        <div className="p-4 rounded-lg border" style={{ 
+        <div className="p-3 sm:p-4 rounded-lg border" style={{ 
           backgroundColor: isDark ? '#15233a' : '#ffffff',
           borderColor: isDark ? '#1e2f42' : '#e5e7eb'
         }}>
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-2 sm:mb-3">
             <Activity className="size-4 text-emerald-600" />
-            <h3 className="text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Recent Activity</h3>
+            <h3 className="text-sm sm:text-base" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Recent Activity</h3>
           </div>
           <div className="space-y-2">
             {recentApplications.map((loan) => {

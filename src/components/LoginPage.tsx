@@ -1375,12 +1375,12 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                 </button>
 
                 {showSignInDropdown && (
-                  <div className="absolute top-full right-0 mt-2 w-80 rounded-2xl shadow-2xl border p-6 z-50" style={{
+                  <div className="absolute top-full right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-md rounded-2xl shadow-2xl border p-4 sm:p-6 z-50" style={{
                     backgroundColor: '#0a1128',
                     borderColor: '#ade8f4'
                   }}>
-                    <div className="text-center mb-5">
-                      <h3 className="text-xl font-semibold mb-1.5" style={{ color: '#ffffff' }}>Welcome Back</h3>
+                    <div className="text-center mb-4 sm:mb-5">
+                      <h3 className="text-lg sm:text-xl font-semibold mb-1.5" style={{ color: '#ffffff' }}>Welcome Back</h3>
                       <p className="text-xs" style={{ color: '#ffffff', opacity: 0.7 }}>Sign in to continue to SmartLenderUp</p>
                     </div>
                     <form onSubmit={handleLogin} className="space-y-4">

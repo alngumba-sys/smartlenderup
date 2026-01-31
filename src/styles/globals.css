@@ -808,4 +808,58 @@ html {
   .grid-gap-responsive {
     @apply gap-2 sm:gap-4 lg:gap-6;
   }
+
+  /* Prevent horizontal overflow on mobile */
+  .prevent-overflow {
+    @apply overflow-x-hidden;
+  }
+
+  /* Mobile-friendly form inputs */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="date"],
+  textarea,
+  select {
+    @apply text-base; /* Prevents zoom on iOS */
+  }
+}
+
+/* Additional mobile optimizations */
+@media (max-width: 640px) {
+  /* Reduce font sizes slightly on mobile for better fit */
+  h1 {
+    font-size: 1.5rem;
+  }
+  
+  h2 {
+    font-size: 1.25rem;
+  }
+  
+  h3 {
+    font-size: 1.125rem;
+  }
+
+  /* Make cards more compact on mobile */
+  .card-mobile-compact {
+    padding: 0.75rem !important;
+  }
+
+  /* Stack flex items on mobile */
+  .mobile-flex-stack {
+    flex-direction: column !important;
+  }
+}
+
+/* Ensure touch targets are at least 44x44px for accessibility */
+@media (pointer: coarse) {
+  button,
+  a,
+  input[type="submit"],
+  input[type="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }
