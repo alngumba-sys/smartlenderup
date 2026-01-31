@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { toast } from 'sonner@2.0.3';
 import { getOrganizationId } from '../utils/organizationUtils';
+import * as XLSX from 'xlsx';
 
 export function DataImportExport() {
   const [importing, setImporting] = useState(false);
@@ -238,7 +239,6 @@ export function DataImportExport() {
         });
       } else {
         // Parse Excel file
-        const XLSX = await import('xlsx');
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];

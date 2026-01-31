@@ -5,9 +5,6 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   base: '/', // Root path for Netlify
-  optimizeDeps: {
-    include: ['xlsx'] // Explicitly include xlsx for pre-bundling
-  },
   build: {
     outDir: 'dist',
     sourcemap: false,
@@ -19,8 +16,7 @@ export default defineConfig({
           'react-vendor': ['react', 'react-dom'],
           'supabase': ['@supabase/supabase-js'],
           'charts': ['recharts'],
-          'icons': ['lucide-react'],
-          'xlsx': ['xlsx'] // Add xlsx to manual chunks
+          'icons': ['lucide-react']
         },
       },
     },
