@@ -1609,30 +1609,48 @@ export const journalService = {
   },
 
   async createEntry(entryData: any, organizationId: string) {
-    // Generate entry number
-    const { data: existing } = await supabase
-      .from('journal_entries')
-      .select('entry_number')
-      .eq('organization_id', organizationId)
-      .order('created_at', { ascending: false })
-      .limit(1);
+    // Use provided entry_number if exists, otherwise generate one
+    let entryNumber = entryData.entry_number;
     
-    let nextNumber = 1;
-    if (existing && existing.length > 0) {
-      const match = existing[0].entry_number?.match(/JE(\d+)/);
-      if (match) nextNumber = parseInt(match[1]) + 1;
+    if (!entryNumber) {
+      // Generate entry number only if not provided
+      const { data: existing } = await supabase
+        .from('journal_entries')
+        .select('entry_number')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      let nextNumber = 1;
+      if (existing && existing.length > 0) {
+        const match = existing[0].entry_number?.match(/JE-(\d+)-(\d+)/);
+        if (match) {
+          nextNumber = parseInt(match[2]) + 1;
+        }
+      }
+      
+      const year = new Date().getFullYear();
+      entryNumber = `JE-${year}-${String(nextNumber).padStart(4, '0')}`;
     }
-    
-    const entryNumber = `JE${String(nextNumber).padStart(5, '0')}`;
 
     const { data, error } = await supabase
       .from('journal_entries')
       .insert([{
         id: crypto.randomUUID(),
         entry_number: entryNumber,
-        ...entryData,
+        entry_date: entryData.entry_date,
+        description: entryData.description,
+        reference: entryData.reference,
+        source_type: entryData.source_type,
+        source_id: entryData.source_id,
         organization_id: organizationId,
-        status: 'draft',
+        // ✅ Use status from entryData if provided, otherwise default to 'draft'
+        status: entryData.status || 'draft',
+        created_by: entryData.created_by,
+        posted_date: entryData.posted_date,
+        notes: entryData.notes,
+        total_debit: entryData.total_debit,
+        total_credit: entryData.total_credit,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }])
@@ -2300,6 +2318,89 @@ export const chartOfAccountsService = {
       .single();
     if (error) throw error;
     return data;
+  },
+
+  /**
+   * Recalculate all account balances from posted journal entries
+   */
+  async recalculateAllBalances(organizationId: string) {
+    console.log('🔄 Starting balance recalculation for organization:', organizationId);
+    
+    const { data: journalEntries, error: journalError } = await supabase
+      .from('journal_entries')
+      .select('*, journal_entry_lines(*)')
+      .eq('organization_id', organizationId)
+      .or('status.eq.Posted,status.eq.posted');
+    
+    if (journalError) throw journalError;
+    console.log('📊 Found', journalEntries?.length || 0, 'posted journal entries');
+    
+    if (journalEntries && journalEntries.length > 0) {
+      console.log('🔍 Sample journal entry:', journalEntries[0]);
+    }
+    
+    const { data: accounts, error: accountsError } = await supabase
+      .from('chart_of_accounts')
+      .select('*')
+      .eq('organization_id', organizationId);
+    
+    if (accountsError) throw accountsError;
+    console.log('📋 Found', accounts?.length || 0, 'accounts');
+    
+    const balanceMap = new Map<string, { debit: number; credit: number; balance: number }>();
+    
+    accounts?.forEach(acc => {
+      balanceMap.set(acc.account_code, { debit: 0, credit: 0, balance: 0 });
+    });
+    
+    journalEntries?.forEach(entry => {
+      console.log('📝 Processing entry:', entry.entry_number, 'Lines:', entry.journal_entry_lines?.length);
+      entry.journal_entry_lines?.forEach((line: any) => {
+        const accountCode = line.account_code;
+        console.log(`  Line: ${accountCode} - Debit: ${line.debit_amount}, Credit: ${line.credit_amount}`);
+        const existing = balanceMap.get(accountCode) || { debit: 0, credit: 0, balance: 0 };
+        existing.debit += Number(line.debit_amount || 0);
+        existing.credit += Number(line.credit_amount || 0);
+        balanceMap.set(accountCode, existing);
+      });
+    });
+    
+    balanceMap.forEach((value, accountCode) => {
+      const account = accounts?.find(a => a.account_code === accountCode);
+      if (account) {
+        const accountType = account.account_type?.toLowerCase();
+        if (accountType === 'asset' || accountType === 'expense') {
+          value.balance = value.debit - value.credit;
+        } else {
+          value.balance = value.credit - value.debit;
+        }
+      }
+    });
+    
+    console.log('💰 Calculated balances for', balanceMap.size, 'accounts');
+    
+    const updates: Promise<any>[] = [];
+    balanceMap.forEach((value, accountCode) => {
+      console.log(`   Updating ${accountCode}: Balance=${value.balance} (Debit=${value.debit}, Credit=${value.credit})`);
+      const updatePromise = supabase
+        .from('chart_of_accounts')
+        .update({
+          balance: value.balance,
+          updated_at: new Date().toISOString()
+        })
+        .eq('organization_id', organizationId)
+        .eq('account_code', accountCode);
+      updates.push(updatePromise);
+    });
+    
+    await Promise.all(updates);
+    console.log('✅ Successfully updated', updates.length, 'account balances');
+    
+    return {
+      accountsUpdated: updates.length,
+      totalDebits: Array.from(balanceMap.values()).reduce((sum, v) => sum + v.debit, 0),
+      totalCredits: Array.from(balanceMap.values()).reduce((sum, v) => sum + v.credit, 0)
+    };
   }
 };
 

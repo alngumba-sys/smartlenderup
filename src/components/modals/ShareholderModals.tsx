@@ -249,10 +249,23 @@ export function CapitalDepositModal({ shareholder, onClose, onSuccess }: Capital
 
   // Filter bank accounts based on payment method
   const getAvailableAccounts = () => {
+    console.log('🏦 DEBUG - All bank accounts:', bankAccounts);
+    console.log('🏦 DEBUG - Payment method:', formData.paymentMethod);
+    
     if (formData.paymentMethod === 'M-Pesa') {
-      return bankAccounts.filter(acc => acc.accountType === 'Mobile Money' && acc.status === 'Active');
+      const filtered = bankAccounts.filter(acc => {
+        console.log(`  Account: ${acc.name}, Type: ${acc.accountType}, Status: ${acc.status}`);
+        return acc.accountType === 'Mobile Money' && acc.status === 'Active';
+      });
+      console.log('🏦 DEBUG - M-Pesa accounts found:', filtered.length);
+      return filtered;
     } else if (formData.paymentMethod === 'Bank Transfer' || formData.paymentMethod === 'Cheque') {
-      return bankAccounts.filter(acc => acc.accountType === 'Bank' && acc.status === 'Active');
+      const filtered = bankAccounts.filter(acc => {
+        console.log(`  Account: ${acc.name}, Type: ${acc.accountType}, Status: ${acc.status}`);
+        return acc.accountType === 'Bank' && acc.status === 'Active';
+      });
+      console.log('🏦 DEBUG - Bank accounts found:', filtered.length);
+      return filtered;
     }
     return [];
   };

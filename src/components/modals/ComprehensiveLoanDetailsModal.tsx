@@ -29,6 +29,7 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
     collaterals,
     guarantors,
     loanDocuments,
+    addRepayment,
   } = useData();
 
   const loan = loans.find(l => l.id === loanId);
@@ -84,6 +85,61 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
   // Calculate payoff quote
   const earlyPaymentDiscount = 0; // You can add logic for early payment discounts
   const payoffQuote = loan.outstandingBalance - earlyPaymentDiscount;
+
+  // Generate receipt number
+  const generateReceiptNumber = () => {
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000);
+    return `RCP-${timestamp}-${random}`;
+  };
+
+  // Handle record payment submission
+  const handleRecordPayment = async (paymentData: any) => {
+    if (!loan || !client) {
+      console.error('Loan or client lookup failed');
+      toast.error('Error recording payment', {
+        description: 'Loan or client not found',
+        duration: 4000,
+      });
+      return;
+    }
+
+    // Calculate principal and interest breakdown
+    const amount = parseFloat(paymentData.amount);
+    const principal = amount * 0.7; // Assuming 70% goes to principal
+    const interest = amount * 0.3; // Assuming 30% goes to interest
+    
+    // Create the repayment object
+    const repaymentRecord = {
+      loanId: paymentData.loanId,
+      clientId: loan.clientId,
+      clientName: client.name,
+      amount: amount,
+      principal: principal,
+      interest: interest,
+      penalty: 0,
+      paymentMethod: paymentData.paymentMethod as 'M-Pesa' | 'Cash' | 'Bank Transfer' | 'Cheque',
+      paymentReference: paymentData.mpesaCode || paymentData.transactionRef || `TXN${Date.now()}`,
+      paymentDate: paymentData.paymentDate,
+      receiptNumber: generateReceiptNumber(),
+      receivedBy: 'Current User',
+      notes: paymentData.notes || '',
+      status: 'Approved' as const,
+      bankAccountId: paymentData.destinationAccountId,
+    };
+
+    // Add the repayment to the context
+    addRepayment(repaymentRecord);
+
+    // Close the modal
+    setShowRecordPayment(false);
+
+    // Show success toast
+    toast.success('Payment Recorded Successfully', {
+      description: `${currencyCode} ${amount.toLocaleString()} recorded for ${client.name} via ${paymentData.paymentMethod}`,
+      duration: 5000,
+    });
+  };
 
   return (
     <>
@@ -931,8 +987,10 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
       {/* Record Payment Modal */}
       {showRecordPayment && (
         <RecordPaymentModal
+          isOpen={showRecordPayment}
           onClose={() => setShowRecordPayment(false)}
-          preSelectedLoanId={loanId}
+          onSubmit={handleRecordPayment}
+          preselectedLoanId={loanId}
         />
       )}
     </>

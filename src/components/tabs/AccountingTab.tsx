@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import { BookOpen, Plus, Download, Search, Filter, Edit, Trash2, ChevronDown, ChevronUp, Calendar, CheckCircle, XCircle, TrendingUp, TrendingDown, FileText, Eye, DollarSign, AlertCircle, Receipt, Users, Wallet, FileCheck } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
@@ -104,6 +104,7 @@ export function AccountingTab() {
     repayments,
     processingFeeRecords,
     bankAccounts,
+    fundingTransactions,
     payees,
     journalEntries,
     addShareholder,
@@ -111,8 +112,27 @@ export function AccountingTab() {
     addShareholderTransaction,
     updateShareholderTransaction,
     addExpense,
-    updateExpense
+    updateExpense,
+    createMissingJournalEntries
   } = useData();
+
+  // Calculate total share capital from shareholders FIRST (needed for cash flow calculation)
+  const totalShareCapital = shareholders
+    .filter(s => s.status === 'Active')
+    .reduce((sum, s) => sum + s.shareCapital, 0);
+  
+  console.log('💰 CASH FLOW DEBUG:');
+  console.log('   Total shareholders:', shareholders.length);
+  console.log('   Active shareholders:', shareholders.filter(s => s.status === 'Active').length);
+  console.log('   Shareholders:', shareholders);
+  console.log('   Shareholders detail:', shareholders.map(s => ({
+    name: s.shareholderName,
+    status: s.status,
+    shareCapital: s.shareCapital,
+    totalShares: s.totalShares,
+    shareValue: s.shareValue
+  })));
+  console.log('   Total Share Capital:', totalShareCapital);
 
   // Calculate dynamic values from real data
   // Only include loans that have been DISBURSED (completed all 5 approval steps) and are in Active/Disbursed status
@@ -121,6 +141,18 @@ export function AccountingTab() {
   const totalProcessingFeeRevenue = processingFeeRecords.filter(r => r.status === 'Collected').reduce((sum, r) => sum + Number(r.amount || 0), 0);
   const totalIndividualLoans = loans.filter(l => (l.status === 'Active' || l.status === 'Disbursed') && l.clientType !== 'Group').reduce((sum, l) => sum + (l.principalAmount || 0), 0);
   const totalGroupLoans = loans.filter(l => (l.status === 'Active' || l.status === 'Disbursed') && l.clientType === 'Group').reduce((sum, l) => sum + (l.principalAmount || 0), 0);
+
+  // 💰 CASH FLOW CALCULATION
+  // Initial Funding = Bank Account Opening Balances + All Funding Transactions (Credits)
+  // Formula: Initial Funding - Total Disbursed Loans + Total Repayments = Available Cash
+  const totalBankOpeningBalance = bankAccounts.reduce((sum, acc) => sum + (acc.openingBalance || 0), 0);
+  const totalFundingReceived = fundingTransactions
+    .filter(t => t.transactionType === 'Credit')
+    .reduce((sum, t) => sum + t.amount, 0);
+  const INITIAL_FUNDING = totalBankOpeningBalance + totalFundingReceived; // Bank opening balances + all funding received
+  const totalRepayments = repayments.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  const availableCash = INITIAL_FUNDING - totalLoansDisbursed + totalRepayments;
+  const cashUtilizationRate = totalLoansDisbursed > 0 ? ((totalLoansDisbursed / (INITIAL_FUNDING + totalRepayments)) * 100) : 0;
 
   // Calculate expense balances by category
   const calculateExpensesByCategory = (categoryName: string) => {
@@ -138,11 +170,6 @@ export function AccountingTab() {
   const totalProfessionalFeesExpenses = calculateExpensesByCategory('Professional Fees');
   const totalITServicesExpenses = calculateExpensesByCategory('IT Services');
   const totalSoftwareExpenses = calculateExpensesByCategory('Software');
-
-  // Calculate total share capital from shareholders
-  const totalShareCapital = shareholders
-    .filter(s => s.status === 'Active')
-    .reduce((sum, s) => sum + s.shareCapital, 0);
 
   // Calculate total dividends paid
   const totalDividendsPaid = shareholderTransactions
@@ -250,6 +277,7 @@ export function AccountingTab() {
   // Load chart of accounts from Supabase
   const [supabaseAccounts, setSupabaseAccounts] = useState<any[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
   useEffect(() => {
     const loadChartOfAccounts = async () => {
@@ -272,6 +300,247 @@ export function AccountingTab() {
 
     loadChartOfAccounts();
   }, []);
+
+  // Auto-recalculate balances if needed
+  const [hasAutoRecalculated, setHasAutoRecalculated] = useState(false);
+  const autoRecalcRef = useRef(false);
+  
+  useEffect(() => {
+    const autoRecalculate = async () => {
+      // Prevent multiple simultaneous executions
+      if (autoRecalcRef.current) return;
+      
+      console.log('🔍 Auto-recalculate check:', {
+        loadingAccounts,
+        hasAutoRecalculated,
+        accountsCount: supabaseAccounts.length,
+        journalEntriesCount: journalEntries.length
+      });
+      
+      if (loadingAccounts || hasAutoRecalculated) {
+        console.log('   ⏸️ Skipping - already done or loading');
+        return;
+      }
+      if (supabaseAccounts.length === 0) {
+        console.log('   ⏸️ Skipping - no accounts loaded');
+        return;
+      }
+      if (journalEntries.length === 0) {
+        console.log('   ⏸️ Skipping - no journal entries');
+        return;
+      }
+      
+      const allZero = supabaseAccounts.every(acc => Number(acc.balance || 0) === 0);
+      const hasPostedEntries = journalEntries.filter(je => je.status === 'Posted').length > 0;
+      
+      console.log('   All balances zero?', allZero);
+      console.log('   Has posted entries?', hasPostedEntries);
+      
+      if (allZero && hasPostedEntries) {
+        console.log('🔄 Auto-triggering balance recalculation from useEffect...');
+        console.log('   Posted entries found:', journalEntries.filter(je => je.status === 'Posted').length);
+        autoRecalcRef.current = true;
+        setHasAutoRecalculated(true);
+        
+        // Perform recalculation inline
+        const isConnected = await ensureSupabaseConnection('recalculate account balances');
+        if (!isConnected) return;
+
+        setIsRecalculating(true);
+        try {
+          const orgData = localStorage.getItem('current_organization');
+          if (!orgData) {
+            toast.error('Organization not found');
+            return;
+          }
+          
+          const org = JSON.parse(orgData);
+          const organizationId = org.organization_id || org.id;
+          
+          console.log('💰 Recalculating balances from DataContext journal entries...');
+          
+          // Filter only Posted entries
+          const postedEntries = journalEntries.filter(je => je.status === 'Posted');
+          console.log('   Found', postedEntries.length, 'posted entries');
+          
+          // Calculate balances for each account
+          const balanceMap = new Map<string, { debit: number; credit: number }>();
+          
+          postedEntries.forEach(entry => {
+            entry.lines.forEach(line => {
+              const existing = balanceMap.get(line.accountCode) || { debit: 0, credit: 0 };
+              existing.debit += line.debit;
+              existing.credit += line.credit;
+              balanceMap.set(line.accountCode, existing);
+            });
+          });
+          
+          console.log('   Calculated balances for', balanceMap.size, 'accounts');
+          
+          // Update each account in Supabase
+          let updatedCount = 0;
+          for (const [accountCode, balances] of balanceMap.entries()) {
+            const account = supabaseAccounts.find(a => a.account_code === accountCode);
+            if (account) {
+              const accountType = account.account_type?.toLowerCase();
+              let balance = 0;
+              if (accountType === 'asset' || accountType === 'expense') {
+                balance = balances.debit - balances.credit;
+              } else {
+                balance = balances.credit - balances.debit;
+              }
+              
+              console.log(`   Updating ${accountCode}: Balance=${balance}`);
+              
+              await supabaseDataService.chartOfAccounts.updateBalance(accountCode, balance, organizationId);
+              updatedCount++;
+            }
+          }
+          
+          toast.success(`Successfully recalculated ${updatedCount} account balances`);
+          
+          // Reload the chart of accounts
+          const chartOfAccounts = await supabaseDataService.chartOfAccounts.getAll(organizationId);
+          setSupabaseAccounts(chartOfAccounts);
+        } catch (error: any) {
+          console.error('❌ Error recalculating balances:', error);
+          toast.error(error.message || 'Failed to recalculate balances');
+        } finally {
+          setIsRecalculating(false);
+        }
+      }
+    };
+    
+    autoRecalculate();
+  }, [supabaseAccounts, journalEntries, loadingAccounts, hasAutoRecalculated]);
+
+  // Recalculate balances using journal entries from DataContext
+  const handleRecalculateBalancesFromContext = async () => {
+    const isConnected = await ensureSupabaseConnection('recalculate account balances');
+    if (!isConnected) return;
+
+    setIsRecalculating(true);
+    try {
+      const orgData = localStorage.getItem('current_organization');
+      if (!orgData) {
+        toast.error('Organization not found');
+        return;
+      }
+      
+      const org = JSON.parse(orgData);
+      const organizationId = org.organization_id || org.id;
+      
+      console.log('💰 Recalculating balances from DataContext journal entries...');
+      
+      // Filter only Posted entries
+      const postedEntries = journalEntries.filter(je => je.status === 'Posted');
+      console.log('   Found', postedEntries.length, 'posted entries');
+      
+      if (postedEntries.length > 0) {
+        console.log('   Sample entry:', postedEntries[0]);
+        console.log('   Entry lines:', postedEntries[0].lines);
+      }
+      
+      // Calculate balances for each account
+      const balanceMap = new Map<string, { debit: number; credit: number }>();
+      
+      postedEntries.forEach(entry => {
+        console.log(`   Processing entry ${entry.entryNumber}: ${entry.lines.length} lines`);
+        entry.lines.forEach(line => {
+          console.log(`      ${line.accountCode}: Debit=${line.debit}, Credit=${line.credit}`);
+          const existing = balanceMap.get(line.accountCode) || { debit: 0, credit: 0 };
+          existing.debit += line.debit;
+          existing.credit += line.credit;
+          balanceMap.set(line.accountCode, existing);
+        });
+      });
+      
+      console.log('   Calculated balances for', balanceMap.size, 'accounts');
+      
+      // Update each account in Supabase
+      let updatedCount = 0;
+      for (const [accountCode, balances] of balanceMap.entries()) {
+        const account = supabaseAccounts.find(a => a.account_code === accountCode);
+        if (account) {
+          const accountType = account.account_type?.toLowerCase();
+          let balance = 0;
+          if (accountType === 'asset' || accountType === 'expense') {
+            balance = balances.debit - balances.credit;
+          } else {
+            balance = balances.credit - balances.debit;
+          }
+          
+          console.log(`   Updating ${accountCode}: Balance=${balance} (Debit=${balances.debit}, Credit=${balances.credit})`);
+          
+          await supabaseDataService.chartOfAccounts.updateBalance(accountCode, balance, organizationId);
+          updatedCount++;
+        }
+      }
+      
+      toast.success(`Successfully recalculated ${updatedCount} account balances`);
+      
+      // Reload the chart of accounts
+      const chartOfAccounts = await supabaseDataService.chartOfAccounts.getAll(organizationId);
+      setSupabaseAccounts(chartOfAccounts);
+    } catch (error: any) {
+      console.error('❌ Error recalculating balances:', error);
+      toast.error(error.message || 'Failed to recalculate balances');
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
+
+  // Function to recalculate all account balances from journal entries in Supabase
+  const handleRecalculateBalances = async () => {
+    const isConnected = await ensureSupabaseConnection('recalculate account balances');
+    if (!isConnected) return;
+
+    setIsRecalculating(true);
+    try {
+      const orgData = localStorage.getItem('current_organization');
+      if (!orgData) {
+        toast.error('Organization not found');
+        return;
+      }
+      
+      const org = JSON.parse(orgData);
+      const organizationId = org.organization_id || org.id;
+      
+      const result = await supabaseDataService.chartOfAccounts.recalculateAllBalances(organizationId);
+      
+      toast.success(`Successfully recalculated ${result.accountsUpdated} account balances`);
+      
+      // Reload the chart of accounts
+      const chartOfAccounts = await supabaseDataService.chartOfAccounts.getAll(organizationId);
+      setSupabaseAccounts(chartOfAccounts);
+    } catch (error: any) {
+      console.error('❌ Error recalculating balances:', error);
+      toast.error(error.message || 'Failed to recalculate balances');
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
+
+  // Function to create missing journal entries for existing transactions
+  const [isCreatingEntries, setIsCreatingEntries] = useState(false);
+  const handleCreateMissingJournalEntries = async () => {
+    const isConnected = await ensureSupabaseConnection('create missing journal entries');
+    if (!isConnected) return;
+
+    setIsCreatingEntries(true);
+    try {
+      await createMissingJournalEntries();
+      // After creating entries, recalculate balances
+      setTimeout(() => {
+        handleRecalculateBalancesFromContext();
+      }, 1000);
+    } catch (error: any) {
+      console.error('❌ Error creating missing journal entries:', error);
+      toast.error(error.message || 'Failed to create missing journal entries');
+    } finally {
+      setIsCreatingEntries(false);
+    }
+  };
 
   // Chart of Accounts Data
   const accounts: Account[] = [
@@ -439,20 +708,76 @@ export function AccountingTab() {
   const isBalanced = Math.abs(totalDebits - totalCredits) < 1; // Allow for rounding errors
 
   // Convert Supabase accounts to the format expected by the UI
-  const displayAccounts: Account[] = supabaseAccounts.map(acc => ({
-    id: acc.id,
-    code: acc.account_code,
-    name: acc.account_name,
-    type: acc.account_type?.toLowerCase() as 'asset' | 'liability' | 'equity' | 'revenue' | 'expense',
-    category: acc.category || '',
-    subcategory: acc.subcategory,
-    parentAccount: acc.parent_account,
-    balance: Number(acc.balance || 0),
-    debit: Number(acc.debit_balance || 0),
-    credit: Number(acc.credit_balance || 0),
-    status: acc.is_active ? 'active' : 'inactive',
-    description: acc.description
-  }));
+  const displayAccounts: Account[] = supabaseAccounts.map(acc => {
+    // Calculate debit/credit from balance based on account type
+    const balance = Number(acc.balance || 0);
+    const accountType = acc.account_type?.toLowerCase();
+    let debit = 0;
+    let credit = 0;
+    
+    if (accountType === 'asset' || accountType === 'expense') {
+      // Debit normal accounts
+      if (balance > 0) {
+        debit = balance;
+      } else {
+        credit = Math.abs(balance);
+      }
+    } else {
+      // Credit normal accounts (liability, equity, revenue)
+      if (balance > 0) {
+        credit = balance;
+      } else {
+        debit = Math.abs(balance);
+      }
+    }
+    
+    return {
+      id: acc.id,
+      code: acc.account_code,
+      name: acc.account_name,
+      type: accountType as 'asset' | 'liability' | 'equity' | 'revenue' | 'expense',
+      category: acc.category || '',
+      subcategory: acc.subcategory,
+      parentAccount: acc.parent_account,
+      balance: balance,
+      debit: debit,
+      credit: credit,
+      status: acc.is_active ? 'active' : 'inactive',
+      description: acc.description
+    };
+  });
+
+  // 🔍 DEBUG - Log all account balances
+  console.log('📊 DEBUG - Chart of Accounts Data Check:');
+  console.log(`  Total accounts loaded: ${supabaseAccounts.length}`);
+  console.log(`  Total displayAccounts: ${displayAccounts.length}`);
+  console.log(`  Total journal entries: ${journalEntries.length}`);
+  console.log(`  Posted journal entries: ${journalEntries.filter(je => je.status === 'Posted').length}`);
+  
+  // Log first 5 accounts with their balances
+  displayAccounts.slice(0, 5).forEach(acc => {
+    console.log(`  📌 ${acc.code} - ${acc.name}:`);
+    console.log(`     Balance: ${acc.balance}, Debit: ${acc.debit}, Credit: ${acc.credit}`);
+  });
+
+  // Check if ALL accounts have zero balances and trigger auto-recalculation
+  const allZeroBalances = displayAccounts.every(acc => acc.balance === 0 && acc.debit === 0 && acc.credit === 0);
+  const hasPostedJournalEntries = journalEntries.filter(je => je.status === 'Posted').length > 0;
+  
+  if (allZeroBalances && !hasAutoRecalculated) {
+    if (journalEntries.length === 0) {
+      console.log('ℹ️ All accounts have zero balances (no journal entries yet)');
+    } else if (!hasPostedJournalEntries) {
+      console.log('ℹ️ All accounts have zero balances (no Posted journal entries)');
+    } else {
+      console.log('ℹ️ All accounts have zero balances - auto-recalculation will trigger via useEffect');
+    }
+  }
+
+  // Check Supabase raw data
+  if (supabaseAccounts.length > 0) {
+    console.log('🔍 Raw Supabase account sample:', supabaseAccounts[0]);
+  }
 
   // Filter accounts
   const filteredAccounts = displayAccounts.filter(account => {
@@ -711,6 +1036,90 @@ export function AccountingTab() {
         </button>
       </div>
 
+      {/* 💰 Cash Flow Tracker - Always Visible */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200 p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-blue-600 rounded-lg">
+              <Wallet className="size-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Cash Flow Analysis</h3>
+              <p className="text-sm text-gray-600">Track your lending pool from initial funding to current balance</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-gray-600 mb-1">Cash Utilization Rate</p>
+            <p className="text-2xl font-bold text-blue-700">{cashUtilizationRate.toFixed(1)}%</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-4 gap-4">
+          {/* Initial Funding */}
+          <div className="bg-white rounded-lg p-4 border border-blue-200">
+            <div className="flex items-center gap-2 mb-2">
+              <DollarSign className="size-4 text-blue-600" />
+              <p className="text-xs font-medium text-gray-600 uppercase">Initial Funding</p>
+            </div>
+            <p className="text-2xl font-bold text-blue-700">
+              {currencyCode} {INITIAL_FUNDING.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">Starting capital</p>
+          </div>
+
+          {/* Loans Disbursed */}
+          <div className="bg-white rounded-lg p-4 border border-red-200">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingDown className="size-4 text-red-600" />
+              <p className="text-xs font-medium text-gray-600 uppercase">Loans Disbursed</p>
+            </div>
+            <p className="text-2xl font-bold text-red-700">
+              -{currencyCode} {totalLoansDisbursed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">{loans.filter(l => l.status === 'Active' || l.status === 'Disbursed').length} active loans</p>
+          </div>
+
+          {/* Repayments Received */}
+          <div className="bg-white rounded-lg p-4 border border-emerald-200">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="size-4 text-emerald-600" />
+              <p className="text-xs font-medium text-gray-600 uppercase">Repayments Received</p>
+            </div>
+            <p className="text-2xl font-bold text-emerald-700">
+              +{currencyCode} {totalRepayments.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">{repayments.length} total payments</p>
+          </div>
+
+          {/* Available Cash */}
+          <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-lg p-4 border-2 border-indigo-300 shadow-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Wallet className="size-4 text-white" />
+              <p className="text-xs font-medium text-white uppercase">Available Cash</p>
+            </div>
+            <p className="text-2xl font-bold text-white">
+              {currencyCode} {availableCash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-indigo-200 mt-1">
+              {availableCash >= 0 ? 'Ready to lend' : 'Net cash outflow'}
+            </p>
+          </div>
+        </div>
+
+        {/* Formula Display */}
+        <div className="mt-4 bg-white rounded-lg p-3 border border-gray-200">
+          <p className="text-xs text-gray-600 text-center font-mono">
+            <span className="text-blue-700 font-semibold">{currencyCode} {INITIAL_FUNDING.toLocaleString()}</span>
+            <span className="text-gray-400 mx-2">-</span>
+            <span className="text-red-700 font-semibold">{currencyCode} {totalLoansDisbursed.toLocaleString()}</span>
+            <span className="text-gray-400 mx-2">+</span>
+            <span className="text-emerald-700 font-semibold">{currencyCode} {totalRepayments.toLocaleString()}</span>
+            <span className="text-gray-400 mx-2">=</span>
+            <span className="text-indigo-700 font-bold">{currencyCode} {availableCash.toLocaleString()}</span>
+          </p>
+        </div>
+      </div>
+
       {/* Accounts Tab (Bank Accounts) */}
       {activeSubTab === 'accounts' && (
         <BankAccountsTab />
@@ -790,6 +1199,24 @@ export function AccountingTab() {
                 </select>
               </div>
               <div className="flex gap-2">
+                <button
+                  onClick={handleCreateMissingJournalEntries}
+                  disabled={isCreatingEntries}
+                  className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  title="Create journal entries for existing loans and repayments"
+                >
+                  <FileText className="size-4" />
+                  {isCreatingEntries ? 'Creating...' : 'Sync Journal Entries'}
+                </button>
+                <button
+                  onClick={handleRecalculateBalancesFromContext}
+                  disabled={isRecalculating}
+                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  title="Recalculate all account balances from posted journal entries"
+                >
+                  <CheckCircle className="size-4" />
+                  {isRecalculating ? 'Recalculating...' : 'Recalculate Balances'}
+                </button>
                 <button
                   onClick={exportToExcel}
                   className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 text-sm"
@@ -2705,126 +3132,7 @@ export function AccountingTab() {
         </div>
       )}
 
-      {/* Deposit Modal */}
-      {showDepositModal && (
-        <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 ${isDark ? 'dark' : ''}`}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-gray-900">Record Capital Deposit</h3>
-                <button
-                  onClick={() => setShowDepositModal(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <XCircle className="size-5" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="text-gray-700 text-sm mb-1 block">Shareholder *</label>
-                  <select
-                    defaultValue={selectedShareholder?.id}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select shareholder</option>
-                    {shareholders.map(shareholder => (
-                      <option key={shareholder.id} value={shareholder.id}>
-                        {shareholder.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-gray-700 text-sm mb-1 block">Deposit Date *</label>
-                  <input
-                    type="date"
-                    defaultValue={new Date().toISOString().split('T')[0]}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-gray-700 text-sm mb-1 block">Amount ({getCurrencyCode()}) *</label>
-                  <input
-                    type="number"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0"
-                    min="0"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-gray-700 text-sm mb-1 block">Payment Method *</label>
-                  <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select method</option>
-                    <option value="bank">Bank Transfer</option>
-                    {mobileMoneyProviders.map((provider, index) => (
-                      <option key={index} value={provider.toLowerCase().replace(/\s+/g, '-')}>{provider}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-gray-700 text-sm mb-1 block">Reference Number *</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., KCB-TRX-251211-001 or SKJ4H8GF21"
-                  />
-                </div>
-
-                <div className="col-span-2">
-                  <label className="text-gray-700 text-sm mb-1 block">Description *</label>
-                  <textarea
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows={3}
-                    placeholder="e.g., Capital contribution for business expansion"
-                  />
-                </div>
-
-                <div className="col-span-2">
-                  <label className="text-gray-700 text-sm mb-1 block">Deposit To *</label>
-                  <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select bank account</option>
-                    <option value="1020">1020 - Bank - KCB Main Account</option>
-                    <option value="1030">1030 - Bank - Equity Bank</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-                <p className="text-blue-800 text-sm">
-                  <strong>Note:</strong> This deposit will be recorded in the Share Capital account (3000) and will update the shareholder's total contribution and ownership percentage accordingly.
-                </p>
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => {
-                    alert('Capital deposit recorded successfully!');
-                    setShowDepositModal(false);
-                  }}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Record Deposit
-                </button>
-                <button
-                  onClick={() => setShowDepositModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Deposit Modal - Using CapitalDepositModal component below at line ~3200 */}
 
       {/* Profit Distribution Modal */}
       {showDistributionModal && (

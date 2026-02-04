@@ -872,11 +872,12 @@ interface DataContextType {
   
   // Journal Entries
   journalEntries: JournalEntry[];
-  addJournalEntry: (entry: Omit<JournalEntry, 'id' | 'entryNumber' | 'createdDate' | 'totalDebit' | 'totalCredit'>) => void;
+  addJournalEntry: (entry: Omit<JournalEntry, 'id' | 'entryNumber' | 'createdDate' | 'totalDebit' | 'totalCredit'>) => Promise<void>;
   getJournalEntry: (id: string) => JournalEntry | undefined;
   getJournalEntriesByDate: (startDate: string, endDate: string) => JournalEntry[];
   getJournalEntriesByAccount: (accountCode: string) => JournalEntry[];
   reverseJournalEntry: (id: string, reversedBy: string, reason: string) => void;
+  createMissingJournalEntries: () => Promise<void>;
   
   // Utility functions
   generateReceiptNumber: () => string;
@@ -1118,6 +1119,124 @@ export function DataProvider({ children }: { children: ReactNode }) {
     collaterals,
     loanDocuments,
   ]);
+  
+  // ✅ Initialize default shareholders (Victor Muthama & Ben Mbuvi)
+  const initializeDefaultShareholders = async (organizationId: string) => {
+    try {
+      console.log('🔧 Checking for existing shareholders...');
+      
+      // Check if shareholders already exist
+      const existingShareholders = await supabaseDataService.shareholders.getAll(organizationId);
+      const victorExisting = existingShareholders.find((s: any) => 
+        s.shareholder_name === 'Victor Muthama' || s.name === 'Victor Muthama'
+      );
+      const benExisting = existingShareholders.find((s: any) => 
+        s.shareholder_name === 'Ben Mbuvi' || s.name === 'Ben Mbuvi'
+      );
+      
+      // DELETE existing shareholders with incorrect data (total_investment = 0)
+      if (victorExisting && (!victorExisting.total_investment || victorExisting.total_investment === 0)) {
+        console.log('🗑️ Deleting Victor with incorrect data...');
+        await supabaseDataService.shareholders.delete(victorExisting.id, organizationId);
+      }
+      if (benExisting && (!benExisting.total_investment || benExisting.total_investment === 0)) {
+        console.log('🗑️ Deleting Ben with incorrect data...');
+        await supabaseDataService.shareholders.delete(benExisting.id, organizationId);
+      }
+      
+      // Re-check after deletion
+      const remainingShareholders = await supabaseDataService.shareholders.getAll(organizationId);
+      const victorExists = remainingShareholders.some((s: any) => 
+        s.shareholder_name === 'Victor Muthama' || s.name === 'Victor Muthama'
+      );
+      const benExists = remainingShareholders.some((s: any) => 
+        s.shareholder_name === 'Ben Mbuvi' || s.name === 'Ben Mbuvi'
+      );
+      
+      if (victorExists && benExists) {
+        console.log('✅ Default shareholders already exist with correct data, skipping creation');
+        return;
+      }
+      
+      console.log('🔧 Creating default shareholders...');
+      
+      // Create Victor Muthama - 1,000,000 contribution
+      if (!victorExists) {
+        const victor = await supabaseDataService.shareholders.create(
+          {
+            shareholder_id: 'SH001',
+            name: 'Victor Muthama',
+            shareholder_name: 'Victor Muthama',
+            id_number: 'VM001',
+            phone: '',
+            email: '',
+            shares: 0,
+            share_value: 1000000,
+            total_investment: 1000000,
+            join_date: new Date().toISOString().split('T')[0],
+            status: 'active'
+          },
+          organizationId
+        );
+        console.log('✅ Created Victor Muthama:', victor);
+      }
+      
+      // Create Ben Mbuvi - 1,000,000 contribution
+      if (!benExists) {
+        const ben = await supabaseDataService.shareholders.create(
+          {
+            shareholder_id: 'SH002',
+            name: 'Ben Mbuvi',
+            shareholder_name: 'Ben Mbuvi',
+            id_number: 'BM001',
+            phone: '',
+            email: '',
+            shares: 0,
+            share_value: 1000000,
+            total_investment: 1000000,
+            join_date: new Date().toISOString().split('T')[0],
+            status: 'active'
+          },
+          organizationId
+        );
+        console.log('✅ Created Ben Mbuvi:', ben);
+      }
+      
+      // Reload shareholders
+      const updatedShareholders = await supabaseDataService.shareholders.getAll(organizationId);
+      console.log('📊 Reloaded shareholders:', updatedShareholders);
+      console.log('   Count:', updatedShareholders.length);
+      if (updatedShareholders.length > 0) {
+        console.log('   First shareholder:', updatedShareholders[0]);
+        console.log('   total_investment field:', updatedShareholders[0].total_investment);
+        console.log('   share_capital field:', updatedShareholders[0].share_capital);
+      }
+      
+      const mapped = updatedShareholders.map((s: any) => ({
+        id: s.id,
+        name: s.shareholder_name || s.name || 'Unknown',
+        idNumber: s.id_number || '',
+        phone: s.phone || '',
+        email: s.email || '',
+        address: s.address || '',
+        sharesOwned: s.total_shares || 0,
+        sharePercentage: s.share_percentage || 0,
+        investmentAmount: s.share_value || 0,
+        investmentDate: s.investment_date || s.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        status: (s.status === 'active' ? 'Active' : 'Inactive') as 'Active' | 'Inactive',
+        totalDividends: s.total_dividends || 0,
+        shareCapital: s.total_investment || s.share_capital || 0,
+        joinDate: s.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        ownershipPercentage: 50 // 50% each
+      }));
+      
+      setShareholders(mapped);
+      console.log('✅ Default shareholders initialized successfully');
+      
+    } catch (error) {
+      console.error('❌ Error initializing default shareholders:', error);
+    }
+  };
   
   // Load data from Supabase when user is ready (PRIMARY DATA SOURCE - Single-Object Sync)
   useEffect(() => {
@@ -1392,15 +1511,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 sharePercentage: s.share_percentage || 0,
                 investmentAmount: s.share_value || 0,
                 investmentDate: s.investment_date || s.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
-                status: s.status || 'active',
+                status: (s.status === 'active' ? 'Active' : 'Inactive') as 'Active' | 'Inactive',
                 totalDividends: s.total_dividends || 0,
-                shareCapital: s.share_capital || 0
+                shareCapital: s.total_investment || s.share_capital || 0
               }));
               
               setShareholders(mappedShareholders);
+              
+              // ✅ Initialize default shareholders if none exist
+              if (mappedShareholders.length === 0) {
+                console.log('🔧 Initializing default shareholders (Victor Muthama & Ben Mbuvi)...');
+                await initializeDefaultShareholders(currentUser.organizationId);
+              }
             } else {
               console.log('ℹ️ No shareholders found in individual table');
-              setShareholders([]);
+              console.log('🔧 Initializing default shareholders (Victor Muthama & Ben Mbuvi)...');
+              await initializeDefaultShareholders(currentUser.organizationId);
+              // Don't set to empty array - initializeDefaultShareholders will set the state
             }
           } catch (error) {
             console.error('❌ Error loading shareholders from Supabase:', error);
@@ -1903,7 +2030,82 @@ export function DataProvider({ children }: { children: ReactNode }) {
             console.log('   ⚠️  Payees state set to empty array due to error');
           }
           
+          // ✅ NEW: Load journal entries from individual table (Supabase-first)
+          try {
+            console.log('');
+            console.log('📒 ========================================');
+            console.log('📒 LOADING JOURNAL ENTRIES FROM INDIVIDUAL TABLE');
+            console.log('📒 ========================================');
+            console.log('   Organization ID:', currentUser.organizationId);
+            console.log('   Table: journal_entries + journal_entry_lines');
+            console.log('   Calling: supabaseDataService.journalEntries.getEntries()');
+            
+            const supabaseJournalEntries = await supabaseDataService.journalEntries.getEntries(currentUser.organizationId);
+            
+            console.log('   ✅ Query complete!');
+            console.log('   Raw response:', supabaseJournalEntries);
+            console.log('   Type:', typeof supabaseJournalEntries);
+            console.log('   Is Array:', Array.isArray(supabaseJournalEntries));
+            console.log('   Length:', supabaseJournalEntries?.length);
+            
+            if (supabaseJournalEntries && supabaseJournalEntries.length > 0) {
+              console.log(`✅ Loaded ${supabaseJournalEntries.length} journal entries from individual table`);
+              console.log('   First entry:', supabaseJournalEntries[0]);
+              
+              // Map Supabase schema to frontend JournalEntry type
+              const mappedJournalEntries = supabaseJournalEntries.map((je: any) => {
+                // Map journal entry lines
+                const lines = (je.journal_entry_lines || []).map((line: any) => ({
+                  id: line.id,
+                  accountCode: line.account_code,
+                  accountName: line.account_name || '',
+                  description: line.description || '',
+                  debit: line.debit || 0,
+                  credit: line.credit || 0
+                }));
+                
+                return {
+                  id: je.id,
+                  entryNumber: je.entry_number,
+                  date: je.entry_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+                  description: je.description || '',
+                  reference: je.reference || '',
+                  sourceType: je.source_type || 'Manual Entry',
+                  sourceId: je.source_id,
+                  lines,
+                  totalDebit: je.total_debit || lines.reduce((sum: number, l: any) => sum + l.debit, 0),
+                  totalCredit: je.total_credit || lines.reduce((sum: number, l: any) => sum + l.credit, 0),
+                  status: je.status || 'Posted',
+                  createdBy: je.created_by || 'System',
+                  createdDate: je.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+                  postedDate: je.posted_date?.split('T')[0],
+                  notes: je.notes
+                };
+              });
+              
+              setJournalEntries(mappedJournalEntries);
+              console.log('   ✅ Journal entries state updated with', mappedJournalEntries.length, 'entries');
+              console.log('   ✅ Total lines loaded:', mappedJournalEntries.reduce((sum: number, je: any) => sum + je.lines.length, 0));
+            } else {
+              console.log('ℹ️ No journal entries found in individual table');
+              setJournalEntries([]);
+              console.log('   ✅ Journal entries state set to empty array');
+            }
+          } catch (error) {
+            console.error('❌ Error loading journal entries from Supabase:', error);
+            // Don't show toast for journal entries - it's not critical enough
+            setJournalEntries([]);
+            console.log('   ⚠️  Journal entries state set to empty array due to error');
+          }
+          
           console.log('✅ All data loaded from Supabase successfully');
+          
+          // ✅ Create missing journal entries for existing transactions (one-time migration)
+          // This will run after all data is loaded to check if journal entries need to be created
+          setTimeout(() => {
+            createMissingJournalEntries();
+          }, 2000); // Wait 2 seconds for all state updates to complete
+          
           // Remove toast notification on data load to avoid duplicate notifications on login
         } else {
           // ❌ NO FALLBACK - Supabase connection required
@@ -4310,26 +4512,170 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // ============= JOURNAL ENTRY FUNCTIONS =============
 
-  const generateJournalEntryNumber = (): string => {
-    const year = new Date().getFullYear();
-    const count = journalEntries.filter(je => je.entryNumber.startsWith(`JE-${year}-`)).length + 1;
-    return `JE-${year}-${String(count).padStart(4, '0')}`;
+  const generateJournalEntryNumber = async (): Promise<string> => {
+    try {
+      // Get organization ID
+      const orgData = localStorage.getItem('current_organization');
+      if (!orgData) {
+        throw new Error('Organization not found');
+      }
+      
+      const org = JSON.parse(orgData);
+      const organizationId = org.organization_id || org.id;
+      
+      // Query Supabase for the latest entry number
+      const { data: existing, error } = await supabase
+        .from('journal_entries')
+        .select('entry_number')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (error) {
+        console.error('Error fetching latest journal entry:', error);
+        throw error;
+      }
+      
+      const year = new Date().getFullYear();
+      let nextNumber = 1;
+      
+      if (existing && existing.length > 0) {
+        const match = existing[0].entry_number?.match(/JE-(\d+)-(\d+)/);
+        if (match) {
+          const entryYear = parseInt(match[1]);
+          const entryNumber = parseInt(match[2]);
+          
+          // If it's the same year, increment the number
+          if (entryYear === year) {
+            nextNumber = entryNumber + 1;
+          }
+          // If it's a new year, start from 1
+        }
+      }
+      
+      return `JE-${year}-${String(nextNumber).padStart(4, '0')}`;
+    } catch (error) {
+      console.error('Error generating journal entry number:', error);
+      // Fallback: use timestamp-based unique number
+      const timestamp = Date.now();
+      const year = new Date().getFullYear();
+      return `JE-${year}-${String(timestamp).slice(-4)}`;
+    }
   };
 
-  const addJournalEntry = (entryData: Omit<JournalEntry, 'id' | 'entryNumber' | 'createdDate' | 'totalDebit' | 'totalCredit'>) => {
-    const totalDebit = entryData.lines.reduce((sum, line) => sum + line.debit, 0);
-    const totalCredit = entryData.lines.reduce((sum, line) => sum + line.credit, 0);
+  const addJournalEntry = async (entryData: Omit<JournalEntry, 'id' | 'entryNumber' | 'createdDate' | 'totalDebit' | 'totalCredit'>) => {
+    const maxRetries = 3;
+    let retryCount = 0;
     
-    const newEntry: JournalEntry = {
-      ...entryData,
-      id: `JE${Date.now()}`,
-      entryNumber: generateJournalEntryNumber(),
-      totalDebit,
-      totalCredit,
-      createdDate: new Date().toISOString().split('T')[0],
-    };
-    
-    setJournalEntries([...journalEntries, newEntry]);
+    while (retryCount < maxRetries) {
+      try {
+        const totalDebit = entryData.lines.reduce((sum, line) => sum + line.debit, 0);
+        const totalCredit = entryData.lines.reduce((sum, line) => sum + line.credit, 0);
+        
+        const entryNumber = await generateJournalEntryNumber();
+        
+        // ✅ 1. WRITE TO SUPABASE FIRST
+        const orgData = localStorage.getItem('current_organization');
+        if (!orgData) {
+          throw new Error('Organization not found');
+        }
+        
+        const org = JSON.parse(orgData);
+        const organizationId = org.organization_id || org.id;
+        
+        console.log('💾 Saving journal entry to Supabase:', {
+          entryNumber,
+          sourceType: entryData.sourceType,
+          totalDebit,
+          totalCredit,
+          attempt: retryCount + 1
+        });
+        
+        // Create journal entry in Supabase with all required fields
+        const supabaseEntry = await supabaseDataService.journalEntries.createEntry({
+          entry_number: entryNumber,
+          entry_date: entryData.date,
+          description: entryData.description,
+          reference: entryData.reference,
+          source_type: entryData.sourceType,
+          source_id: entryData.sourceId,
+          status: entryData.status || 'Posted',
+          created_by: entryData.createdBy,
+          posted_date: entryData.postedDate || entryData.date,
+          notes: entryData.notes,
+          total_debit: totalDebit,
+          total_credit: totalCredit
+        }, organizationId);
+        
+        console.log('✅ Journal entry created in Supabase:', supabaseEntry.id);
+      
+      // Create journal entry lines in Supabase
+      for (const line of entryData.lines) {
+        await supabaseDataService.journalEntries.createEntryLine({
+          journal_entry_id: supabaseEntry.id,
+          account_code: line.accountCode,
+          account_name: line.accountName,
+          description: line.description,
+          debit: line.debit,
+          credit: line.credit
+        }, organizationId);
+      }
+      
+      console.log('✅ Created', entryData.lines.length, 'journal entry lines in Supabase');
+      
+      // ✅ 2. UPDATE REACT STATE (for fast UI)
+      const newEntry: JournalEntry = {
+        ...entryData,
+        id: supabaseEntry.id,
+        entryNumber,
+        totalDebit,
+        totalCredit,
+        createdDate: new Date().toISOString().split('T')[0],
+      };
+      
+      setJournalEntries([...journalEntries, newEntry]);
+      console.log('✅ Journal entry added to React state');
+      
+      // Success! Break out of retry loop
+      break;
+    } catch (error: any) {
+      // Check if it's a duplicate key error
+      const isDuplicateError = error?.code === '23505' || error?.message?.includes('duplicate key');
+      
+      if (isDuplicateError && retryCount < maxRetries - 1) {
+        // Retry with a new entry number
+        retryCount++;
+        console.warn(`⚠️ Duplicate journal entry number detected. Retrying (${retryCount}/${maxRetries})...`);
+        // Add a small delay before retrying
+        await new Promise(resolve => setTimeout(resolve, 100 * retryCount));
+        continue;
+      }
+      
+      // If not a duplicate error or max retries reached, handle the error
+      console.error('❌ Error creating journal entry:', error);
+      
+      // Generate a fallback entry number using timestamp
+      const timestamp = Date.now();
+      const year = new Date().getFullYear();
+      const fallbackEntryNumber = `JE-${year}-${String(timestamp).slice(-4)}`;
+      
+      // Still add to React state even if Supabase fails (for offline resilience)
+      const totalDebit = entryData.lines.reduce((sum, line) => sum + line.debit, 0);
+      const totalCredit = entryData.lines.reduce((sum, line) => sum + line.credit, 0);
+      
+      const newEntry: JournalEntry = {
+        ...entryData,
+        id: `JE${Date.now()}`,
+        entryNumber: fallbackEntryNumber,
+        totalDebit,
+        totalCredit,
+        createdDate: new Date().toISOString().split('T')[0],
+      };
+      
+      setJournalEntries([...journalEntries, newEntry]);
+      break;
+    }
+    }
   };
 
   const getJournalEntry = (id: string) => {
@@ -5132,6 +5478,68 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Create missing journal entries for existing loans and repayments
+  const createMissingJournalEntries = async () => {
+    console.log('🔄 Creating missing journal entries for existing transactions...');
+    let createdCount = 0;
+    
+    try {
+      // Check if we have loans but no journal entries
+      const disbursedLoans = loans.filter(l => l.status === 'Active' || l.status === 'Disbursed');
+      
+      if (disbursedLoans.length > 0 && journalEntries.length === 0) {
+        console.log(`📋 Found ${disbursedLoans.length} disbursed loans with no journal entries`);
+        
+        // Create journal entries for each disbursed loan
+        for (const loan of disbursedLoans) {
+          // Check if journal entry already exists for this loan
+          const existingEntry = journalEntries.find(je => 
+            je.sourceType === 'Loan Disbursement' && je.sourceId === loan.id
+          );
+          
+          if (!existingEntry) {
+            const journalEntryData = createLoanDisbursementEntry(
+              loan,
+              loan.disbursedDate || loan.disbursementDate || new Date().toISOString().split('T')[0],
+              loan.disbursedBy || loan.createdBy || 'System'
+            );
+            await addJournalEntry(journalEntryData);
+            createdCount++;
+            console.log(`✅ Created journal entry for loan ${loan.id}`);
+          }
+        }
+        
+        // Create journal entries for repayments
+        for (const repayment of repayments) {
+          // Check if journal entry already exists for this repayment
+          const existingEntry = journalEntries.find(je => 
+            je.sourceType === 'Loan Repayment' && je.sourceId === repayment.id
+          );
+          
+          if (!existingEntry) {
+            const loan = loans.find(l => l.id === repayment.loanId);
+            const journalEntryData = createLoanRepaymentEntry(
+              repayment,
+              repayment.clientName || loan?.clientName || 'Unknown Client',
+              repayment.receivedBy || 'System'
+            );
+            await addJournalEntry(journalEntryData);
+            createdCount++;
+            console.log(`✅ Created journal entry for repayment ${repayment.id}`);
+          }
+        }
+        
+        console.log(`✅ Created ${createdCount} missing journal entries`);
+        if (createdCount > 0) {
+          toast.success(`Created ${createdCount} missing journal entries`);
+        }
+      }
+    } catch (error: any) {
+      console.error('❌ Error creating missing journal entries:', error);
+      toast.error('Failed to create missing journal entries');
+    }
+  };
+
   // ============= DISBURSEMENT FUNCTIONS =============
 
   const addDisbursement = (disbursementData: Omit<Disbursement, 'id' | 'createdDate'>) => {
@@ -5355,6 +5763,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     getJournalEntriesByDate,
     getJournalEntriesByAccount,
     reverseJournalEntry,
+    createMissingJournalEntries,
     
     calculateClientCreditScore,
     updateAllClientCreditScores,

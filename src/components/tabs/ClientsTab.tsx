@@ -658,7 +658,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
                               e.stopPropagation();
                               setDetailModalClient(client.id);
                             }}
-                            className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 text-xs"
+                            className="dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 text-xs text-[rgb(5,200,73)]"
                           >
                             View
                           </button>

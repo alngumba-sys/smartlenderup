@@ -1296,7 +1296,7 @@ export function LoansTab() {
                                   console.log('🟢 Setting detailModalLoan to:', loan.id);
                                   setDetailModalLoan(loan.id);
                                 }}
-                                className="text-emerald-500 dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-300 text-xs cursor-pointer hover:underline"
+                                className="dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-300 text-xs cursor-pointer hover:underline text-[rgb(4,201,60)]"
                               >
                                 View
                               </button>

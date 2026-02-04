@@ -343,6 +343,21 @@ export function BankAccountsTab() {
     ? grandTotal
     : activeBankAccounts.find(acc => acc.id === activeBank)?.balance || 0;
 
+  // Available to lend = Initial Funding - Loans Disbursed + Repayments
+  // This matches the Cash Flow Analysis calculation
+  const totalBankOpeningBalance = activeBankAccounts.reduce((sum, acc) => sum + (acc.openingBalance || 0), 0);
+  const totalFundingReceived = fundingTransactions
+    .filter(t => t.transactionType === 'Credit')
+    .reduce((sum, t) => sum + t.amount, 0);
+  const totalLoansDisbursed = loans
+    .filter(l => l.status === 'Active' || l.status === 'Disbursed')
+    .reduce((sum, l) => sum + (l.principalAmount || 0), 0);
+  const totalRepayments = repayments.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  
+  const availableToLend = activeBank === 'all'
+    ? (totalBankOpeningBalance + totalFundingReceived - totalLoansDisbursed + totalRepayments)
+    : currentTabTotal; // For individual accounts, show the account balance
+
   // Get current account details for single account view
   const currentAccount = activeBank === 'all' 
     ? null
@@ -572,8 +587,8 @@ export function BankAccountsTab() {
         <div className="flex items-center justify-between mb-1">
           <p className="text-gray-600 text-sm">
             {activeBank === 'all' 
-              ? 'Total Balance (All Accounts)' 
-              : `${currentAccount?.bankName || currentAccount?.accountName || currentAccount?.name || 'Account'} Balance`}
+              ? 'Available Cash to Lend (All Accounts)' 
+              : `${currentAccount?.bankName || currentAccount?.accountName || currentAccount?.name || 'Account'} - Available to Lend`}
           </p>
           {activeBank !== 'all' && currentAccount && (
             <div className="flex gap-2">
@@ -602,25 +617,25 @@ export function BankAccountsTab() {
           )}
         </div>
         <p className="text-3xl font-bold text-[rgb(12,66,121)]">
-          {formatCurrency(currentTabTotal, { showCode: true, decimals: 0 })}
+          {formatCurrency(availableToLend, { showCode: true, decimals: 0 })}
         </p>
         
         {/* Show all accounts breakdown for "All Accounts" view */}
         {activeBank === 'all' && (() => {
-          // ✅ Group accounts by bank name and calculate total per bank
+          // ✅ Since we only have one total "Available Cash to Lend" for all accounts,
+          // we should show the same amount for each bank (not individual balances)
+          // This is because availableToLend already accounts for all transactions across all banks
           const bankGroups = activeBankAccounts.reduce((groups, account) => {
             const bankName = account.bankName || account.name || 'Unknown Bank';
             if (!groups[bankName]) {
               groups[bankName] = {
                 bankName,
-                totalBalance: 0,
                 accountCount: 0
               };
             }
-            groups[bankName].totalBalance += account.balance;
             groups[bankName].accountCount += 1;
             return groups;
-          }, {} as Record<string, { bankName: string; totalBalance: number; accountCount: number }>);
+          }, {} as Record<string, { bankName: string; accountCount: number }>);
 
           const bankSummaries = Object.values(bankGroups);
 
@@ -630,7 +645,7 @@ export function BankAccountsTab() {
                 <div key={bank.bankName} className="bg-white border border-blue-200 rounded-lg p-3">
                   <p className="text-gray-600 text-xs mb-1">{bank.bankName}</p>
                   <p className="text-sm font-semibold text-gray-900">
-                    {formatCurrency(bank.totalBalance, { showCode: true, decimals: 0 })}
+                    {formatCurrency(availableToLend, { showCode: true, decimals: 0 })}
                   </p>
                 </div>
               ))}
