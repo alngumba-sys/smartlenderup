@@ -75,7 +75,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
       
       // Calculate client status based on loans
       const clientLoans = loans.filter(l => l.clientUuid === client.id);
-      const activeLoans = clientLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed' || l.status === 'In Arrears');
+      const activeLoans = clientLoans.filter(l => l.status === 'Active' || l.status === 'In Arrears');
       let newStatus: 'Active' | 'Inactive' | 'Blacklisted' | 'Good Standing' | 'In Arrears' | 'Fully Paid' | 'Current' = 'Active';
       
       if (activeLoans.length === 0 && clientLoans.length > 0) {
@@ -578,7 +578,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
 
                   return sortedClients.map(({ client, totalOutstanding, outstandingCount }) => {
                   const clientLoans = loans.filter(l => l.clientUuid === client.id);
-                  const activeLoans = clientLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed' || l.status === 'In Arrears');
+                  const activeLoans = clientLoans.filter(l => l.status === 'Active' || l.status === 'In Arrears');
 
                   return (
                     <tr 
@@ -1093,7 +1093,7 @@ For more information, contact us at +254 700 000 000.`}
                         <p className="text-gray-600 dark:text-gray-400 text-xs">Total Active Loans</p>
                         <p className="text-gray-900 dark:text-white">
                           {clients.filter(c => c.status === 'Active').reduce((sum, client) => {
-                            const clientLoans = loans.filter(l => l.clientUuid === client.id && (l.status === 'Active' || l.status === 'Disbursed'));
+                            const clientLoans = loans.filter(l => l.clientUuid === client.id && l.status === 'Active');
                             return sum + clientLoans.length;
                           }, 0)} loans
                         </p>
@@ -1102,7 +1102,7 @@ For more information, contact us at +254 700 000 000.`}
                         <p className="text-gray-600 dark:text-gray-400 text-xs">Outstanding from Good Clients</p>
                         <p className="text-gray-900 dark:text-white">
                           KES {(clients.filter(c => c.status === 'Active').reduce((sum, client) => {
-                            const clientLoans = loans.filter(l => l.clientUuid === client.id && (l.status === 'Active' || l.status === 'Disbursed'));
+                            const clientLoans = loans.filter(l => l.clientUuid === client.id && l.status === 'Active');
                             return sum + clientLoans.reduce((loanSum, l) => loanSum + l.outstandingBalance, 0);
                           }, 0) / 1000000).toFixed(1)}M
                         </p>

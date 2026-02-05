@@ -95,7 +95,7 @@ export function ReportsTab() {
 
   // Calculate quick stats from dummyData - only count active/disbursed loans
   const { loans, payments } = useData();
-  const activeDisbursedLoans = loans.filter(loan => loan.status === 'Active' || loan.status === 'Disbursed');
+  const activeDisbursedLoans = loans.filter(loan => loan.status === 'Active');
   const totalLoans = activeDisbursedLoans.length;
   const totalDisbursed = activeDisbursedLoans.reduce((sum, loan) => sum + loan.principalAmount, 0);
   const totalCollected = payments.reduce((sum, payment) => sum + payment.amount, 0);

@@ -10,6 +10,7 @@ interface NewLoanModalProps {
   onClose: () => void;
   onSubmit: (data: any) => void;
   preselectedClientId?: string;
+  editingLoanId?: string | null;
 }
 
 interface UploadedDocument {
@@ -21,16 +22,17 @@ interface UploadedDocument {
   category: string;
 }
 
-export function NewLoanModal({ onClose, onSubmit, preselectedClientId }: NewLoanModalProps) {
+export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLoanId }: NewLoanModalProps) {
   const { isDark } = useTheme();
   useEscapeKey(onClose);
-  const { clients, loanProducts, loanDocuments } = useData();
+  const { clients, loanProducts, loanDocuments, loans, payments } = useData();
   const [allowCustomRate, setAllowCustomRate] = useState(false);
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([]);
   const [existingClientDocuments, setExistingClientDocuments] = useState<any[]>([]);
   const [showExistingDocsWarning, setShowExistingDocsWarning] = useState(false);
   const [creditScore, setCreditScore] = useState<number | null>(null);
   const [scoringDetails, setScoringDetails] = useState<any>(null);
+  const [hasPayments, setHasPayments] = useState(false);
   
   // Get active country currency
   const currencyCode = getCurrencyCode();
@@ -50,6 +52,30 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId }: NewLoan
     guarantorPhone: '',
     facilitationFee: ''
   });
+
+  // Pre-fill form data when editing a loan
+  useEffect(() => {
+    if (editingLoanId) {
+      const loanToEdit = loans.find(l => l.id === editingLoanId);
+      if (loanToEdit) {
+        setFormData({
+          clientId: loanToEdit.clientId || '',
+          productId: loanToEdit.productId || '',
+          principalAmount: loanToEdit.principalAmount?.toString() || '',
+          interestRate: loanToEdit.interestRate?.toString() || '',
+          loanTerm: loanToEdit.term?.toString() || '',
+          termUnit: loanToEdit.termUnit || 'months',
+          disbursementDate: loanToEdit.disbursementDate || new Date().toISOString().split('T')[0],
+          purpose: loanToEdit.purpose || '',
+          collateralType: '',
+          collateralValue: '',
+          guarantorName: '',
+          guarantorPhone: '',
+          facilitationFee: loanToEdit.facilitationFee?.toString() || loanToEdit.processingFee?.toString() || ''
+        });
+      }
+    }
+  }, [editingLoanId, loans]);
 
   // Check for existing client documents when client is selected
   useEffect(() => {
@@ -251,8 +277,12 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId }: NewLoan
         <div className="relative bg-gradient-to-r from-slate-800 via-slate-700 to-blue-900 px-6 py-4">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <h2 className="text-white text-xl font-semibold mb-0.5">New Loan Application</h2>
-              <p className="text-blue-200 text-xs">Create and submit a new loan application for client approval</p>
+              <h2 className="text-white text-xl font-semibold mb-0.5">
+                {editingLoanId ? 'Edit Loan Application' : 'New Loan Application'}
+              </h2>
+              <p className="text-blue-200 text-xs">
+                {editingLoanId ? 'Update loan application details (pending approval only)' : 'Create and submit a new loan application for client approval'}
+              </p>
             </div>
             
             {/* Credit Score Display in Header */}
@@ -695,7 +725,7 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId }: NewLoan
               className="flex-1 px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl hover:from-emerald-700 hover:to-green-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all"
             >
               <DollarSign className="size-5" />
-              Create Loan Application
+              {editingLoanId ? 'Update Loan Application' : 'Create Loan Application'}
             </button>
           </div>
         </form>

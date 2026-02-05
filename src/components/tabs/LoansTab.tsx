@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, Calendar, AlertCircle, CheckCircle, XCircle, DollarSign, TrendingUp, PercentIcon, Wallet, User, Calculator, Upload, X, Info, Filter, Clock, MessageSquare, UserCheck, FileText, Send, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, Plus, Calendar, AlertCircle, CheckCircle, XCircle, DollarSign, TrendingUp, PercentIcon, Wallet, User, Calculator, Upload, X, Info, Filter, Clock, MessageSquare, UserCheck, FileText, Send, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit, RefreshCw } from 'lucide-react';
 import { generateInstallments, type LoanDocument, type Guarantor, type Collateral } from '../../data/dummyData';
 import { useData } from '../../contexts/DataContext';
 import { ComprehensiveLoanDetailsModal } from '../modals/ComprehensiveLoanDetailsModal';
@@ -21,13 +21,15 @@ export function LoansTab() {
     clients, 
     loanProducts, 
     addLoan,
+    updateLoan,
     deleteLoan,
     loanDocuments,
     addLoanDocument,
     guarantors,
     addGuarantor,
     collaterals,
-    addCollateral
+    addCollateral,
+    refreshData
   } = useData();
   const [activeSubTab, setActiveSubTab] = useState<'all' | 'pending-review' | 'pending-disbursement' | 'active' | 'settled' | 'defaulted' | 'due' | 'no-repayments' | 'principal' | '1-month-late' | '3-months-late' | 'guarantors' | 'comments' | 'repayment-schedule'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,6 +41,7 @@ export function LoansTab() {
   const [selectedLoan, setSelectedLoan] = useState<string | null>(null);
   const [detailModalLoan, setDetailModalLoan] = useState<string | null>(null);
   const [showNewLoanModal, setShowNewLoanModal] = useState(false);
+  const [editingLoanId, setEditingLoanId] = useState<string | null>(null);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [viewMode, setViewMode] = useState<'tile' | 'list'>('list');
@@ -73,12 +76,12 @@ export function LoansTab() {
 
   const handleNewLoan = async (loanData: any) => {
     // Check Supabase connection FIRST
-    const isConnected = await ensureSupabaseConnection('create loan application');
+    const isConnected = await ensureSupabaseConnection(editingLoanId ? 'update loan application' : 'create loan application');
     if (!isConnected) {
       return; // Block the operation if offline
     }
 
-    console.log('New loan created:', loanData);
+    console.log(editingLoanId ? 'Updating loan:' : 'New loan created:', loanData);
     
     const client = clients.find(c => c.id === loanData.clientId);
     const product = loanProducts.find(p => p.id === loanData.productId);
@@ -98,7 +101,8 @@ export function LoansTab() {
                                   termUnit === 'Days' ? Math.ceil(term / 30) : term;
     
     if (product?.interestType === 'Flat') {
-      totalInterest = principalAmount * (interestRate / 100);
+      // Flat rate: interest per period × number of periods
+      totalInterest = principalAmount * (interestRate / 100) * term;
       installmentAmount = (principalAmount + totalInterest) / numberOfInstallments;
     } else {
       // Reducing Balance
@@ -108,7 +112,49 @@ export function LoansTab() {
       totalInterest = (installmentAmount * numberOfInstallments) - principalAmount;
     }
     
-    const totalRepayable = principalAmount + totalInterest;
+    let totalRepayable = principalAmount + totalInterest;
+    
+    // Calculate discount if provided
+    let discountAmount = 0;
+    let finalTotalRepayable = totalRepayable;
+    let finalOutstandingBalance = totalRepayable;
+    
+    if (loanData.discountType && loanData.discountValue) {
+      const discountValue = parseFloat(loanData.discountValue) || 0;
+      const discountAppliedTo = loanData.discountAppliedTo || 'total_repayable';
+      
+      if (loanData.discountType === 'percentage') {
+        // Percentage discount (capped at 100%)
+        const percentage = Math.min(discountValue, 100);
+        if (discountAppliedTo === 'total_repayable') {
+          discountAmount = (totalRepayable * percentage) / 100;
+          finalTotalRepayable = totalRepayable - discountAmount;
+          finalOutstandingBalance = finalTotalRepayable;
+        } else {
+          // Apply to balance (same as total_repayable for new loans)
+          discountAmount = (totalRepayable * percentage) / 100;
+          finalOutstandingBalance = totalRepayable - discountAmount;
+          finalTotalRepayable = totalRepayable; // Total repayable stays the same, only balance is reduced
+        }
+      } else {
+        // Fixed amount discount
+        if (discountAppliedTo === 'total_repayable') {
+          discountAmount = Math.min(discountValue, totalRepayable);
+          finalTotalRepayable = totalRepayable - discountAmount;
+          finalOutstandingBalance = finalTotalRepayable;
+        } else {
+          // Apply to balance
+          discountAmount = Math.min(discountValue, totalRepayable);
+          finalOutstandingBalance = totalRepayable - discountAmount;
+          finalTotalRepayable = totalRepayable; // Total repayable stays the same
+        }
+      }
+      
+      // Recalculate installment if total repayable changed
+      if (discountAppliedTo === 'total_repayable') {
+        installmentAmount = finalTotalRepayable / numberOfInstallments;
+      }
+    }
     
     // Calculate dates
     const disbursementDate = loanData.disbursementDate || new Date().toISOString().split('T')[0];
@@ -155,11 +201,11 @@ export function LoansTab() {
         relationship: 'Guarantor'
       }] : [],
       totalInterest: Math.round(totalInterest),
-      totalRepayable: Math.round(totalRepayable),
+      totalRepayable: Math.round(finalTotalRepayable),
       installmentAmount: Math.round(installmentAmount),
       numberOfInstallments: numberOfInstallments,
       paidAmount: 0,
-      outstandingBalance: Math.round(totalRepayable),
+      outstandingBalance: Math.round(finalOutstandingBalance),
       principalOutstanding: principalAmount,
       interestOutstanding: Math.round(totalInterest),
       daysInArrears: 0,
@@ -169,11 +215,34 @@ export function LoansTab() {
       purpose: loanData.purpose || 'Not specified',
       createdBy: 'Current User',
       loanOfficer: 'Loan Officer',
-      notes: loanData.notes || ''
+      notes: loanData.notes || '',
+      discountType: loanData.discountType || null,
+      discountValue: loanData.discountValue ? parseFloat(loanData.discountValue) : null,
+      discountAmount: discountAmount > 0 ? Math.round(discountAmount) : null,
+      discountAppliedTo: loanData.discountAppliedTo || null
     };
     
     // Save the loan to DataContext and get the generated ID
-    const loanId = await addLoan(completeLoan);
+    let loanId: string;
+    if (editingLoanId) {
+      // Update existing loan
+      updateLoan(editingLoanId, completeLoan);
+      loanId = editingLoanId;
+      toast.success('Loan Updated Successfully!', {
+        description: `
+          Client: ${client?.name || 'Unknown'}
+          Amount: KES ${principalAmount.toLocaleString()}
+          New Total Interest: KES ${Math.round(totalInterest).toLocaleString()}
+        `,
+        duration: 6000,
+      });
+      // Clear editing state
+      setEditingLoanId(null);
+      return; // Exit early for updates
+    } else {
+      // Create new loan
+      loanId = await addLoan(completeLoan);
+    }
     
     // Save uploaded documents to loanDocuments array
     if (loanData.documents && loanData.documents.length > 0) {
@@ -407,9 +476,7 @@ export function LoansTab() {
     case 'active':
       displayLoans = loans.filter(loan => 
         loan.status === 'active' || 
-        loan.status === 'Active' || 
-        loan.status === 'Disbursed' ||
-        loan.status === 'disbursed'
+        loan.status === 'Active'
       );
       break;
     case 'settled':
@@ -587,8 +654,7 @@ export function LoansTab() {
       return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
     } else if (normalizedStatus === 'approved') {
       return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400';
-    } else if (normalizedStatus === 'disbursed') {
-      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400';
+
     } else if (normalizedStatus === 'rejected') {
       return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
     } else {
@@ -683,7 +749,7 @@ export function LoansTab() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    loans.filter(loan => loan.status === 'Active' || loan.status === 'Disbursed').forEach(loan => {
+    loans.filter(loan => loan.status === 'Active').forEach(loan => {
       const firstRepaymentDate = new Date(loan.firstRepaymentDate);
       const installmentAmount = loan.installmentAmount || 0;
       const totalPrincipal = loan.principalAmount || 0;
@@ -759,6 +825,17 @@ export function LoansTab() {
           <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Manage all loan applications and disbursements</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => {
+              refreshData();
+              toast.success('Refreshing data from database...');
+            }}
+            className="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2 text-sm"
+            title="Refresh data from database"
+          >
+            <RefreshCw className="size-4" />
+            Refresh
+          </button>
           <button
             onClick={() => setShowCalculator(true)}
             className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm"
@@ -924,11 +1001,11 @@ export function LoansTab() {
 
       {/* Summary Cards (for loan views) */}
       {activeSubTab !== 'guarantors' && activeSubTab !== 'comments' && activeSubTab !== 'repayment-schedule' && (() => {
-        // Show statistics for all loans that exist in the system
-        const allLoans = loans || [];
+        // ✅ Show statistics for the CURRENT TAB's filtered loans, not all loans
+        const tabFilteredLoans = filteredLoans || []; // Use filteredLoans which respects the active sub-tab
         
-        // Disbursed loans: all loans except pending/approved/rejected
-        const allActiveDisbursedLoans = allLoans.filter(l => {
+        // Disbursed loans from current tab
+        const allActiveDisbursedLoans = tabFilteredLoans.filter(l => {
           const status = (l.status || '').toLowerCase().trim();
           return status !== 'pending' && status !== 'approved' && status !== 'rejected' && status !== '';
         });
@@ -943,10 +1020,10 @@ export function LoansTab() {
           return calculatedOutstanding > 0;
         });
         
-        // Active loans: those with Active, Disbursed, or In Arrears status
+        // Active loans: those with Active or In Arrears status
         const activeLoans = allActiveDisbursedLoans.filter(l => {
           const status = (l.status || '').toLowerCase().trim();
-          return status === 'active' || status === 'disbursed' || status === 'in arrears';
+          return status === 'active' || status === 'in arrears';
         });
         
         return (
@@ -1301,19 +1378,35 @@ export function LoansTab() {
                                 View
                               </button>
                               {loan.status === 'Pending' && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleDeleteLoan(loan.id, loan.status, client?.name);
-                                  }}
-                                  className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-xs flex items-center gap-1"
-                                  title="Delete loan"
-                                >
-                                  <Trash2 className="size-3" />
-                                  Delete
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setEditingLoanId(loan.id);
+                                      setShowNewLoanModal(true);
+                                    }}
+                                    className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-xs flex items-center gap-1"
+                                    title="Edit loan"
+                                  >
+                                    <Edit className="size-3" />
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleDeleteLoan(loan.id, loan.status, client?.name);
+                                    }}
+                                    className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-xs flex items-center gap-1"
+                                    title="Delete loan"
+                                  >
+                                    <Trash2 className="size-3" />
+                                    Delete
+                                  </button>
+                                </>
                               )}
                             </div>
                           </td>
@@ -1722,8 +1815,12 @@ export function LoansTab() {
 
       {showNewLoanModal && (
         <NewLoanModal
-          onClose={() => setShowNewLoanModal(false)}
+          onClose={() => {
+            setShowNewLoanModal(false);
+            setEditingLoanId(null);
+          }}
           onSubmit={handleNewLoan}
+          editingLoanId={editingLoanId}
         />
       )}
 

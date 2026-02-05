@@ -687,7 +687,8 @@ export const loanService = {
     const term = parseInt(loanData.term || loanData.loanTerm || loanData.term_period || loanData.termPeriod, 10);
     
     // Calculate total amount and monthly installment
-    const totalInterest = (principalAmount * interestRate * term) / (100 * 12);
+    // Interest per period × number of periods (e.g., 7.5% × 2 months = 15% total)
+    const totalInterest = (principalAmount * interestRate * term) / 100;
     const totalAmount = principalAmount + totalInterest;
     const monthlyInstallment = totalAmount / term;
     
@@ -715,6 +716,12 @@ export const loanService = {
       
       // Fees
       processing_fee: parseNumber(loanData.facilitationFee || loanData.processingFee || loanData.processing_fee || 0),
+      
+      // Discount fields
+      discount_type: loanData.discountType || null,
+      discount_value: loanData.discountValue ? parseNumber(loanData.discountValue) : null,
+      discount_amount: loanData.discountAmount ? parseNumber(loanData.discountAmount) : null,
+      discount_applied_to: loanData.discountAppliedTo || null,
       
       // Purpose & disbursement
       purpose: loanData.purpose || '',
@@ -885,7 +892,11 @@ export const loanService = {
       'lastPaymentDate': 'last_payment_date',
       'lastPaymentAmount': 'last_payment_amount',
       'nextPaymentDate': 'next_payment_date',
-      'nextPaymentAmount': 'next_payment_amount'
+      'nextPaymentAmount': 'next_payment_amount',
+      'discountType': 'discount_type',
+      'discountValue': 'discount_value',
+      'discountAmount': 'discount_amount',
+      'discountAppliedTo': 'discount_applied_to'
     };
     
     // Fields to exclude from database updates (frontend-only fields)

@@ -1754,20 +1754,45 @@ export function DataProvider({ children }: { children: ReactNode }) {
               
               // Map Supabase schema to frontend Loan type
               const mappedLoans = supabaseLoans.map((l: any) => {
-                // Capitalize status properly
+                // Capitalize status properly and convert Disbursed to Active
                 const capitalizeStatus = (status: string) => {
                   if (!status) return 'Pending';
+                  const normalized = status.toLowerCase().trim();
+                  if (normalized === 'disbursed') return 'Active';
                   return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
                 };
                 
-                // ✅ CALCULATE totalInterest from database values
-                const principalAmount = l.amount || 0;
-                const totalRepayable = l.total_amount || 0;
-                const calculatedInterest = totalRepayable - principalAmount;
+                // ✅ READ VALUES DIRECTLY FROM DATABASE (use actual DB values)
+                const principalAmount = parseFloat(l.amount) || 0;
+                const paidAmount = parseFloat(l.amount_paid) || 0;
+                const balanceFromDB = parseFloat(l.balance) || 0;
+                const interestRate = parseFloat(l.interest_rate) || 0;
+                const termPeriod = parseInt(l.term_period) || 0;
                 
-                // ✅ CALCULATE outstandingBalance from database values
-                const paidAmount = l.amount_paid || 0;
-                const calculatedOutstanding = totalRepayable - paidAmount;
+                // ✅ CALCULATE interest from FORMULA: amount × (interest_rate / 100) × term_period
+                // This ensures we use the correct calculation regardless of what total_amount says
+                const calculatedInterest = principalAmount * (interestRate / 100) * termPeriod;
+                
+                // ✅ Calculate total repayable
+                const totalRepayable = principalAmount + calculatedInterest;
+                
+                // ✅ Use balance from DB if available, otherwise calculate
+                const calculatedOutstanding = balanceFromDB > 0 ? balanceFromDB : (totalRepayable - paidAmount);
+                
+                // 🔍 Debug logging to verify database values
+                if (l.loan_number && (l.loan_number.includes('5021') || l.loan_number.includes('5035') || l.loan_number.includes('LN001') || l.loan_number.includes('LN002'))) {
+                  console.log(`📊 [DB READ] ${l.loan_number} values:`, {
+                    'DB amount (principal)': l.amount,
+                    'DB interest_rate': l.interest_rate,
+                    'DB term_period': l.term_period,
+                    'DB amount_paid': l.amount_paid,
+                    'DB balance': l.balance,
+                    'DB total_amount (ignored)': l.total_amount,
+                    '✅ Calculated Interest (formula)': calculatedInterest,
+                    '✅ Calculated Total': totalRepayable,
+                    '✅ Calculated Outstanding': calculatedOutstanding
+                  });
+                }
                 
                 return {
                   id: l.id, // ✅ Use UUID for operations
@@ -2332,10 +2357,111 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return `SAV${timestamp}${random}`;
   };
 
-  const refreshData = () => {
-    // Trigger a re-render by updating state
-    setClients([...clients]);
-    setLoans([...loans]);
+  const refreshData = async () => {
+    // ✅ Reload fresh data from Supabase database
+    if (!currentUser?.organizationId) {
+      console.warn('⚠️ Cannot refresh data: No organization ID');
+      return;
+    }
+    
+    try {
+      console.log('🔄 Refreshing data from Supabase...');
+      
+      // Reload loans
+      const supabaseLoans = await supabaseDataService.loans.getAll(currentUser.organizationId);
+      if (supabaseLoans && supabaseLoans.length > 0) {
+        const mappedLoans = supabaseLoans.map((l: any) => {
+          const capitalizeStatus = (status: string) => {
+            if (!status) return 'Pending';
+            const normalized = status.toLowerCase().trim();
+            if (normalized === 'disbursed') return 'Active';
+            return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+          };
+          
+          const principalAmount = parseFloat(l.amount) || 0;
+          const paidAmount = parseFloat(l.amount_paid) || 0;
+          const balanceFromDB = parseFloat(l.balance) || 0;
+          const interestRate = parseFloat(l.interest_rate) || 0;
+          const termPeriod = parseInt(l.term_period) || 0;
+          
+          // ✅ CALCULATE interest from FORMULA: amount × (interest_rate / 100) × term_period
+          const calculatedInterest = principalAmount * (interestRate / 100) * termPeriod;
+          const totalRepayable = principalAmount + calculatedInterest;
+          const calculatedOutstanding = balanceFromDB > 0 ? balanceFromDB : (totalRepayable - paidAmount);
+          
+          console.log(`📊 [REFRESH] ${l.loan_number} - Interest: ${calculatedInterest}, Outstanding: ${calculatedOutstanding}`);
+          
+          return {
+            id: l.id,
+            loanNumber: l.loan_number || l.id,
+            loanId: l.loan_number || l.id,
+            loan_id: l.loan_number || l.id,
+            clientId: l.client?.client_number || l.client_id || '',
+            clientUuid: l.client_id || '',
+            clientName: l.client ? `${l.client.first_name} ${l.client.last_name}` : l.client_name || '',
+            productId: l.product_id || '',
+            productName: l.product?.product_name || l.product_name || l.product_type || '',
+            product: l.product_type || l.product_name || '',
+            principalAmount: principalAmount,
+            interestRate: l.interest_rate || l.product?.interest_rate || 0,
+            interestType: 'Flat',
+            term: l.term_period || 0,
+            termUnit: l.term_period_unit ? (l.term_period_unit.charAt(0).toUpperCase() + l.term_period_unit.slice(1)) : 'Months',
+            repaymentFrequency: l.repayment_frequency ? (l.repayment_frequency.charAt(0).toUpperCase() + l.repayment_frequency.slice(1)) : 'Monthly',
+            facilitationFee: l.processing_fee || 0,
+            applicationDate: (() => {
+              const rawDate = l.application_date?.split('T')[0] || l.created_at?.split('T')[0] || new Date().toISOString().split('T')[0];
+              return rawDate.startsWith('2020') ? rawDate.replace('2020', '2026') : rawDate;
+            })(),
+            approvedDate: (() => {
+              const rawDate = l.approval_date?.split('T')[0] || '';
+              return rawDate.startsWith('2020') ? rawDate.replace('2020', '2026') : rawDate;
+            })(),
+            disbursementDate: (() => {
+              const rawDate = l.disbursement_date?.split('T')[0] || '';
+              return rawDate.startsWith('2020') ? rawDate.replace('2020', '2026') : rawDate;
+            })(),
+            firstRepaymentDate: '',
+            maturityDate: '',
+            status: capitalizeStatus(l.status),
+            installmentAmount: 0,
+            monthlyPayment: 0,
+            totalInterest: calculatedInterest,
+            totalRepayable: totalRepayable,
+            totalRepayment: totalRepayable,
+            numberOfInstallments: 0,
+            paidAmount: paidAmount,
+            outstandingBalance: calculatedOutstanding,
+            principalOutstanding: calculatedOutstanding,
+            interestOutstanding: 0,
+            createdBy: '',
+            loanOfficer: '',
+            purpose: l.purpose || '',
+            notes: '',
+            interestMethod: 'Flat Rate',
+            guarantorRequired: false,
+            collateralRequired: false,
+            paymentSource: '',
+            gracePeriod: 0,
+            latePaymentPenalty: 0,
+            daysInArrears: l.days_in_arrears || 0,
+            arrearsAmount: l.arrears_amount || 0,
+            overdueAmount: l.overdue_amount || 0,
+            penaltyAmount: l.penalty_amount || 0,
+            collateral: [],
+            guarantors: []
+          };
+        });
+        
+        setLoans(mappedLoans);
+        console.log('✅ Loans refreshed:', mappedLoans.length);
+      }
+      
+      toast.success('Data refreshed from database');
+    } catch (error) {
+      console.error('❌ Error refreshing data:', error);
+      toast.error('Failed to refresh data from database');
+    }
   };
 
   const clearAllData = () => {

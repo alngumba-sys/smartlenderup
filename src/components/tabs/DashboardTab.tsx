@@ -95,6 +95,14 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const theme = useThemeStyles();
   const { isDark, currentTheme } = useTheme();
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
+  const [calculationBreakdown, setCalculationBreakdown] = useState<{
+    metric: string;
+    title: string;
+    formula: string;
+    components: { label: string; value: string; }[];
+    result: string;
+    details?: any[];
+  } | null>(null);
   
   // Get dynamic currency
   const currencySymbol = getCurrencySymbol();
@@ -182,7 +190,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   // Helper function to normalize status (handle both lowercase and capitalized)
   const isActiveStatus = (status: string) => {
     const normalized = status?.toLowerCase();
-    return normalized === 'active' || normalized === 'disbursed' || normalized === 'in arrears' || normalized === 'overdue';
+    return normalized === 'active' || normalized === 'in arrears' || normalized === 'overdue';
   };
   const filteredLoansForPortfolio = contextLoans.filter((l: any) => isActiveStatus(l.status));
   const filteredLoansForPrincipal = contextLoans.filter((l: any) => isActiveStatus(l.status));
@@ -394,7 +402,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       const expected = contextLoans
         .filter((l: any) => {
           const status = (l.status || '').toLowerCase().trim();
-          return status === 'active' || status === 'disbursed' || status === 'in arrears' || status === 'settled';
+          return status === 'active' || status === 'in arrears' || status === 'settled';
         })
         .reduce((sum: number, loan: any) => {
           if (!loan.disbursementDate) return sum;
@@ -494,7 +502,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   
   // Calculate real metrics from DataContext
   const totalClients = contextClients.length;
-  const activeLoans = contextLoans.filter((l: any) => l.status === 'Active' || l.status === 'Disbursed' || l.status === 'In Arrears').length;
+  const activeLoans = contextLoans.filter((l: any) => l.status === 'Active' || l.status === 'In Arrears').length;
   
   // Filter loans that are Active AND in Phase 5 of approvals
   const disbursedLoans = contextLoans.filter((l: any) => {
@@ -510,7 +518,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const savingsBalance = savingsAccounts.reduce((sum: number, acc: any) => sum + (acc.balance || 0), 0);
   
   // Calculate outstanding balance from active loans only
-  const activeLoansData = contextLoans.filter((l: any) => l.status === 'Active' || l.status === 'Disbursed' || l.status === 'In Arrears');
+  const activeLoansData = contextLoans.filter((l: any) => l.status === 'Active' || l.status === 'In Arrears');
   const totalOutstanding = activeLoansData.reduce((sum: number, l: any) => sum + (l.outstandingBalance || 0), 0);
   
   // Calculate filtered metrics based on duration selection
@@ -570,6 +578,15 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     }))
   });
   
+  // Calculate Collection Efficiency: (Total Collected / Expected Collections) × 100
+  // Expected Collections = What SHOULD have been collected = Total Disbursed - Outstanding Balance
+  // Total Collected = All payments received
+  const totalCollected = payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+  const totalDisbursedForEfficiency = contextLoans.reduce((sum: number, l: any) => sum + (l.principalAmount || 0), 0);
+  const totalOutstandingForEfficiency = contextLoans.reduce((sum: number, l: any) => sum + Math.abs(l.outstandingBalance || 0), 0);
+  const expectedCollections = totalDisbursedForEfficiency - totalOutstandingForEfficiency;
+  const collectionEfficiency = expectedCollections > 0 ? (totalCollected / expectedCollections) * 100 : 0;
+  
   // Calculate AI Insights - clients at risk (loans with arrears >= 30 days)
   // ✅ Use calculated daysInArrears instead of database value to fix incorrect 1500+ days
   const atRiskLoans = contextLoans
@@ -603,15 +620,15 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   
   // Calculate actual collection rate: Total Collected / Total Disbursed
   const totalDisbursed = contextLoans.reduce((sum: number, l: any) => sum + (l.principalAmount || 0), 0);
-  const totalCollected = contextLoans.reduce((sum: number, l: any) => sum + (l.paidAmount || 0), 0);
-  const actualCollectionRate = safePercentageNum(totalCollected, totalDisbursed);
+  const totalPaidFromLoans = contextLoans.reduce((sum: number, l: any) => sum + (l.paidAmount || 0), 0);
+  const actualCollectionRate = safePercentageNum(totalPaidFromLoans, totalDisbursed);
   
   console.log('AI Risk Analysis:', {
     atRiskLoans: atRiskLoans.length,
     atRiskClients: atRiskClientsCount,
     potentialDefaults,
     totalDisbursed,
-    totalCollected,
+    totalCollected: totalPaidFromLoans,
     actualCollectionRate: safeToFixed(actualCollectionRate, 2) + '%',
     atRiskDetails: atRiskLoans.map(l => ({ 
       clientName: l.clientName, 
@@ -770,6 +787,118 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   
   const totalLoans = loanStatusDistribution.reduce((sum, item) => sum + item.count, 0);
 
+  // Function to show calculation breakdown
+  const showBreakdown = (metricType: string) => {
+    let breakdown: any;
+    
+    switch(metricType) {
+      case 'total-clients':
+        breakdown = {
+          metric: 'total-clients',
+          title: 'Total Clients Calculation',
+          formula: 'Count of all registered clients',
+          components: [
+            { label: 'Total Registered Clients', value: `${totalClients} clients` },
+            { label: 'Filtered Clients (Based on Duration)', value: `${filteredTotalClients} clients` }
+          ],
+          result: `${filteredTotalClients} clients`,
+          details: filteredClientsForCount.slice(0, 10).map((c: any) => ({
+            name: c.name,
+            registrationDate: new Date(c.createdAt).toLocaleDateString()
+          }))
+        };
+        break;
+        
+      case 'disbursed-total':
+        breakdown = {
+          metric: 'disbursed-total',
+          title: 'Total Disbursed Calculation',
+          formula: 'Sum of Principal Amount from all disbursed loans',
+          components: [
+            { label: 'Number of Loans', value: `${filteredLoansForDisbursement.length} loans` },
+            { label: 'Total Principal Disbursed', value: `${currencyCode} ${filteredDisbursedTotal.toLocaleString()}` },
+            { label: 'Average Loan Size', value: `${currencyCode} ${(filteredDisbursedTotal / Math.max(filteredLoansForDisbursement.length, 1)).toLocaleString(undefined, { maximumFractionDigits: 2 })}` }
+          ],
+          result: `${currencyCode} ${filteredDisbursedTotal.toLocaleString()}`,
+          details: filteredLoansForDisbursement.slice(0, 10).map((l: any) => ({
+            clientName: l.clientName,
+            amount: `${currencyCode} ${l.principalAmount.toLocaleString()}`,
+            date: new Date(l.disbursementDate).toLocaleDateString()
+          }))
+        };
+        break;
+        
+      case 'collections-total':
+        breakdown = {
+          metric: 'collections-total',
+          title: 'Total Collections Calculation',
+          formula: 'Sum of all payment amounts',
+          components: [
+            { label: 'Number of Payments', value: `${filteredPayments.length} payments` },
+            { label: 'Total Collected', value: `${currencyCode} ${filteredCollectionsTotal.toLocaleString()}` },
+            { label: 'Average Payment', value: `${currencyCode} ${(filteredCollectionsTotal / Math.max(filteredPayments.length, 1)).toLocaleString(undefined, { maximumFractionDigits: 2 })}` }
+          ],
+          result: `${currencyCode} ${filteredCollectionsTotal.toLocaleString()}`,
+          details: filteredPayments.slice(0, 10).map((p: any) => ({
+            clientName: p.clientName || p.loanId,
+            amount: `${currencyCode} ${p.amount.toLocaleString()}`,
+            date: new Date(p.paymentDate).toLocaleDateString()
+          }))
+        };
+        break;
+        
+      case 'par30':
+        breakdown = {
+          metric: 'par30',
+          title: 'PAR 30 Days Calculation',
+          formula: 'PAR 30 = (Outstanding Balance of Loans 30+ Days Overdue / Total Outstanding) × 100',
+          components: [
+            { label: 'Loans 30+ Days Overdue', value: `${par30Loans.length} loans` },
+            { label: 'Outstanding Balance (30+ Days)', value: `${currencyCode} ${par30Amount.toLocaleString()}` },
+            { label: 'Total Outstanding Balance', value: `${currencyCode} ${totalOutstanding.toLocaleString()}` },
+            { label: 'Calculation', value: `(${par30Amount.toLocaleString()} ÷ ${totalOutstanding.toLocaleString()}) × 100` }
+          ],
+          result: `${par30Rate.toFixed(2)}%`,
+          details: par30Loans.slice(0, 10).map((l: any) => ({
+            clientName: l.clientName,
+            daysOverdue: `${l.daysInArrears} days`,
+            outstanding: `${currencyCode} ${l.outstandingBalance.toLocaleString()}`
+          }))
+        };
+        break;
+        
+      case 'collection-efficiency':
+        breakdown = {
+          metric: 'collection-efficiency',
+          title: 'Collection Efficiency Calculation',
+          formula: 'Collection Efficiency = (Total Collected / Expected Collections) × 100',
+          components: [
+            { label: 'Total Payments Collected', value: `${currencyCode} ${totalCollected.toLocaleString()}` },
+            { label: 'Total Principal Disbursed', value: `${currencyCode} ${totalDisbursedForEfficiency.toLocaleString()}` },
+            { label: 'Current Outstanding Balance', value: `${currencyCode} ${totalOutstandingForEfficiency.toLocaleString()}` },
+            { label: 'Expected Collections', value: `${currencyCode} ${expectedCollections.toLocaleString()}` },
+            { label: 'Calculation', value: `(${totalCollected.toLocaleString()} ÷ ${expectedCollections.toLocaleString()}) × 100` }
+          ],
+          result: `${collectionEfficiency.toFixed(1)}%`,
+          details: [
+            { 
+              note: 'Expected Collections = Disbursed - Outstanding',
+              calculation: `${totalDisbursedForEfficiency.toLocaleString()} - ${totalOutstandingForEfficiency.toLocaleString()} = ${expectedCollections.toLocaleString()}`
+            },
+            {
+              note: 'If >100%, you collected more than expected (fees, early payments, etc.)',
+              calculation: totalCollected > expectedCollections ? 'Over-performance detected ✓' : 'Under-performance'
+            }
+          ]
+        };
+        break;
+    }
+    
+    if (breakdown) {
+      setCalculationBreakdown(breakdown);
+    }
+  };
+
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-5 md:space-y-6" style={{
       backgroundColor: 'transparent'
@@ -887,7 +1016,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         <h3 className="mb-2 sm:mb-3 text-base sm:text-lg" style={{ color: themeColors.cardText }}>Operational Health & Risk</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
           <div 
-            className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all"
+            onClick={() => showBreakdown('total-clients')}
+            className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[0]}15, ${themeColors.cardBackground})`,
               borderColor: COLORS[0]
@@ -896,7 +1026,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <p className="text-sm mb-2" style={{ color: themeColors.cardTextSecondary }}>Total Clients</p>
-                <p className="text-3xl mb-1 cursor-pointer" onClick={() => onNavigate?.('clients')} style={{ color: COLORS[0] }}>{filteredTotalClients}</p>
+                <p className="text-3xl mb-1" style={{ color: COLORS[0] }}>{filteredTotalClients}</p>
                 <p className="text-xs" style={{ color: themeColors.textSecondary }}>Registered borrowers</p>
               </div>
               <div className="flex flex-col items-center gap-1">
@@ -923,7 +1053,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           </div>
 
           <div 
-            className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all"
+            onClick={() => showBreakdown('disbursed-total')}
+            className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[1]}15, ${themeColors.cardBackground})`,
               borderColor: COLORS[1]
@@ -932,7 +1063,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <p className="text-sm mb-2" style={{ color: themeColors.cardTextSecondary }}>Disbursed (Total)</p>
-                <p className="text-3xl mb-1 cursor-pointer" onClick={() => onNavigate?.('loans')} style={{ color: COLORS[1] }}>{currencySymbol} {formatSmartNumber(filteredDisbursedTotal || 0).number}{formatSmartNumber(filteredDisbursedTotal || 0).suffix}</p>
+                <p className="text-3xl mb-1" style={{ color: COLORS[1] }}>{currencySymbol} {formatSmartNumber(filteredDisbursedTotal || 0).number}{formatSmartNumber(filteredDisbursedTotal || 0).suffix}</p>
                 <p className="text-xs" style={{ color: themeColors.textSecondary }}>{filteredLoansForDisbursement.length} loans total</p>
               </div>
               <div className="flex flex-col items-center gap-1">
@@ -959,7 +1090,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           </div>
 
           <div 
-            className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all"
+            onClick={() => showBreakdown('collections-total')}
+            className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[2]}15, ${themeColors.cardBackground})`,
               borderColor: COLORS[2]
@@ -968,7 +1100,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <p className="text-sm mb-2" style={{ color: themeColors.cardTextSecondary }}>Collections (Total)</p>
-                <p className="text-3xl mb-1 cursor-pointer" onClick={() => onNavigate?.('payments')} style={{ color: COLORS[2] }}>{currencySymbol} {formatSmartNumber(filteredCollectionsTotal || 0).number}{formatSmartNumber(filteredCollectionsTotal || 0).suffix}</p>
+                <p className="text-3xl mb-1" style={{ color: COLORS[2] }}>{currencySymbol} {formatSmartNumber(filteredCollectionsTotal || 0).number}{formatSmartNumber(filteredCollectionsTotal || 0).suffix}</p>
                 <p className="text-xs" style={{ color: themeColors.textSecondary }}>{filteredPayments.length} total payments</p>
               </div>
               <div className="flex flex-col items-center gap-1">
@@ -995,7 +1127,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           </div>
 
           <div 
-            onClick={() => onNavigate?.('loans')}
+            onClick={() => showBreakdown('par30')}
             className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[3]}15, ${themeColors.cardBackground})`,
@@ -1015,7 +1147,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           </div>
 
           <div 
-            onClick={() => onNavigate?.('payments')}
+            onClick={() => showBreakdown('collection-efficiency')}
             className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[4] || COLORS[0]}15, ${themeColors.cardBackground})`,
@@ -1025,8 +1157,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <p className="text-sm mb-2" style={{ color: themeColors.cardTextSecondary }}>Collection Efficiency</p>
-                <p className="text-3xl mb-1" style={{ color: COLORS[4] || COLORS[0] }}>100%</p>
-                <p className="text-xs" style={{ color: themeColors.textSecondary }}>Matured loans paid</p>
+                <p className="text-3xl mb-1" style={{ color: COLORS[4] || COLORS[0] }}>{collectionEfficiency.toFixed(1)}%</p>
+                <p className="text-xs" style={{ color: themeColors.textSecondary }}>Payments vs Expected</p>
               </div>
               <Activity className="size-8 flex-shrink-0 ml-2" style={{ color: COLORS[4] || COLORS[0] }} />
             </div>
@@ -2059,8 +2191,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   <div className="flex items-center gap-3 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
                     <Activity className="size-8 text-purple-600 dark:text-purple-400" />
                     <div>
-                      <p className="dark:text-purple-200 text-sm font-semibold text-[rgb(138,82,197)]">AI-Powered Risk Analysis</p>
-                      <p className="dark:text-purple-100 text-3xl font-bold text-[rgb(98,51,149)]">{atRiskClientsCount} client{atRiskClientsCount !== 1 ? 's' : ''} at risk</p>
+                      <p className="text-purple-900 dark:text-purple-200 text-sm font-semibold">AI-Powered Risk Analysis</p>
+                      <p className="text-purple-900 dark:text-purple-100 text-3xl font-bold">{atRiskClientsCount} client{atRiskClientsCount !== 1 ? 's' : ''} at risk</p>
                     </div>
                   </div>
                   
@@ -2157,6 +2289,149 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Calculation Breakdown Modal */}
+      {calculationBreakdown && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={() => setCalculationBreakdown(null)}>
+          <div 
+            className="rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              backgroundColor: isDark ? '#0d2838' : '#ffffff',
+              borderColor: isDark ? '#1e2f42' : '#e5e7eb',
+              border: '1px solid'
+            }}
+          >
+            {/* Header */}
+            <div className="sticky top-0 p-4 border-b" style={{
+              backgroundColor: isDark ? '#0d2838' : '#ffffff',
+              borderColor: isDark ? '#1e2f42' : '#e5e7eb'
+            }}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg mb-0.5" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>
+                    {calculationBreakdown.title}
+                  </h2>
+                  <p className="text-xs" style={{ color: isDark ? '#7a8a9e' : '#6b7280' }}>
+                    Detailed calculation breakdown
+                  </p>
+                </div>
+                <button
+                  onClick={() => setCalculationBreakdown(null)}
+                  className="hover:opacity-80 transition-opacity p-1.5 rounded-lg"
+                  style={{ 
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                    color: isDark ? '#b8c5d6' : '#6b7280'
+                  }}
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-4 space-y-4">
+              {/* Formula */}
+              <div className="p-3 rounded-lg border" style={{
+                backgroundColor: isDark ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)',
+                borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.2)'
+              }}>
+                <p className="text-[10px] mb-1 tracking-wider" style={{ color: isDark ? '#93c5fd' : '#3b82f6' }}>FORMULA</p>
+                <p className="text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>
+                  {calculationBreakdown.formula}
+                </p>
+              </div>
+
+              {/* Components */}
+              <div>
+                <h3 className="text-[10px] mb-2 tracking-wider" style={{ color: isDark ? '#93c5fd' : '#3b82f6' }}>CALCULATION COMPONENTS</h3>
+                <div className="space-y-2">
+                  {calculationBreakdown.components.map((comp, idx) => (
+                    <div 
+                      key={idx}
+                      className="flex justify-between items-center p-2.5 rounded-lg"
+                      style={{
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                        borderLeft: '3px solid',
+                        borderColor: isDark ? '#3b82f6' : '#60a5fa'
+                      }}
+                    >
+                      <span className="text-sm" style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>{comp.label}</span>
+                      <span className="text-sm" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>{comp.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Result */}
+              <div className="p-4 rounded-lg border-2" style={{
+                backgroundColor: isDark ? 'rgba(34, 197, 94, 0.1)' : 'rgba(34, 197, 94, 0.05)',
+                borderColor: isDark ? 'rgba(34, 197, 94, 0.4)' : 'rgba(34, 197, 94, 0.3)'
+              }}>
+                <p className="text-[10px] mb-1 tracking-wider" style={{ color: isDark ? '#86efac' : '#16a34a' }}>FINAL RESULT</p>
+                <p className="text-3xl" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>
+                  {calculationBreakdown.result}
+                </p>
+              </div>
+
+              {/* Sample Data */}
+              {calculationBreakdown.details && calculationBreakdown.details.length > 0 && (
+                <div>
+                  <h3 className="text-[10px] mb-2 tracking-wider" style={{ color: isDark ? '#93c5fd' : '#3b82f6' }}>
+                    {calculationBreakdown.details[0].clientName ? 'SAMPLE DATA (First 10 Records)' : 'ADDITIONAL NOTES'}
+                  </h3>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {calculationBreakdown.details.map((detail: any, idx: number) => (
+                      <div 
+                        key={idx}
+                        className="p-2.5 rounded text-sm"
+                        style={{
+                          backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'
+                        }}
+                      >
+                        {detail.clientName && (
+                          <div className="flex justify-between">
+                            <span style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>{detail.clientName || detail.name}</span>
+                            <span style={{ color: isDark ? '#e1e8f0' : '#111827' }}>
+                              {detail.amount || detail.outstanding || detail.daysOverdue}
+                            </span>
+                          </div>
+                        )}
+                        {detail.date && (
+                          <div className="text-xs mt-0.5" style={{ color: isDark ? '#7a8a9e' : '#9ca3af' }}>
+                            {detail.date || detail.registrationDate}
+                          </div>
+                        )}
+                        {detail.note && (
+                          <div>
+                            <p className="mb-0.5 text-xs" style={{ color: isDark ? '#93c5fd' : '#3b82f6' }}>{detail.note}</p>
+                            <p className="text-xs" style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>{detail.calculation}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Info Footer */}
+              <div className="flex items-start gap-2 p-3 rounded-lg" style={{
+                backgroundColor: isDark ? 'rgba(234, 179, 8, 0.1)' : 'rgba(234, 179, 8, 0.05)',
+                border: '1px solid',
+                borderColor: isDark ? 'rgba(234, 179, 8, 0.3)' : 'rgba(234, 179, 8, 0.2)'
+              }}>
+                <Info className="size-4 flex-shrink-0 mt-0.5" style={{ color: isDark ? '#fde047' : '#ca8a04' }} />
+                <div>
+                  <p className="text-xs" style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>
+                    All calculations are performed in real-time using data from your Supabase database. 
+                    Values are filtered based on the duration settings you've selected for each metric.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

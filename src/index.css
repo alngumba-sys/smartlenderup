@@ -4684,14 +4684,6 @@
     color: #167d49;
   }
 
-  .text-\[rgb\(98\,51\,149\)\] {
-    color: #623395;
-  }
-
-  .text-\[rgb\(138\,82\,197\)\] {
-    color: #8a52c5;
-  }
-
   .text-\[rgb\(183\,134\,6\)\] {
     color: #b78606;
   }
@@ -6236,6 +6228,10 @@
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
 
+  .focus\:ring-amber-500:focus {
+    --tw-ring-color: var(--color-amber-500);
+  }
+
   .focus\:ring-blue-500:focus {
     --tw-ring-color: var(--color-blue-500);
   }
@@ -7257,6 +7253,18 @@
   }
 
   @media (prefers-color-scheme: dark) {
+    .dark\:bg-amber-900\/10 {
+      background-color: color-mix(in srgb, oklch(.414 .112 45.904) 10%, transparent);
+    }
+
+    @supports (color: color-mix(in lab, red, red)) {
+      .dark\:bg-amber-900\/10 {
+        background-color: color-mix(in oklab, var(--color-amber-900) 10%, transparent);
+      }
+    }
+  }
+
+  @media (prefers-color-scheme: dark) {
     .dark\:bg-amber-900\/20 {
       background-color: color-mix(in srgb, oklch(.414 .112 45.904) 20%, transparent);
     }
@@ -7817,6 +7825,12 @@
   }
 
   @media (prefers-color-scheme: dark) {
+    .dark\:text-gray-200 {
+      color: var(--color-gray-200);
+    }
+  }
+
+  @media (prefers-color-scheme: dark) {
     .dark\:text-gray-300 {
       color: var(--color-gray-300);
     }
@@ -8215,6 +8229,12 @@
   @media (prefers-color-scheme: dark) {
     .dark\:disabled\:bg-gray-600:disabled {
       background-color: var(--color-gray-600);
+    }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .dark\:disabled\:bg-gray-800:disabled {
+      background-color: var(--color-gray-800);
     }
   }
 

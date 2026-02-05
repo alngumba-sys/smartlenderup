@@ -15,7 +15,7 @@ interface RecordPaymentModalProps {
 export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanId }: RecordPaymentModalProps) {
   const { isDark } = useTheme();
   useEscapeKey(onClose, isOpen);
-  const { clients, loans, bankAccounts } = useData();
+  const { clients, loans, bankAccounts, payments } = useData();
   const currencyCode = getCurrencyCode();
   const mobileMoneyProviders = getMobileMoneyProviders();
   const defaultProvider = mobileMoneyProviders[0] || 'Mobile Money';
@@ -31,7 +31,10 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
     mpesaPhone: '',
     mpesaCode: '',
     bankAccountId: '',
-    destinationAccountId: '' // New field for where payment was received
+    destinationAccountId: '', // New field for where payment was received
+    discountType: '',
+    discountValue: '',
+    discountAppliedTo: 'balance'
   });
 
   // Format number with commas
@@ -111,7 +114,10 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
       mpesaPhone: '',
       mpesaCode: '',
       bankAccountId: '',
-      destinationAccountId: ''
+      destinationAccountId: '',
+      discountType: '',
+      discountValue: '',
+      discountAppliedTo: 'balance'
     });
   };
 
@@ -123,6 +129,12 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
 
   const selectedLoan = loans.find(l => l.id === formData.loanId);
   const selectedClient = selectedLoan ? clients.find(c => c.id === selectedLoan.clientId) : null;
+  
+  // Check if this loan has any payments recorded
+  const loanHasPayments = selectedLoan ? payments.some(payment => 
+    payment.loanId === selectedLoan.id || 
+    payment.loan_id === selectedLoan.id
+  ) : false;
   
   // Check if selected payment method is a mobile money provider
   const isMobileMoney = mobileMoneyProviders.includes(formData.paymentMethod);
@@ -366,6 +378,110 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
                     <p className="text-gray-900 dark:text-white">{selectedLoan.status}</p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Discount Section - Only for first payment */}
+            {selectedLoan && selectedClient && !loanHasPayments && (
+              <>
+                <div className="col-span-3 mt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-1 h-5 bg-amber-600 rounded-full"></div>
+                    <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Apply Discount (Optional - First Payment Only)</h3>
+                  </div>
+                </div>
+
+                <div className="col-span-3 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg">
+                  <div className="grid grid-cols-4 gap-3">
+                    {/* Discount Type */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Discount Type</label>
+                      <select
+                        value={formData.discountType}
+                        onChange={(e) => setFormData({ ...formData, discountType: e.target.value, discountValue: '' })}
+                        className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#111120] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
+                      >
+                        <option value="">No Discount</option>
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="fixed_amount">Fixed Amount ({currencyCode})</option>
+                      </select>
+                    </div>
+
+                    {/* Discount Value */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Discount Value</label>
+                      <input
+                        type="text"
+                        disabled={!formData.discountType}
+                        value={formData.discountType === 'percentage' 
+                          ? formData.discountValue 
+                          : (formData.discountValue ? formatNumberWithCommas(formData.discountValue) : '')}
+                        onChange={(e) => {
+                          const rawValue = e.target.value.replace(/,/g, '');
+                          if (rawValue === '' || !isNaN(Number(rawValue))) {
+                            setFormData({ ...formData, discountValue: rawValue });
+                          }
+                        }}
+                        className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#111120] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
+                        placeholder={formData.discountType === 'percentage' ? 'e.g., 10' : '0'}
+                      />
+                    </div>
+
+                    {/* Apply Discount To */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Apply To</label>
+                      <select
+                        disabled={!formData.discountType}
+                        value={formData.discountAppliedTo}
+                        onChange={(e) => setFormData({ ...formData, discountAppliedTo: e.target.value })}
+                        className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#111120] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
+                      >
+                        <option value="balance">Balance</option>
+                        <option value="payment_amount">Payment Amount</option>
+                      </select>
+                    </div>
+
+                    {/* Calculated Discount Amount */}
+                    {formData.discountType && formData.discountValue && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Discount Amount</label>
+                        <div className="px-3 py-1.5 border border-amber-300 dark:border-amber-700 bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-100 rounded-lg text-sm font-semibold">
+                          {currencyCode} {(() => {
+                            const balance = selectedLoan.outstandingBalance || 0;
+                            const paymentAmount = parseFloat(formData.amount) || 0;
+                            const discountVal = parseFloat(formData.discountValue) || 0;
+                            const applyTo = formData.discountAppliedTo === 'balance' ? balance : paymentAmount;
+                            
+                            if (formData.discountType === 'percentage') {
+                              return ((applyTo * Math.min(discountVal, 100)) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            } else {
+                              return Math.min(discountVal, applyTo).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            }
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Discount Info */}
+                  <div className="mt-3 p-2.5 bg-amber-100 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg">
+                    <p className="text-xs text-amber-900 dark:text-amber-200">
+                      <strong>💡 Discount Options:</strong><br/>
+                      • <strong>Balance:</strong> Reduces the total outstanding balance of the loan<br/>
+                      • <strong>Payment Amount:</strong> Reduces only this payment (client pays less, more goes to principal)<br/>
+                      ⚠️ Discounts can only be applied on the first payment
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Show message if loan already has payments */}
+            {selectedLoan && loanHasPayments && (
+              <div className="col-span-3 p-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  ℹ️ Discount feature is only available for the first payment. This loan has already received payment(s).
+                </p>
               </div>
             )}
 

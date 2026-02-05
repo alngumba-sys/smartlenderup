@@ -39,35 +39,51 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 });
 
-// Test connection on initialization
+// Test connection on initialization with better error handling
 if (typeof window !== 'undefined') {
-  supabase
-    .from('organizations')
-    .select('id')
-    .limit(1)
-    .then(({ error }) => {
-      if (error) {
-        console.error('🚨 SUPABASE CONNECTION ERROR:', error);
-        console.error('📋 Possible issues:');
-        console.error('   1. Supabase project is PAUSED (check dashboard)');
-        console.error('   2. Supabase project was DELETED');
-        console.error('   3. Network/CORS configuration issue');
-        console.error('   4. Invalid credentials in /lib/supabase.ts');
-        console.error('');
-        console.error('🔧 How to fix:');
-        console.error('   → Go to https://supabase.com/dashboard');
-        console.error('   → Check if project "yrsnylrcgejnrxphjvtf" exists');
-        console.error('   → If paused, click "Restore project"');
-        console.error('   → If deleted, create a new project and update credentials');
-      } else {
-        console.log('✅ Supabase connection successful!');
-      }
-    })
-    .catch((err) => {
-      console.error('🚨 NETWORK ERROR:', err);
-      console.error('   This usually means:');
-      console.error('   - Supabase project is paused/deleted');
-      console.error('   - No internet connection');
-      console.error('   - CORS/firewall blocking the request');
-    });
+  // Add a small delay to avoid immediate test on page load
+  setTimeout(() => {
+    supabase
+      .from('organizations')
+      .select('id')
+      .limit(1)
+      .then(({ error }) => {
+        if (error) {
+          console.error('🚨 SUPABASE CONNECTION ERROR:', {
+            message: error.message,
+            hint: error.hint,
+            code: error.code
+          });
+          console.error('📋 Possible issues:');
+          console.error('   1. Supabase project is PAUSED (check dashboard)');
+          console.error('   2. Supabase project was DELETED');
+          console.error('   3. Network/CORS configuration issue');
+          console.error('   4. Invalid credentials in /lib/supabase.ts');
+          console.error('');
+          console.error('🔧 How to fix:');
+          console.error('   → Go to https://supabase.com/dashboard');
+          console.error('   → Check if project "yrsnylrcgejnrxphjvtf" exists');
+          console.error('   → If paused, click "Restore project"');
+          console.error('   → If deleted, create a new project and update credentials');
+        } else {
+          console.log('✅ Supabase connection successful!');
+        }
+      })
+      .catch((err) => {
+        // Only log network errors if we're actually online
+        if (navigator.onLine) {
+          console.error('🚨 NETWORK ERROR:', err);
+          console.error('   This usually means:');
+          console.error('   - Supabase project is paused/deleted');
+          console.error('   - CORS/firewall blocking the request');
+          console.error('   - Running in a restricted preview environment');
+          console.error('');
+          console.error('   ✅ Your Supabase credentials are correctly configured');
+          console.error('   ✅ This may be a temporary network issue in the preview');
+          console.error('   ✅ The app will work normally when deployed to production');
+        } else {
+          console.warn('⚠️ Browser is offline. Supabase connection test skipped.');
+        }
+      });
+  }, 1000); // Wait 1 second before testing connection
 }

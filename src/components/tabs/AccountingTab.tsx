@@ -246,7 +246,7 @@ export function AccountingTab() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('active');
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['all']));
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['asset', 'liability', 'equity', 'revenue', 'expense']));
   const [selectedPeriod, setSelectedPeriod] = useState('2025-12');
   const [isEditing, setIsEditing] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -707,29 +707,25 @@ export function AccountingTab() {
   const totalCredits = trialBalanceEntries.reduce((sum, entry) => sum + entry.credit, 0);
   const isBalanced = Math.abs(totalDebits - totalCredits) < 1; // Allow for rounding errors
 
+  // Calculate cumulative debits and credits from posted journal entries
+  const accountDebitsCredits = new Map<string, { debit: number; credit: number }>();
+  journalEntries
+    .filter(je => je.status === 'Posted')
+    .forEach(entry => {
+      entry.lines.forEach(line => {
+        const existing = accountDebitsCredits.get(line.accountCode) || { debit: 0, credit: 0 };
+        existing.debit += line.debit;
+        existing.credit += line.credit;
+        accountDebitsCredits.set(line.accountCode, existing);
+      });
+    });
+
   // Convert Supabase accounts to the format expected by the UI
   const displayAccounts: Account[] = supabaseAccounts.map(acc => {
-    // Calculate debit/credit from balance based on account type
+    // Get cumulative debit/credit from journal entries
     const balance = Number(acc.balance || 0);
     const accountType = acc.account_type?.toLowerCase();
-    let debit = 0;
-    let credit = 0;
-    
-    if (accountType === 'asset' || accountType === 'expense') {
-      // Debit normal accounts
-      if (balance > 0) {
-        debit = balance;
-      } else {
-        credit = Math.abs(balance);
-      }
-    } else {
-      // Credit normal accounts (liability, equity, revenue)
-      if (balance > 0) {
-        credit = balance;
-      } else {
-        debit = Math.abs(balance);
-      }
-    }
+    const cumulativeAmounts = accountDebitsCredits.get(acc.account_code) || { debit: 0, credit: 0 };
     
     return {
       id: acc.id,
@@ -740,8 +736,8 @@ export function AccountingTab() {
       subcategory: acc.subcategory,
       parentAccount: acc.parent_account,
       balance: balance,
-      debit: debit,
-      credit: credit,
+      debit: cumulativeAmounts.debit,   // Show cumulative debit from all posted journal entries
+      credit: cumulativeAmounts.credit,  // Show cumulative credit from all posted journal entries
       status: acc.is_active ? 'active' : 'inactive',
       description: acc.description
     };

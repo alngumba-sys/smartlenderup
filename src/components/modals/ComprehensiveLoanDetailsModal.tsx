@@ -974,7 +974,13 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
               </button>
               <button
                 onClick={() => setShowRecordPayment(true)}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2"
+                disabled={loan.status?.toLowerCase() === 'pending'}
+                className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                  loan.status?.toLowerCase() === 'pending'
+                    ? 'bg-gray-400 cursor-not-allowed text-gray-200'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                }`}
+                title={loan.status?.toLowerCase() === 'pending' ? 'Cannot record payment for pending loans' : ''}
               >
                 <DollarSign className="size-4" />
                 Record Payment

@@ -699,10 +699,10 @@ export function BankAccountsTab() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Repayment #</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loan #</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount Paid</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Opening balance</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Closing balance</th>
@@ -748,19 +748,18 @@ export function BankAccountsTab() {
                     
                     return (
                       <tr key={transaction.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm text-blue-600 underline cursor-pointer">
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          {new Date(transaction.date).toLocaleDateString('en-CA')}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-blue-600 cursor-pointer">
                           {repayment?.receiptNumber || transaction.id.replace('repayment-', '').substring(0, 5)}
                         </td>
-                        <td className="px-4 py-3 text-sm text-blue-600 underline cursor-pointer">
-                          <div>{loanNumber}</div>
-                          <div className="text-xs text-gray-500">{loanId}</div>
+                        <td className="px-4 py-3 text-sm text-blue-600 cursor-pointer">
+                          {loanNumber}
                         </td>
-                        <td className="px-4 py-3 text-sm text-blue-600 underline cursor-pointer">
+                        <td className="px-4 py-3 text-sm text-blue-600 cursor-pointer">
                           {clientId !== '-' && <div>{clientId}</div>}
                           <div className={clientId !== '-' ? "text-xs text-gray-500" : ""}>{clientName}</div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {new Date(transaction.date).toLocaleDateString('en-CA')} {new Date(transaction.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
                         </td>
                         <td className="px-4 py-3 text-sm text-right text-gray-900">
                           {formatCurrency(amountPaid, { showCode: false, decimals: 2 })}

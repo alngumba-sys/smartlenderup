@@ -43,7 +43,8 @@ export function LoanCalculatorModal({ isOpen = true, onClose }: LoanCalculatorMo
     let monthlyPayment = 0;
     
     if (selectedProduct.interestType === 'Flat') {
-      totalInterest = amountNum * rate;
+      // Flat rate: interest per period × number of periods
+      totalInterest = amountNum * rate * tenorNum;
       monthlyPayment = (amountNum + totalInterest) / tenorNum;
     } else {
       // Reducing Balance

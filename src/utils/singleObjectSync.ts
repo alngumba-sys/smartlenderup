@@ -115,6 +115,13 @@ export async function saveProjectState(
   userId?: string
 ): Promise<boolean> {
   try {
+    // Check network connectivity first
+    if (!navigator.onLine) {
+      console.warn('⚠️ No internet connection. Cannot save to Supabase.');
+      toast.error('No internet connection. Changes not saved to cloud.');
+      return false;
+    }
+
     console.log('💾 Saving entire project state to Supabase...');
     
     const projectState: ProjectState = {
@@ -195,9 +202,15 @@ export async function saveProjectState(
     }
     
     return true;
-  } catch (error) {
-    console.error('❌ Exception saving project state:', error);
-    toast.error('Error saving data');
+  } catch (error: any) {
+    // Handle network errors gracefully
+    if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError')) {
+      console.error('❌ Network error - Database not reachable:', error);
+      toast.error('Database not reachable. Check your internet connection.');
+    } else {
+      console.error('❌ Exception saving project state:', error);
+      toast.error('Error saving data');
+    }
     return false;
   }
 }
@@ -209,6 +222,13 @@ export async function loadProjectState(
   organizationId: string
 ): Promise<ProjectState | null> {
   try {
+    // Check network connectivity first
+    if (!navigator.onLine) {
+      console.warn('⚠️ No internet connection. Cannot load from Supabase.');
+      toast.error('No internet connection. Cannot load data from cloud.');
+      return null;
+    }
+
     console.log('📥 Loading entire project state from Supabase...');
     
     const stateKey = `${STATE_KEY_PREFIX}${organizationId}`;
@@ -267,9 +287,15 @@ export async function loadProjectState(
     });
     
     return state;
-  } catch (error) {
-    console.error('❌ Exception loading project state:', error);
-    toast.error('Error loading data from cloud');
+  } catch (error: any) {
+    // Handle network errors gracefully
+    if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError')) {
+      console.error('❌ Network error - Database not reachable:', error);
+      toast.error('Database not reachable. Check your internet connection.');
+    } else {
+      console.error('❌ Exception loading project state:', error);
+      toast.error('Error loading data from cloud');
+    }
     return null;
   }
 }
