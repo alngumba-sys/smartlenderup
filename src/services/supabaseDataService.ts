@@ -720,7 +720,6 @@ export const loanService = {
       // Discount fields
       discount_type: loanData.discountType || null,
       discount_value: loanData.discountValue ? parseNumber(loanData.discountValue) : null,
-      discount_amount: loanData.discountAmount ? parseNumber(loanData.discountAmount) : null,
       discount_applied_to: loanData.discountAppliedTo || null,
       
       // Purpose & disbursement
@@ -895,7 +894,6 @@ export const loanService = {
       'nextPaymentAmount': 'next_payment_amount',
       'discountType': 'discount_type',
       'discountValue': 'discount_value',
-      'discountAmount': 'discount_amount',
       'discountAppliedTo': 'discount_applied_to'
     };
     

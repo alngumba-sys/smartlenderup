@@ -99,7 +99,6 @@ export interface Loan {
   balance: number;
   discount_type?: 'percentage' | 'fixed_amount' | null;
   discount_value?: number;
-  discount_amount?: number;
   discount_applied_to?: 'total_repayable' | 'balance';
   created_at: string;
   updated_at: string;
