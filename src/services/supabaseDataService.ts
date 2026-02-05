@@ -717,11 +717,6 @@ export const loanService = {
       // Fees
       processing_fee: parseNumber(loanData.facilitationFee || loanData.processingFee || loanData.processing_fee || 0),
       
-      // Discount fields
-      discount_type: loanData.discountType || null,
-      discount_value: loanData.discountValue ? parseNumber(loanData.discountValue) : null,
-      discount_applied_to: loanData.discountAppliedTo || null,
-      
       // Purpose & disbursement
       purpose: loanData.purpose || '',
       disbursement_method: loanData.disbursementMethod || loanData.disbursement_method || null,
@@ -891,14 +886,11 @@ export const loanService = {
       'lastPaymentDate': 'last_payment_date',
       'lastPaymentAmount': 'last_payment_amount',
       'nextPaymentDate': 'next_payment_date',
-      'nextPaymentAmount': 'next_payment_amount',
-      'discountType': 'discount_type',
-      'discountValue': 'discount_value',
-      'discountAppliedTo': 'discount_applied_to'
+      'nextPaymentAmount': 'next_payment_amount'
     };
     
     // Fields to exclude from database updates (frontend-only fields)
-    const excludeFields = ['paymentSource', 'clientName', 'productName', 'lastPaymentDate', 'lastPaymentAmount', 'nextPaymentDate', 'nextPaymentAmount'];
+    const excludeFields = ['paymentSource', 'clientName', 'productName', 'lastPaymentDate', 'lastPaymentAmount', 'nextPaymentDate', 'nextPaymentAmount', 'discountType', 'discountValue', 'discountAppliedTo', 'discountAmount'];
     
     // Transform updates to match database schema
     const transformedUpdates: any = {};
