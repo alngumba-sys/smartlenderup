@@ -135,12 +135,26 @@ export function AccountingTab() {
   console.log('   Total Share Capital:', totalShareCapital);
 
   // Calculate dynamic values from real data
-  // Only include loans that have been DISBURSED (completed all 5 approval steps) and are in Active/Disbursed status
-  const totalLoansDisbursed = loans.filter(l => l.status === 'Active' || l.status === 'Disbursed').reduce((sum, l) => sum + (l.principalAmount || 0), 0);
-  const totalLoansOutstanding = loans.filter(l => l.status === 'Active' || l.status === 'Disbursed').reduce((sum, l) => sum + (l.outstandingBalance || 0), 0);
+  // Include ALL loans that have been disbursed (Active, Disbursed, Default, Fully Paid, Settled)
+  // Exclude only Pending, Rejected, Draft statuses
+  const disbursedLoanStatuses = ['Active', 'Disbursed', 'Default', 'Fully Paid', 'Settled', 'Closed'];
+  const totalLoansDisbursed = loans
+    .filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate)
+    .reduce((sum, l) => sum + (l.principalAmount || 0), 0);
+  
+  const totalLoansOutstanding = loans
+    .filter(l => disbursedLoanStatuses.includes(l.status))
+    .reduce((sum, l) => sum + (l.outstandingBalance || 0), 0);
+  
   const totalProcessingFeeRevenue = processingFeeRecords.filter(r => r.status === 'Collected').reduce((sum, r) => sum + Number(r.amount || 0), 0);
-  const totalIndividualLoans = loans.filter(l => (l.status === 'Active' || l.status === 'Disbursed') && l.clientType !== 'Group').reduce((sum, l) => sum + (l.principalAmount || 0), 0);
-  const totalGroupLoans = loans.filter(l => (l.status === 'Active' || l.status === 'Disbursed') && l.clientType === 'Group').reduce((sum, l) => sum + (l.principalAmount || 0), 0);
+  
+  const totalIndividualLoans = loans
+    .filter(l => disbursedLoanStatuses.includes(l.status) && l.clientType !== 'Group')
+    .reduce((sum, l) => sum + (l.principalAmount || 0), 0);
+  
+  const totalGroupLoans = loans
+    .filter(l => disbursedLoanStatuses.includes(l.status) && l.clientType === 'Group')
+    .reduce((sum, l) => sum + (l.principalAmount || 0), 0);
 
   // 💰 CASH FLOW CALCULATION
   // Initial Funding = Bank Account Opening Balances + All Funding Transactions (Credits)
@@ -1072,7 +1086,7 @@ export function AccountingTab() {
             <p className="text-2xl font-bold text-red-700">
               -{currencyCode} {totalLoansDisbursed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-gray-500 mt-1">{loans.filter(l => l.status === 'Active' || l.status === 'Disbursed').length} active loans</p>
+            <p className="text-xs text-gray-500 mt-1">{loans.filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate).length} total loans</p>
           </div>
 
           {/* Repayments Received */}
