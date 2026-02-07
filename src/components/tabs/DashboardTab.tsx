@@ -609,14 +609,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const par30Amount = par30Loans.reduce((sum: number, l: any) => sum + Math.abs(l.outstandingBalance || 0), 0);
   const par30Rate = totalOutstanding > 0 ? (par30Amount / totalOutstanding) * 100 : 0;
   
-  // ✅ Calculate Processing Fee Revenue from loans (if no processingFeeRecords, calculate from loans)
-  // Assume 2% processing fee on disbursed loans (adjust as needed)
-  const calculatedProcessingFees = filteredProcessingFeeTotal > 0 
-    ? filteredProcessingFeeTotal 
-    : filteredLoansForDisbursement.reduce((sum: number, l: any) => {
-        const processingFee = (l.processingFee || (l.principalAmount || 0) * 0.02);
-        return sum + processingFee;
-      }, 0);
+  // ✅ Calculate Processing Fee Revenue from loans table's processing_fee column
+  const calculatedProcessingFees = filteredLoansForDisbursement.reduce((sum: number, l: any) => {
+    return sum + (l.processing_fee || 0);
+  }, 0);
   
   // Calculate actual collection rate: Total Collected / Total Disbursed
   const totalDisbursed = contextLoans.reduce((sum: number, l: any) => sum + (l.principalAmount || 0), 0);
@@ -985,7 +981,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   <p className="text-sm mb-1" style={{ color: themeColors.cardTextSecondary }}>Processing Fee Revenue</p>
                   <p className="text-2xl mb-1 cursor-pointer" onClick={() => onNavigate?.('accounting')} style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(calculatedProcessingFees || 0).number}{formatSmartNumber(calculatedProcessingFees || 0).suffix}</p>
                   <div className="flex items-center gap-2">
-                    <p className="text-xs" style={{ color: themeColors.textSecondary }}>{filteredLoansForDisbursement.length} fees collected</p>
+                    <p className="text-xs" style={{ color: themeColors.textSecondary }}>{filteredLoansForDisbursement.filter((l: any) => (l.processing_fee || 0) > 0).length} fees collected</p>
                     <select
                       value={processingFeeDuration}
                       onChange={(e) => setProcessingFeeDuration(e.target.value as DurationFilter)}
@@ -2188,11 +2184,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
               {selectedMetric === 'ai-insights' && (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-                    <Activity className="size-8 text-purple-600 dark:text-purple-400" />
+                  <div className="flex items-center gap-3 p-4 bg-purple-100 dark:bg-purple-900/30 rounded-lg border-2 border-purple-300 dark:border-purple-700">
+                    <Activity className="size-8 text-gray-900 dark:text-purple-300" />
                     <div>
-                      <p className="text-purple-900 dark:text-purple-200 text-sm font-semibold">AI-Powered Risk Analysis</p>
-                      <p className="text-purple-900 dark:text-purple-100 text-3xl font-bold">{atRiskClientsCount} client{atRiskClientsCount !== 1 ? 's' : ''} at risk</p>
+                      <p className="text-gray-900 dark:text-purple-200 text-sm font-semibold">AI-Powered Risk Analysis</p>
+                      <p className="text-gray-900 dark:text-white text-3xl font-bold">{atRiskClientsCount} client{atRiskClientsCount !== 1 ? 's' : ''} at risk</p>
                     </div>
                   </div>
                   

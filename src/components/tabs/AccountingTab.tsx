@@ -4,6 +4,7 @@ import { BookOpen, Plus, Download, Search, Filter, Edit, Trash2, ChevronDown, Ch
 import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ShareholderFormModal, CapitalDepositModal, ProfitDistributionModal } from '../modals/ShareholderModals';
+import { AccountDetailsModal } from '../modals/AccountDetailsModal';
 import { BankAccountsTab } from './BankAccountsTab';
 import { toast } from 'sonner';
 import { getCurrencyCode, getMobileMoneyProviders, formatCurrency } from '../../utils/currencyUtils';
@@ -113,7 +114,8 @@ export function AccountingTab() {
     updateShareholderTransaction,
     addExpense,
     updateExpense,
-    createMissingJournalEntries
+    createMissingJournalEntries,
+    deleteAllJournalEntries
   } = useData();
 
   // Calculate total share capital from shareholders FIRST (needed for cash flow calculation)
@@ -257,6 +259,8 @@ export function AccountingTab() {
   
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showAccountDetailsModal, setShowAccountDetailsModal] = useState(false);
+  const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<any | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('active');
@@ -304,7 +308,32 @@ export function AccountingTab() {
         
         const chartOfAccounts = await supabaseDataService.chartOfAccounts.getAll(organizationId);
         console.log('📊 Loaded Chart of Accounts from Supabase:', chartOfAccounts);
-        setSupabaseAccounts(chartOfAccounts);
+        
+        // Auto-create account 4110 if it doesn't exist
+        const account4110Exists = chartOfAccounts.some(acc => acc.account_code === '4110');
+        if (!account4110Exists) {
+          console.log('🔧 Creating missing account 4110 - Loan Processing Fees');
+          try {
+            await supabaseDataService.chartOfAccounts.create({
+              account_code: '4110',
+              account_name: 'Loan Processing Fees',
+              account_type: 'revenue',
+              description: 'Revenue from loan processing fees',
+              balance: 0
+            }, organizationId);
+            console.log('✅ Created account 4110 successfully');
+            
+            // Reload chart of accounts
+            const updatedChartOfAccounts = await supabaseDataService.chartOfAccounts.getAll(organizationId);
+            setSupabaseAccounts(updatedChartOfAccounts);
+          } catch (createError) {
+            console.error('❌ Error creating account 4110:', createError);
+            setSupabaseAccounts(chartOfAccounts);
+          }
+        } else {
+          setSupabaseAccounts(chartOfAccounts);
+        }
+        
         setLoadingAccounts(false);
       } catch (error) {
         console.error('❌ Error loading chart of accounts:', error);
@@ -553,6 +582,31 @@ export function AccountingTab() {
       toast.error(error.message || 'Failed to create missing journal entries');
     } finally {
       setIsCreatingEntries(false);
+    }
+  };
+
+  // Function to delete all journal entries
+  const [isDeletingEntries, setIsDeletingEntries] = useState(false);
+  const handleDeleteAllJournalEntries = async () => {
+    if (!confirm('⚠️ WARNING: This will delete ALL journal entries and reset all account balances to zero. This action cannot be undone. Are you sure you want to continue?')) {
+      return;
+    }
+    
+    const isConnected = await ensureSupabaseConnection('delete all journal entries');
+    if (!isConnected) return;
+
+    setIsDeletingEntries(true);
+    try {
+      await deleteAllJournalEntries();
+      // After deleting entries, recalculate balances (which will be zero)
+      setTimeout(() => {
+        handleRecalculateBalancesFromContext();
+      }, 1000);
+    } catch (error: any) {
+      console.error('❌ Error deleting journal entries:', error);
+      toast.error(error.message || 'Failed to delete journal entries');
+    } finally {
+      setIsDeletingEntries(false);
     }
   };
 
@@ -818,6 +872,18 @@ export function AccountingTab() {
     setIsEditing(true);
     setSelectedAccount(account);
     setShowAccountModal(true);
+  };
+
+  const handleViewAccountDetails = (account: any) => {
+    setSelectedAccountForDetails(account);
+    setShowAccountDetailsModal(true);
+  };
+
+  const getOrganizationId = () => {
+    const orgData = localStorage.getItem('current_organization');
+    if (!orgData) return '';
+    const org = JSON.parse(orgData);
+    return org.organization_id || org.id;
   };
 
   const exportToExcel = () => {
@@ -1210,6 +1276,15 @@ export function AccountingTab() {
               </div>
               <div className="flex gap-2">
                 <button
+                  onClick={handleDeleteAllJournalEntries}
+                  disabled={isDeletingEntries}
+                  className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  title="Delete all journal entries (use before recreating entries with corrected accounts)"
+                >
+                  <Trash2 className="size-4" />
+                  {isDeletingEntries ? 'Deleting...' : 'Delete All Entries'}
+                </button>
+                <button
                   onClick={handleCreateMissingJournalEntries}
                   disabled={isCreatingEntries}
                   className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
@@ -1359,6 +1434,7 @@ export function AccountingTab() {
                                     <Edit className="size-4" />
                                   </button>
                                   <button
+                                    onClick={() => handleViewAccountDetails(account)}
                                     className="p-2 text-gray-600 hover:bg-gray-100 rounded"
                                     title="View Details"
                                   >
@@ -3449,6 +3525,17 @@ export function AccountingTab() {
           }}
         />
       )}
+
+      <AccountDetailsModal
+        isOpen={showAccountDetailsModal}
+        onClose={() => {
+          setShowAccountDetailsModal(false);
+          setSelectedAccountForDetails(null);
+        }}
+        account={selectedAccountForDetails}
+        currencyCode={currencyCode}
+        organizationId={getOrganizationId()}
+      />
     </div>
   );
 }

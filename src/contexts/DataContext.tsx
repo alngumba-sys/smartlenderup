@@ -878,6 +878,7 @@ interface DataContextType {
   getJournalEntriesByAccount: (accountCode: string) => JournalEntry[];
   reverseJournalEntry: (id: string, reversedBy: string, reason: string) => void;
   createMissingJournalEntries: () => Promise<void>;
+  deleteAllJournalEntries: () => Promise<void>;
   
   // Utility functions
   generateReceiptNumber: () => string;
@@ -1816,6 +1817,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   termUnit: l.term_period_unit ? (l.term_period_unit.charAt(0).toUpperCase() + l.term_period_unit.slice(1)) : 'Months',
                   repaymentFrequency: l.repayment_frequency ? (l.repayment_frequency.charAt(0).toUpperCase() + l.repayment_frequency.slice(1)) : 'Monthly',
                   facilitationFee: l.processing_fee || 0,
+                  processing_fee: l.processing_fee || 0, // Add processing_fee field for table display
                   applicationDate: (() => {
                     // ✅ Fix 2020 dates to 2026
                     const rawDate = l.application_date?.split('T')[0] || l.created_at?.split('T')[0] || new Date().toISOString().split('T')[0];
@@ -2471,6 +2473,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             termUnit: l.term_period_unit ? (l.term_period_unit.charAt(0).toUpperCase() + l.term_period_unit.slice(1)) : 'Months',
             repaymentFrequency: l.repayment_frequency ? (l.repayment_frequency.charAt(0).toUpperCase() + l.repayment_frequency.slice(1)) : 'Monthly',
             facilitationFee: l.processing_fee || 0,
+            processing_fee: l.processing_fee || 0, // Add processing_fee field for table display
             applicationDate: (() => {
               const rawDate = l.application_date?.split('T')[0] || l.created_at?.split('T')[0] || new Date().toISOString().split('T')[0];
               return rawDate.startsWith('2020') ? rawDate.replace('2020', '2026') : rawDate;
@@ -5401,6 +5404,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
           };
           
           setProcessingFeeRecords([...processingFeeRecords, newProcessingFeeRecord]);
+          
+          // ✅ Create journal entry for processing fee revenue
+          const processingFeeJournalEntry = createProcessingFeeEntry(
+            loan.id,
+            loan.clientName,
+            processingFeeAmount,
+            new Date().toISOString().split('T')[0],
+            currentUser?.name || approver
+          );
+          addJournalEntry(processingFeeJournalEntry);
+          
+          console.log('✅ Created journal entry for processing fee:', {
+            amount: processingFeeAmount,
+            clientName: loan.clientName,
+            loanId: loan.id
+          });
         }
       }
     }
@@ -5726,11 +5745,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     let createdCount = 0;
     
     try {
-      // Check if we have loans but no journal entries
+      // Check disbursed loans and create missing entries
       const disbursedLoans = loans.filter(l => l.status === 'Active' || l.status === 'Disbursed');
       
-      if (disbursedLoans.length > 0 && journalEntries.length === 0) {
-        console.log(`📋 Found ${disbursedLoans.length} disbursed loans with no journal entries`);
+      if (disbursedLoans.length > 0) {
+        console.log(`📋 Checking ${disbursedLoans.length} disbursed loans for missing journal entries`);
         
         // Create journal entries for each disbursed loan
         for (const loan of disbursedLoans) {
@@ -5748,6 +5767,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
             await addJournalEntry(journalEntryData);
             createdCount++;
             console.log(`✅ Created journal entry for loan ${loan.id}`);
+          }
+          
+        }
+        
+        // Create journal entries for processing fees from processingFeeRecords
+        console.log(`📋 Checking ${processingFeeRecords.length} processing fee records for missing journal entries`);
+        for (const feeRecord of processingFeeRecords) {
+          // Check if journal entry already exists for this processing fee
+          const existingFeeEntry = journalEntries.find(je => 
+            je.sourceType === 'Processing Fee' && je.sourceId === feeRecord.loanId
+          );
+          
+          if (!existingFeeEntry && feeRecord.amount > 0) {
+            const feeEntryData = createProcessingFeeEntry(
+              feeRecord.loanId,
+              feeRecord.clientName || 'Unknown Client',
+              feeRecord.amount,
+              feeRecord.recordedDate || new Date().toISOString().split('T')[0],
+              feeRecord.recordedBy || 'System'
+            );
+            await addJournalEntry(feeEntryData);
+            createdCount++;
+            console.log(`✅ Created processing fee journal entry for loan ${feeRecord.loanId} - Amount: ${feeRecord.amount}`);
           }
         }
         
@@ -5774,11 +5816,47 @@ export function DataProvider({ children }: { children: ReactNode }) {
         console.log(`✅ Created ${createdCount} missing journal entries`);
         if (createdCount > 0) {
           toast.success(`Created ${createdCount} missing journal entries`);
+        } else {
+          toast.info('All journal entries are already up to date');
         }
       }
     } catch (error: any) {
       console.error('❌ Error creating missing journal entries:', error);
       toast.error('Failed to create missing journal entries');
+    }
+  };
+
+  const deleteAllJournalEntries = async () => {
+    try {
+      console.log('🗑️ Deleting all journal entries...');
+      
+      // Delete from Supabase first
+      const orgData = localStorage.getItem('current_organization');
+      if (!orgData) {
+        throw new Error('Organization not found');
+      }
+      
+      const org = JSON.parse(orgData);
+      const organizationId = org.organization_id || org.id;
+      
+      // Delete all journal entries from Supabase
+      const { error } = await supabase
+        .from('journal_entries')
+        .delete()
+        .eq('organization_id', organizationId);
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Clear React state
+      setJournalEntries([]);
+      
+      console.log('✅ All journal entries deleted successfully');
+      toast.success('All journal entries deleted successfully');
+    } catch (error: any) {
+      console.error('❌ Error deleting journal entries:', error);
+      toast.error('Failed to delete journal entries');
     }
   };
 
@@ -6006,6 +6084,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     getJournalEntriesByAccount,
     reverseJournalEntry,
     createMissingJournalEntries,
+    deleteAllJournalEntries,
     
     calculateClientCreditScore,
     updateAllClientCreditScores,

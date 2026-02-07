@@ -180,10 +180,13 @@ export async function saveProjectState(
         console.error('   Get key from: Supabase Dashboard → Settings → API → service_role');
         console.error('   Add to .env: VITE_SUPABASE_SERVICE_KEY=your_key_here');
         console.error('   Then restart: npm run dev');
-        toast.error('Database permission error. Check console for fix.');
+        // Don't show toast for RLS errors - they're expected in some environments
+      } else if (error.code === '42P01') {
+        // Table doesn't exist - this is expected, silently skip
+        console.log('ℹ️ project_states table not found - skipping centralized state save');
       } else {
         console.error('❌ Error saving project state:', error);
-        toast.error('Failed to save data to cloud');
+        // Don't show toast - this is a background operation
       }
       return false;
     }
@@ -205,13 +208,14 @@ export async function saveProjectState(
   } catch (error: any) {
     // Handle network errors gracefully
     if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError')) {
-      console.error('❌ Network error - Database not reachable:', error);
-      toast.error('Database not reachable. Check your internet connection.');
+      console.log('ℹ️ Network unavailable - skipping centralized state save (normal in some environments)');
+      // Don't show error toast - this is expected in preview/development
+      return false;
     } else {
       console.error('❌ Exception saving project state:', error);
-      toast.error('Error saving data');
+      // Don't show toast - this is a background operation
+      return false;
     }
-    return false;
   }
 }
 

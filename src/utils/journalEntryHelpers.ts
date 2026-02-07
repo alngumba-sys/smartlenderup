@@ -84,7 +84,7 @@ export const createLoanRepaymentEntry = (
   if (repayment.interest > 0) {
     lines.push(
       createLine(
-        '4000',
+        '4100',
         'Interest Income',
         `Interest received - ${clientName}`,
         0,

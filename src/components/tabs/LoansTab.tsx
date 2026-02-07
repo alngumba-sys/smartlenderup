@@ -1295,6 +1295,13 @@ export function LoansTab() {
                         </div>
                       </th>
                       <th 
+                        className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
+                      >
+                        <div className="flex items-center justify-end gap-1">
+                          Processing Fee
+                        </div>
+                      </th>
+                      <th 
                         className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
                         onClick={() => handleSort('interest')}
                       >
@@ -1356,6 +1363,9 @@ export function LoansTab() {
                           </td>
                           <td className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
                             KES {principalAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                          </td>
+                          <td className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                            KES {(loan.processing_fee || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
                           <td className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                             KES {(loan.totalInterest || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
@@ -1429,6 +1439,9 @@ export function LoansTab() {
                       </td>
                       <td className={`px-4 py-3 text-right text-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
                         KES {sortedLoans.reduce((sum, loan) => sum + (loan.principalAmount || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      </td>
+                      <td className={`px-4 py-3 text-right text-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                        KES {sortedLoans.reduce((sum, loan) => sum + (loan.processing_fee || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                       </td>
                       <td className={`px-4 py-3 text-right text-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
                         KES {sortedLoans.reduce((sum, loan) => sum + (loan.totalInterest || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
