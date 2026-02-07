@@ -101,7 +101,8 @@ export function LoansTab() {
                                   termUnit === 'Days' ? Math.ceil(term / 30) : term;
     
     if (product?.interestType === 'Flat') {
-      // Flat rate: interest per period × number of periods
+      // Flat rate: Monthly interest rate × number of months
+      // Note: interestRate is per month (e.g., 10% per month), not APR
       totalInterest = principalAmount * (interestRate / 100) * term;
       installmentAmount = (principalAmount + totalInterest) / numberOfInstallments;
     } else {
@@ -221,6 +222,13 @@ export function LoansTab() {
       discountAmount: discountAmount > 0 ? Math.round(discountAmount) : null,
       discountAppliedTo: loanData.discountAppliedTo || null
     };
+    
+    // DEBUG: Log what's about to be saved
+    console.log('=== LOAN DATA BEING SAVED ===');
+    console.log('Total Interest:', completeLoan.totalInterest);
+    console.log('Total Repayable:', completeLoan.totalRepayable);
+    console.log('Outstanding Balance:', completeLoan.outstandingBalance);
+    console.log('============================');
     
     // Save the loan to DataContext and get the generated ID
     let loanId: string;

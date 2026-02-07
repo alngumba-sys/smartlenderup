@@ -1252,7 +1252,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       console.log('');
       console.log('═══════════════════════════════════════════════');
       console.log('🚀 LOADDATA() FUNCTION STARTED');
-      console.log('═══════════════════════════════════════════════');
+      console.log('══���════════════════════════════════════════════');
       console.log('   Organization ID:', currentUser.organizationId);
       console.log('   User:', currentUser.name);
       console.log('');
@@ -1765,6 +1765,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 // ✅ READ VALUES DIRECTLY FROM DATABASE (use actual DB values)
                 const principalAmount = parseFloat(l.amount) || 0;
                 const paidAmount = parseFloat(l.amount_paid) || 0;
+                const principalPaidFromDB = parseFloat(l.principal_paid) || 0;
+                const interestPaidFromDB = parseFloat(l.interest_paid) || 0;
                 const balanceFromDB = parseFloat(l.balance) || 0;
                 const interestRate = parseFloat(l.interest_rate) || 0;
                 const termPeriod = parseInt(l.term_period) || 0;
@@ -1786,6 +1788,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
                     'DB interest_rate': l.interest_rate,
                     'DB term_period': l.term_period,
                     'DB amount_paid': l.amount_paid,
+                    'DB principal_paid': l.principal_paid,
+                    'DB interest_paid': l.interest_paid,
                     'DB balance': l.balance,
                     'DB total_amount (ignored)': l.total_amount,
                     '✅ Calculated Interest (formula)': calculatedInterest,
@@ -1825,16 +1829,72 @@ export function DataProvider({ children }: { children: ReactNode }) {
                     const rawDate = l.disbursement_date?.split('T')[0] || '';
                     return rawDate.startsWith('2020') ? rawDate.replace('2020', '2026') : rawDate;
                   })(),
-                  firstRepaymentDate: '',
+                  firstRepaymentDate: (() => {
+                    // Calculate first repayment date based on disbursement date and repayment frequency
+                    const disbursementDate = l.disbursement_date?.split('T')[0] || '';
+                    if (!disbursementDate) return '';
+                    
+                    const date = new Date(disbursementDate);
+                    const frequency = (l.repayment_frequency || 'monthly').toLowerCase();
+                    
+                    // Add time based on frequency
+                    if (frequency === 'weekly') {
+                      date.setDate(date.getDate() + 7);
+                    } else if (frequency === 'monthly') {
+                      date.setMonth(date.getMonth() + 1);
+                    } else if (frequency === 'quarterly') {
+                      date.setMonth(date.getMonth() + 3);
+                    } else {
+                      date.setMonth(date.getMonth() + 1); // Default to monthly
+                    }
+                    
+                    return date.toISOString().split('T')[0];
+                  })(),
                   maturityDate: '',
                   status: capitalizeStatus(l.status),
-                  installmentAmount: 0,
-                  monthlyPayment: 0,
+                  installmentAmount: (() => {
+                    // Calculate installment amount based on total repayable and number of installments
+                    const frequency = (l.repayment_frequency || 'monthly').toLowerCase();
+                    const termPeriodValue = parseInt(l.term_period) || 0;
+                    let numberOfInstallments = 0;
+                    
+                    if (frequency === 'weekly') {
+                      numberOfInstallments = termPeriodValue * 4; // Approximate weeks per month
+                    } else if (frequency === 'monthly') {
+                      numberOfInstallments = termPeriodValue;
+                    } else if (frequency === 'quarterly') {
+                      numberOfInstallments = Math.ceil(termPeriodValue / 3);
+                    } else {
+                      numberOfInstallments = termPeriodValue; // Default to monthly
+                    }
+                    
+                    return numberOfInstallments > 0 ? totalRepayable / numberOfInstallments : 0;
+                  })(),
+                  monthlyPayment: (() => {
+                    // Same as installment amount
+                    const frequency = (l.repayment_frequency || 'monthly').toLowerCase();
+                    const termPeriodValue = parseInt(l.term_period) || 0;
+                    let numberOfInstallments = 0;
+                    
+                    if (frequency === 'weekly') {
+                      numberOfInstallments = termPeriodValue * 4;
+                    } else if (frequency === 'monthly') {
+                      numberOfInstallments = termPeriodValue;
+                    } else if (frequency === 'quarterly') {
+                      numberOfInstallments = Math.ceil(termPeriodValue / 3);
+                    } else {
+                      numberOfInstallments = termPeriodValue;
+                    }
+                    
+                    return numberOfInstallments > 0 ? totalRepayable / numberOfInstallments : 0;
+                  })(),
                   totalInterest: calculatedInterest, // ✅ FIXED: Calculate from total_amount - amount
                   totalRepayable: totalRepayable,
                   totalRepayment: totalRepayable,
                   numberOfInstallments: 0,
                   paidAmount: paidAmount,
+                  principalPaid: principalPaidFromDB,  // ✅ Read from database
+                  interestPaid: interestPaidFromDB,    // ✅ Read from database
                   outstandingBalance: calculatedOutstanding,
                   principalOutstanding: calculatedOutstanding,
                   interestOutstanding: 0,
@@ -2380,6 +2440,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           
           const principalAmount = parseFloat(l.amount) || 0;
           const paidAmount = parseFloat(l.amount_paid) || 0;
+          const principalPaidFromDB = parseFloat(l.principal_paid) || 0;
+          const interestPaidFromDB = parseFloat(l.interest_paid) || 0;
           const balanceFromDB = parseFloat(l.balance) || 0;
           const interestRate = parseFloat(l.interest_rate) || 0;
           const termPeriod = parseInt(l.term_period) || 0;
@@ -2421,16 +2483,68 @@ export function DataProvider({ children }: { children: ReactNode }) {
               const rawDate = l.disbursement_date?.split('T')[0] || '';
               return rawDate.startsWith('2020') ? rawDate.replace('2020', '2026') : rawDate;
             })(),
-            firstRepaymentDate: '',
+            firstRepaymentDate: (() => {
+              const disbursementDate = l.disbursement_date?.split('T')[0] || '';
+              if (!disbursementDate) return '';
+              
+              const date = new Date(disbursementDate);
+              const frequency = (l.repayment_frequency || 'monthly').toLowerCase();
+              
+              if (frequency === 'weekly') {
+                date.setDate(date.getDate() + 7);
+              } else if (frequency === 'monthly') {
+                date.setMonth(date.getMonth() + 1);
+              } else if (frequency === 'quarterly') {
+                date.setMonth(date.getMonth() + 3);
+              } else {
+                date.setMonth(date.getMonth() + 1);
+              }
+              
+              return date.toISOString().split('T')[0];
+            })(),
             maturityDate: '',
             status: capitalizeStatus(l.status),
-            installmentAmount: 0,
-            monthlyPayment: 0,
+            installmentAmount: (() => {
+              const frequency = (l.repayment_frequency || 'monthly').toLowerCase();
+              const termPeriodValue = parseInt(l.term_period) || 0;
+              let numberOfInstallments = 0;
+              
+              if (frequency === 'weekly') {
+                numberOfInstallments = termPeriodValue * 4;
+              } else if (frequency === 'monthly') {
+                numberOfInstallments = termPeriodValue;
+              } else if (frequency === 'quarterly') {
+                numberOfInstallments = Math.ceil(termPeriodValue / 3);
+              } else {
+                numberOfInstallments = termPeriodValue;
+              }
+              
+              return numberOfInstallments > 0 ? totalRepayable / numberOfInstallments : 0;
+            })(),
+            monthlyPayment: (() => {
+              const frequency = (l.repayment_frequency || 'monthly').toLowerCase();
+              const termPeriodValue = parseInt(l.term_period) || 0;
+              let numberOfInstallments = 0;
+              
+              if (frequency === 'weekly') {
+                numberOfInstallments = termPeriodValue * 4;
+              } else if (frequency === 'monthly') {
+                numberOfInstallments = termPeriodValue;
+              } else if (frequency === 'quarterly') {
+                numberOfInstallments = Math.ceil(termPeriodValue / 3);
+              } else {
+                numberOfInstallments = termPeriodValue;
+              }
+              
+              return numberOfInstallments > 0 ? totalRepayable / numberOfInstallments : 0;
+            })(),
             totalInterest: calculatedInterest,
             totalRepayable: totalRepayable,
             totalRepayment: totalRepayable,
             numberOfInstallments: 0,
             paidAmount: paidAmount,
+            principalPaid: principalPaidFromDB,  // ✅ Read from database
+            interestPaid: interestPaidFromDB,    // ✅ Read from database
             outstandingBalance: calculatedOutstanding,
             principalOutstanding: calculatedOutstanding,
             interestOutstanding: 0,
@@ -3388,11 +3502,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     // Update loan balance and bank account (loan already declared above)
     if (loan && newRepayment.status === 'Approved') {
+      const newOutstandingBalance = loan.outstandingBalance - repaymentData.amount;
       updateLoan(loan.id, {
-        paidAmount: loan.paidAmount + repaymentData.amount,
-        outstandingBalance: loan.outstandingBalance - repaymentData.amount,
+        paidAmount: loan.paidAmount + (repaymentData.principal || 0),
+        interestPaid: (loan.interestPaid || 0) + (repaymentData.interest || 0),
+        outstandingBalance: newOutstandingBalance,
         lastPaymentDate: repaymentData.paymentDate,
-        status: (loan.outstandingBalance - repaymentData.amount) <= 0 ? 'Fully Paid' : loan.status
+        status: newOutstandingBalance <= 0 ? 'Fully Paid' : loan.status
       });
       
       // If bankAccountId provided, credit to bank account

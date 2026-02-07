@@ -291,10 +291,13 @@ export const clientService = {
    * Get client by ID
    */
   async getById(clientId: string, organizationId: string) {
+    // Check if clientId is a UUID or a client_number (CL00025 format)
+    const isUUID = clientId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    
     const { data, error } = await supabase
       .from('clients')
       .select('*')
-      .eq('id', clientId)
+      .eq(isUUID ? 'id' : 'client_number', clientId)
       .eq('organization_id', organizationId)
       .single();
     
@@ -411,13 +414,16 @@ export const clientService = {
    * Update client
    */
   async update(clientId: string, updates: any, organizationId: string) {
-    const { data, error } = await supabase
+    // Check if clientId is a UUID or a client_number (CL00025 format)
+    const isUUID = clientId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    
+    const { data, error} = await supabase
       .from('clients')
       .update({
         ...updates,
         updated_at: new Date().toISOString()
       })
-      .eq('id', clientId)
+      .eq(isUUID ? 'id' : 'client_number', clientId)
       .eq('organization_id', organizationId)
       .select()
       .single();
@@ -431,10 +437,13 @@ export const clientService = {
    * Delete client
    */
   async delete(clientId: string, organizationId: string) {
+    // Check if clientId is a UUID or a client_number (CL00025 format)
+    const isUUID = clientId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    
     const { error } = await supabase
       .from('clients')
       .delete()
-      .eq('id', clientId)
+      .eq(isUUID ? 'id' : 'client_number', clientId)
       .eq('organization_id', organizationId);
     
     if (error) throw error;

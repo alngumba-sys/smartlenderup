@@ -4,7 +4,7 @@ import {
   FileText, Shield, Users, CheckCircle, XCircle, Clock, ChevronDown, 
   ChevronUp, Printer, CreditCard, TrendingUp, Wallet, MapPin, Mail, 
   Phone, MessageSquare, Upload, Download, Banknote, Activity, 
-  TrendingDown, Info, CircleDollarSign, Star, AlertTriangle, History
+  TrendingDown, Info, CircleDollarSign, Star, AlertTriangle, History, Bug
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useData } from '../../contexts/DataContext';
@@ -12,6 +12,7 @@ import { toast } from 'sonner@2.0.3';
 import { generateInstallments } from '../../data/dummyData';
 import { getCurrencyCode, formatCurrency } from '../../utils/currencyUtils';
 import { RecordPaymentModal } from './RecordPaymentModal';
+import { DebugLoanDataModal } from './DebugLoanDataModal';
 
 interface ComprehensiveLoanDetailsModalProps {
   loanId: string;
@@ -48,15 +49,48 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
   const [activeTab, setActiveTab] = useState<'overview' | 'schedule' | 'payments' | 'borrower' | 'documents' | 'risk'>('overview');
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [showScheduleDetails, setShowScheduleDetails] = useState(false);
+  const [showDebugModal, setShowDebugModal] = useState(false);
 
   if (!loan || !client || !product) {
     return null;
   }
 
-  // Calculate loan metrics
-  const totalPaid = loanPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-  const nextPaymentDue = loan.firstRepaymentDate || loan.disbursementDate;
-  const nextPaymentAmount = loan.installmentAmount || loan.monthlyPayment || 0;
+  // ✅ CRITICAL FIX: Read directly from loan table columns (paidAmount is the mapped field name)
+  // DataContext maps amount_paid → paidAmount, principal_paid → principalPaid, interest_paid → interestPaid
+  const totalPaid = loan.paidAmount ?? loan.amount_paid ?? loan.amountPaid ?? 0;
+  const principalPaid = loan.principalPaid ?? loan.principal_paid ?? 0;
+  const interestPaid = loan.interestPaid ?? loan.interest_paid ?? 0;
+  
+  // ✅ Calculate next payment due date and amount
+  const installmentAmountValue = loan.installmentAmount || loan.monthlyPayment || 0;
+  
+  // Calculate how many installments have been paid
+  const numberOfInstallmentsPaid = installmentAmountValue > 0 ? Math.floor(totalPaid / installmentAmountValue) : 0;
+  
+  // Calculate next payment due date by adding the appropriate period to first repayment date
+  const calculateNextPaymentDate = () => {
+    if (!loan.firstRepaymentDate) return loan.disbursementDate || '';
+    if (loan.status === 'Paid' || loan.status === 'Settled') return ''; // No next payment if loan is paid
+    
+    const firstDate = new Date(loan.firstRepaymentDate);
+    const frequency = (loan.repaymentFrequency || 'Monthly').toLowerCase();
+    
+    // Add periods based on number of payments made
+    if (frequency === 'weekly') {
+      firstDate.setDate(firstDate.getDate() + (numberOfInstallmentsPaid * 7));
+    } else if (frequency === 'monthly') {
+      firstDate.setMonth(firstDate.getMonth() + numberOfInstallmentsPaid);
+    } else if (frequency === 'quarterly') {
+      firstDate.setMonth(firstDate.getMonth() + (numberOfInstallmentsPaid * 3));
+    } else {
+      firstDate.setMonth(firstDate.getMonth() + numberOfInstallmentsPaid);
+    }
+    
+    return firstDate.toISOString().split('T')[0];
+  };
+  
+  const nextPaymentDue = calculateNextPaymentDate();
+  const nextPaymentAmount = installmentAmountValue;
   
   // Calculate days overdue
   const today = new Date();
@@ -82,9 +116,11 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
 
   const riskRating = getRiskRating();
 
-  // Calculate payoff quote
+  // Calculate outstanding balance and payoff quote
+  const totalRepayable = loan.totalRepayable || loan.totalRepayment || 0;
+  const outstandingBalance = totalRepayable - totalPaid;
   const earlyPaymentDiscount = 0; // You can add logic for early payment discounts
-  const payoffQuote = loan.outstandingBalance - earlyPaymentDiscount;
+  const payoffQuote = outstandingBalance - earlyPaymentDiscount;
 
   // Generate receipt number
   const generateReceiptNumber = () => {
@@ -271,7 +307,7 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
                       <DollarSign className={`size-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
                     </div>
                     <p className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      {formatCurrency(loan.outstandingBalance || 0)}
+                      {formatCurrency(outstandingBalance)}
                     </p>
                   </div>
 
@@ -374,13 +410,13 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
                     <div>
                       <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Principal Paid Back</label>
                       <p className={`text-sm font-medium ${isDark ? 'text-emerald-600' : 'text-emerald-600'}`}>
-                        {formatCurrency(loan.paidAmount || 0)}
+                        {formatCurrency(principalPaid)}
                       </p>
                     </div>
                     <div>
                       <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Interest Paid Back</label>
                       <p className={`text-sm font-medium ${isDark ? 'text-emerald-600' : 'text-emerald-600'}`}>
-                        {formatCurrency(loan.interestPaid || 0)}
+                        {formatCurrency(interestPaid)}
                       </p>
                     </div>
                     <div>
