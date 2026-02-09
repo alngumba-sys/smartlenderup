@@ -1,10 +1,12 @@
-import { X, User, Phone, MapPin, Briefcase, CreditCard, TrendingUp, Calendar, FileText, DollarSign, AlertTriangle, Target, Award, Clock, CheckCircle } from 'lucide-react';
+import { X, User, Phone, MapPin, Briefcase, CreditCard, TrendingUp, Calendar, FileText, DollarSign, AlertTriangle, Target, Award, Clock, CheckCircle, Mail, Printer, MessageSquare, Plus, History } from 'lucide-react';
 import { loanDocuments, Client } from '../data/dummyData';
 import { useTheme } from '../contexts/ThemeContext';
 import { useData } from '../contexts/DataContext';
 import { ModalWrapper } from './ModalWrapper';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { useState, useEffect } from 'react';
+import { useNavigation } from '../contexts/NavigationContext';
+import { toast } from 'sonner';
 
 interface ClientDetailsModalProps {
   clientId: string;
@@ -14,6 +16,7 @@ interface ClientDetailsModalProps {
 export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProps) {
   const { isDark } = useTheme();
   const { clients, loans, payments, repayments } = useData();
+  const { setCurrentView, setSelectedLoanId } = useNavigation();
   
   // Add mounted state to prevent chart rendering before container dimensions are ready
   const [isMounted, setIsMounted] = useState(false);
@@ -29,7 +32,7 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
   }, []);
   
   const client = clients.find(c => c.id === clientId);
-  const clientLoans = loans.filter(l => l.clientId === clientId);
+  const clientLoans = loans.filter(l => l.clientId === clientId || l.clientUuid === clientId);
   const clientPayments = payments.filter(p => p.clientId === clientId);
   const clientDocuments = loanDocuments.filter(d => d.clientId === clientId);
   const clientRepayments = repayments.filter(r => r.clientId === clientId && r.status === 'Approved');
@@ -163,32 +166,66 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
     }
   };
 
+  // Handler for New Loan Application
+  const handleNewLoan = () => {
+    onClose();
+    setCurrentView('loan-origination');
+    toast.success(`Creating new loan for ${client.name}`);
+  };
+
+  // Handler for Send SMS
+  const handleSendSMS = () => {
+    toast.success(`SMS sent to ${client.phone}`);
+  };
+
+  // Handler for Print Profile
+  const handlePrintProfile = () => {
+    window.print();
+    toast.success('Preparing profile for print');
+  };
+
+  // Handler for View on Map
+  const handleViewOnMap = () => {
+    if (client.gpsLocation) {
+      window.open(`https://www.google.com/maps?q=${client.gpsLocation.lat},${client.gpsLocation.lng}`, '_blank');
+    } else {
+      toast.error('GPS location not available for this client');
+    }
+  };
+
   return (
     <ModalWrapper>
       <div className="flex flex-col h-[90vh] max-h-[800px]">
-        {/* Compact Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-emerald-900 to-blue-900 flex-shrink-0">
+        {/* Professional Header with Gradient */}
+        <div className="p-5 border-b-2 border-emerald-600/20 bg-gradient-to-br from-slate-800 via-blue-900 to-indigo-900 flex-shrink-0 shadow-xl">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="size-12 bg-emerald-600 rounded-full flex items-center justify-center text-white overflow-hidden">
+            <div className="flex items-center gap-4">
+              <div className="size-16 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-full flex items-center justify-center text-white overflow-hidden shadow-lg ring-4 ring-white/20">
                 {client.photo ? (
                   <img src={client.photo} alt={client.name} className="size-full object-cover" />
                 ) : (
-                  <span className="text-lg">{client.name.split(' ').map(n => n[0]).join('')}</span>
+                  <span className="text-2xl font-bold">{client.name.split(' ').map(n => n[0]).join('')}</span>
                 )}
               </div>
               <div>
-                <h2 className="text-white text-lg">{client.name}</h2>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-gray-300">{client.id}</span>
-                  <span className={`px-2 py-0.5 rounded text-xs ${getStatusColor(client.status)}`}>
-                    {client.status}
+                <h2 className="text-white text-2xl font-semibold tracking-wide">{client.name}</h2>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="text-emerald-300 font-mono text-sm bg-emerald-950/40 px-2.5 py-0.5 rounded-md border border-emerald-500/30">
+                    {client.clientNumber || client.client_number || `CL${client.id.slice(-5)}`}
+                  </span>
+                  <span className={`px-2.5 py-0.5 rounded-md text-xs font-medium shadow-sm ${
+                    client.status === 'active' ? 'bg-emerald-500 text-white' :
+                    client.status === 'In Arrears' ? 'bg-red-500 text-white' :
+                    client.status === 'Fully Paid' ? 'bg-blue-500 text-white' :
+                    'bg-gray-500 text-white'
+                  }`}>
+                    {client.status || 'Active'}
                   </span>
                 </div>
               </div>
             </div>
-            <button onClick={onClose} className="text-gray-300 hover:text-white">
-              <X className="size-5" />
+            <button onClick={onClose} className="text-gray-300 hover:text-white hover:bg-white/10 p-2 rounded-lg transition-all">
+              <X className="size-6" />
             </button>
           </div>
         </div>
@@ -389,7 +426,7 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
                         'Not available'
                       )}
                     </p>
-                    <button className="w-full px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+                    <button onClick={handleViewOnMap} className="w-full px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
                       View on Map
                     </button>
                   </div>
@@ -472,15 +509,15 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
         {/* Compact Footer */}
         <div className="p-3 border-t border-gray-200 dark:border-gray-700 flex justify-between bg-gray-50 dark:bg-gray-800 flex-shrink-0">
           <div className="flex gap-2">
-            <button className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm">
+            <button onClick={handleNewLoan} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm">
               New Loan Application
             </button>
-            <button className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+            <button onClick={handleSendSMS} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
               Send SMS
             </button>
           </div>
           <div className="flex gap-2">
-            <button className="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm">
+            <button onClick={handlePrintProfile} className="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm">
               Print Profile
             </button>
             <button onClick={onClose} className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">

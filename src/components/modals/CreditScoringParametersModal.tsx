@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Plus, Trash2, Settings, Save, Users, Building2 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useData } from '../../contexts/DataContext';
+import { toast } from 'sonner';
 
 interface ScoringParameter {
   id: string;
@@ -21,8 +23,10 @@ interface CreditScoringParametersModalProps {
 
 export function CreditScoringParametersModal({ isOpen, onClose, onSave, clientType, setClientType }: CreditScoringParametersModalProps) {
   const { isDark } = useTheme();
+  const { getCreditScoringParameters, saveCreditScoringParameters } = useData();
   
-  const [parametersIndividual, setParametersIndividual] = useState<ScoringParameter[]>([
+  // Default parameters (used when no DB data exists)
+  const defaultIndividualParams: ScoringParameter[] = [
     {
       id: 'payment_history',
       name: 'Payment History',
@@ -58,9 +62,9 @@ export function CreditScoringParametersModal({ isOpen, onClose, onSave, clientTy
       description: 'Average savings account balance',
       enabled: true
     }
-  ]);
+  ];
 
-  const [parametersBusiness, setParametersBusiness] = useState<ScoringParameter[]>([
+  const defaultBusinessParams: ScoringParameter[] = [
     {
       id: 'payment_history',
       name: 'Payment History',
@@ -96,7 +100,53 @@ export function CreditScoringParametersModal({ isOpen, onClose, onSave, clientTy
       description: 'Average savings account balance',
       enabled: true
     }
-  ]);
+  ];
+
+  const [parametersIndividual, setParametersIndividual] = useState<ScoringParameter[]>(defaultIndividualParams);
+  const [parametersBusiness, setParametersBusiness] = useState<ScoringParameter[]>(defaultBusinessParams);
+  
+  // Load parameters from database when modal opens or client type changes
+  useEffect(() => {
+    if (isOpen) {
+      loadParametersFromDB();
+    }
+  }, [isOpen, clientType]);
+
+  const loadParametersFromDB = () => {
+    try {
+      const dbParams = getCreditScoringParameters(clientType);
+      
+      if (dbParams && dbParams.length > 0) {
+        // Map database parameters to component format
+        const mappedParams = dbParams.map(p => ({
+          id: p.parameter_id,
+          name: p.parameter_name,
+          weight: p.weight,
+          description: p.description,
+          enabled: p.enabled
+        }));
+        
+        if (clientType === 'individual') {
+          setParametersIndividual(mappedParams);
+        } else {
+          setParametersBusiness(mappedParams);
+        }
+        
+        console.log(`✅ Loaded ${mappedParams.length} ${clientType} parameters from database`);
+      } else {
+        // Use defaults if no DB data
+        console.log(`ℹ️ No ${clientType} parameters in database, using defaults`);
+        if (clientType === 'individual') {
+          setParametersIndividual(defaultIndividualParams);
+        } else {
+          setParametersBusiness(defaultBusinessParams);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading parameters from database:', error);
+      toast.error('Failed to load parameters from database');
+    }
+  };
 
   const parameters = clientType === 'individual' ? parametersIndividual : parametersBusiness;
   const setParameters = clientType === 'individual' ? setParametersIndividual : setParametersBusiness;
@@ -139,13 +189,25 @@ export function CreditScoringParametersModal({ isOpen, onClose, onSave, clientTy
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (totalWeight !== 100) {
       alert('Total weight must equal 100%. Please adjust the weights.');
       return;
     }
-    onSave(parameters);
-    onClose();
+    
+    try {
+      // Call the original onSave callback first (for backward compatibility)
+      onSave(parameters);
+      
+      // Save to database
+      await saveCreditScoringParameters(clientType, parameters);
+      
+      // Close modal on success
+      onClose();
+    } catch (error) {
+      console.error('Error saving parameters:', error);
+      // Don't close modal if save failed
+    }
   };
 
   if (!isOpen) return null;

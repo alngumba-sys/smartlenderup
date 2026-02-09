@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Plus, Wallet, Trash2, Edit, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Plus, Wallet, Trash2, Edit, RefreshCw, AlertTriangle, DollarSign } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { getCurrencyCode } from '../../utils/currencyUtils';
 import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
 import { FundAccountModal, type FundAccountData } from '../modals/FundAccountModal';
 import { BankAccountModal, type BankAccountFormData } from '../modals/BankAccountModal';
+import { QuickBalanceUpdateModal } from '../modals/QuickBalanceUpdateModal';
 import { formatCurrency } from '../../utils/currencyUtils';
 import { supabaseDataService } from '../../services/supabaseDataService';
 import { toast } from 'sonner@2.0.3';
@@ -43,6 +44,8 @@ export function BankAccountsTab() {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<string | null>(null);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+  const [showQuickBalanceUpdate, setShowQuickBalanceUpdate] = useState(false);
+  const [balanceUpdateAccount, setBalanceUpdateAccount] = useState<BankAccount | null>(null);
   const currencyCode = getCurrencyCode();
 
   const handleFundAccount = async (data: FundAccountData) => {
@@ -529,6 +532,18 @@ export function BankAccountsTab() {
               Add Account
             </button>
           )}
+          {activeBank !== 'all' && currentAccount && (
+            <button
+              onClick={() => {
+                setBalanceUpdateAccount(currentAccount);
+                setShowQuickBalanceUpdate(true);
+              }}
+              className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm"
+            >
+              <DollarSign className="size-4" />
+              Update Balance
+            </button>
+          )}
           <button
             onClick={() => setShowFundAccountModal(true)}
             className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 text-sm"
@@ -885,6 +900,25 @@ export function BankAccountsTab() {
           </div>
         );
       })()}
+
+      {/* Quick Balance Update Modal */}
+      {showQuickBalanceUpdate && balanceUpdateAccount && (
+        <QuickBalanceUpdateModal
+          isOpen={showQuickBalanceUpdate}
+          onClose={() => {
+            setShowQuickBalanceUpdate(false);
+            setBalanceUpdateAccount(null);
+          }}
+          onUpdate={async (newBalance) => {
+            await updateBankAccount(balanceUpdateAccount.id, {
+              balance: newBalance
+            });
+          }}
+          currentBalance={balanceUpdateAccount.balance}
+          accountName={balanceUpdateAccount.bankName || balanceUpdateAccount.name || 'Account'}
+          currency={balanceUpdateAccount.currency || currencyCode}
+        />
+      )}
 
       {/* Dev Migration Panel */}
       {/* TEMPORARILY DISABLED - causing loading issues

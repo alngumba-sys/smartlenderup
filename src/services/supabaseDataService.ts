@@ -1733,6 +1733,31 @@ export const expenseService = {
       .single();
     if (error) throw error;
     return data;
+  },
+
+  async update(expenseId: string, updates: any, organizationId: string) {
+    const updateData: any = {};
+    
+    // Map updates to database fields
+    if (updates.category) updateData.expense_category = updates.category;
+    if (updates.description) updateData.description = updates.description;
+    if (updates.amount !== undefined) updateData.amount = updates.amount;
+    if (updates.paymentMethod) updateData.payment_method = updates.paymentMethod;
+    if (updates.status) updateData.status = updates.status;
+    if (updates.expenseDate) updateData.expense_date = updates.expenseDate;
+    if (updates.payeeId) updateData.payee_id = updates.payeeId;
+    
+    updateData.updated_at = new Date().toISOString();
+    
+    const { data, error } = await supabase
+      .from('expenses')
+      .update(updateData)
+      .eq('id', expenseId)
+      .eq('organization_id', organizationId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
   }
 };
 
@@ -2254,6 +2279,35 @@ export const payeeService = {
       .single();
     if (error) throw error;
     return data;
+  },
+
+  async update(payeeId: string, updates: any, organizationId: string) {
+    const updateData: any = {
+      updated_at: new Date().toISOString()
+    };
+    
+    // Map updates to database fields
+    if (updates.name) updateData.payee_name = updates.name;
+    if (updates.type) updateData.payee_type = updates.type;
+    if (updates.phone) updateData.phone = updates.phone;
+    if (updates.email) updateData.email = updates.email;
+    if (updates.category) updateData.category = updates.category;
+    if (updates.status) updateData.status = updates.status;
+    if (updates.totalPaid !== undefined) updateData.total_paid = updates.totalPaid;
+    if (updates.lastPaymentDate) updateData.last_payment_date = updates.lastPaymentDate;
+    if (updates.physicalAddress || updates.address) updateData.address = updates.physicalAddress || updates.address;
+    if (updates.bankName) updateData.bank_name = updates.bankName;
+    if (updates.accountNumber) updateData.account_number = updates.accountNumber;
+    
+    const { data, error } = await supabase
+      .from('payees')
+      .update(updateData)
+      .eq('id', payeeId)
+      .eq('organization_id', organizationId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
   }
 };
 
@@ -2415,6 +2469,96 @@ export const chartOfAccountsService = {
 };
 
 // =====================================================
+// CREDIT SCORING PARAMETERS SERVICE
+// =====================================================
+
+export const creditScoringParametersService = {
+  /**
+   * Get credit scoring parameters for a client type
+   */
+  async getByClientType(organizationId: string, clientType: 'individual' | 'business') {
+    console.log(`📊 Fetching credit scoring parameters for ${clientType} clients in org: ${organizationId}`);
+    
+    const { data, error } = await supabase
+      .from('credit_scoring_parameters')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .eq('client_type', clientType)
+      .order('parameter_name', { ascending: true });
+    
+    if (error) {
+      console.error('❌ Error fetching credit scoring parameters:', error);
+      throw error;
+    }
+    
+    console.log(`✅ Fetched ${data?.length || 0} credit scoring parameters`);
+    return data || [];
+  },
+
+  /**
+   * Save/update credit scoring parameters for a client type
+   */
+  async saveParameters(organizationId: string, clientType: 'individual' | 'business', parameters: any[]) {
+    console.log(`💾 Saving ${parameters.length} credit scoring parameters for ${clientType} clients`);
+    
+    await ensureOrganizationExists(organizationId);
+    
+    // Delete existing parameters for this client type
+    const { error: deleteError } = await supabase
+      .from('credit_scoring_parameters')
+      .delete()
+      .eq('organization_id', organizationId)
+      .eq('client_type', clientType);
+    
+    if (deleteError) {
+      console.error('❌ Error deleting old parameters:', deleteError);
+      throw deleteError;
+    }
+    
+    // Insert new parameters
+    const parametersToInsert = parameters.map(param => ({
+      organization_id: organizationId,
+      client_type: clientType,
+      parameter_id: param.id,
+      parameter_name: param.name,
+      weight: param.weight,
+      description: param.description,
+      enabled: param.enabled,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }));
+    
+    const { data, error } = await supabase
+      .from('credit_scoring_parameters')
+      .insert(parametersToInsert)
+      .select();
+    
+    if (error) {
+      console.error('❌ Error saving credit scoring parameters:', error);
+      throw error;
+    }
+    
+    console.log(`✅ Saved ${data?.length || 0} credit scoring parameters successfully`);
+    return data || [];
+  },
+
+  /**
+   * Get all credit scoring parameters for organization
+   */
+  async getAll(organizationId: string) {
+    const { data, error } = await supabase
+      .from('credit_scoring_parameters')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .order('client_type', { ascending: true })
+      .order('parameter_name', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  }
+};
+
+// =====================================================
 // EXPORT COMBINED SERVICE
 // =====================================================
 
@@ -2446,7 +2590,8 @@ export const supabaseDataService = {
   notifications: notificationService,
   branches: branchService,
   payments: paymentService,
-  payees: payeeService
+  payees: payeeService,
+  creditScoringParameters: creditScoringParametersService
 };
 
 // Register global test function

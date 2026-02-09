@@ -49,6 +49,9 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const [interestDuration, setInterestDuration] = useState<DurationFilter>(() => 
     (localStorage.getItem('interestDuration') as DurationFilter) || 'month'
   );
+  const [collectedInterestDuration, setCollectedInterestDuration] = useState<DurationFilter>(() => 
+    (localStorage.getItem('collectedInterestDuration') as DurationFilter) || 'month'
+  );
   const [processingFeeDuration, setProcessingFeeDuration] = useState<DurationFilter>(() => 
     (localStorage.getItem('processingFeeDuration') as DurationFilter) || 'month'
   );
@@ -76,6 +79,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   useEffect(() => { localStorage.setItem('portfolioDuration', portfolioDuration); }, [portfolioDuration]);
   useEffect(() => { localStorage.setItem('principalDuration', principalDuration); }, [principalDuration]);
   useEffect(() => { localStorage.setItem('interestDuration', interestDuration); }, [interestDuration]);
+  useEffect(() => { localStorage.setItem('collectedInterestDuration', collectedInterestDuration); }, [collectedInterestDuration]);
   useEffect(() => { localStorage.setItem('processingFeeDuration', processingFeeDuration); }, [processingFeeDuration]);
   useEffect(() => { localStorage.setItem('clientsDuration', clientsDuration); }, [clientsDuration]);
   useEffect(() => { localStorage.setItem('disbursedDuration', disbursedDuration); }, [disbursedDuration]);
@@ -555,6 +559,15 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   }, 0);
   
   const filteredInterestTotal = filteredLoansForInterest.reduce((sum: number, l: any) => sum + Math.abs(l.interestOutstanding || ((l.totalInterest || 0) - (l.interestPaid || 0))), 0);
+  
+  // Calculate collected interest based on duration filter
+  const filteredRepaymentsForInterest = filterByDuration(
+    payments.filter((p: any) => p.status === 'Approved'), // Only count approved payments
+    'paymentDate',
+    collectedInterestDuration
+  );
+  const filteredCollectedInterestTotal = filteredRepaymentsForInterest.reduce((sum: number, r: any) => sum + (r.interest || 0), 0);
+  
   const filteredProcessingFeeTotal = filteredProcessingFees.reduce((sum: number, r: any) => sum + Number(r.amount || 0), 0);
   const filteredDisbursedTotal = filteredLoansForDisbursement.reduce((sum: number, l: any) => sum + (l.principalAmount || 0), 0);
   const filteredCollectionsTotal = filteredPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
@@ -912,7 +925,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           backgroundColor: isDark ? '#1a1d29' : '#ffffff',
           borderColor: isDark ? '#252932' : '#e5e7eb'
         }}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
             {/* Gross Loan Portfolio */}
             <div 
               className="transition-colors rounded-lg p-4"
@@ -963,6 +976,46 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   <p className="text-sm mb-1" style={{ color: themeColors.cardTextSecondary }}>Outstanding Interest</p>
                   <p className="text-2xl mb-1 cursor-pointer" onClick={() => onNavigate?.('loans')} style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(filteredInterestTotal || 0).number}{formatSmartNumber(filteredInterestTotal || 0).suffix}</p>
                   <p className="text-xs" style={{ color: themeColors.textSecondary }}>Accrued interest</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Collected Interest */}
+            <div 
+              className="transition-colors rounded-lg p-4"
+              style={{ 
+                backgroundColor: isDark ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.05)',
+                border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.15)'}`
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <Wallet className="size-6 flex-shrink-0 mt-1" style={{ color: '#10b981' }} />
+                <div className="flex-1">
+                  <p className="text-sm mb-1" style={{ color: themeColors.cardTextSecondary }}>Collected Interest</p>
+                  <p className="text-2xl mb-1 cursor-pointer" onClick={() => onNavigate?.('loans')} style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(filteredCollectedInterestTotal || 0).number}{formatSmartNumber(filteredCollectedInterestTotal || 0).suffix}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs" style={{ color: themeColors.textSecondary }}>{filteredRepaymentsForInterest.length} payments</p>
+                    <select
+                      value={collectedInterestDuration}
+                      onChange={(e) => {
+                        setCollectedInterestDuration(e.target.value as DurationFilter);
+                        localStorage.setItem('collectedInterestDuration', e.target.value);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[9px] px-1.5 py-1 rounded border cursor-pointer opacity-40 hover:opacity-70 transition-opacity ml-auto"
+                      style={{ 
+                        backgroundColor: isDark ? 'rgba(30, 58, 138, 0.2)' : 'rgba(219, 234, 254, 0.3)',
+                        borderColor: isDark ? 'rgba(96, 165, 250, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                        color: isDark ? '#93c5fd' : '#3b82f6'
+                      }}
+                    >
+                      <option value="today">1D</option>
+                      <option value="week">1W</option>
+                      <option value="month">1M</option>
+                      <option value="3month">3M</option>
+                      <option value="6month">6M</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2390,12 +2443,20 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                         }}
                       >
                         {detail.clientName && (
-                          <div className="flex justify-between">
-                            <span style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>{detail.clientName || detail.name}</span>
-                            <span style={{ color: isDark ? '#e1e8f0' : '#111827' }}>
-                              {detail.amount || detail.outstanding || detail.daysOverdue}
-                            </span>
-                          </div>
+                          <>
+                            <div className="flex justify-between">
+                              <span style={{ color: isDark ? '#b8c5d6' : '#6b7280' }}>{detail.clientName || detail.name}</span>
+                              <span style={{ color: isDark ? '#e1e8f0' : '#111827' }}>
+                                {detail.amount || detail.outstanding}
+                              </span>
+                            </div>
+                            {detail.daysOverdue && (
+                              <div className="text-xs mt-0.5 flex justify-between">
+                                <span style={{ color: isDark ? '#7a8a9e' : '#9ca3af' }}>Days Overdue</span>
+                                <span style={{ color: isDark ? '#fca5a5' : '#ef4444' }}>{detail.daysOverdue}</span>
+                              </div>
+                            )}
+                          </>
                         )}
                         {detail.date && (
                           <div className="text-xs mt-0.5" style={{ color: isDark ? '#7a8a9e' : '#9ca3af' }}>

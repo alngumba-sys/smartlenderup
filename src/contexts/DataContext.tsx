@@ -672,6 +672,20 @@ export interface Staff {
   };
 }
 
+// Credit Scoring Parameters
+export interface CreditScoringParameter {
+  id: string;
+  organization_id?: string;
+  client_type: 'individual' | 'business';
+  parameter_id: string;
+  parameter_name: string;
+  weight: number;
+  description: string;
+  enabled: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // ============= CONTEXT DEFINITION =============
 
 interface DataContextType {
@@ -757,17 +771,17 @@ interface DataContextType {
   
   // Expenses
   expenses: Expense[];
-  addExpense: (expense: Omit<Expense, 'id' | 'createdDate'>) => void;
-  updateExpense: (id: string, updates: Partial<Expense>) => void;
+  addExpense: (expense: Omit<Expense, 'id' | 'createdDate'>) => Promise<void>;
+  updateExpense: (id: string, updates: Partial<Expense>) => Promise<void>;
   deleteExpense: (id: string) => void;
   getExpense: (id: string) => Expense | undefined;
   approveExpense: (id: string, approvedBy: string) => void;
-  payExpense: (id: string, paidBy: string, receiptNumber: string, bankAccountId?: string) => void;
+  payExpense: (id: string, paidBy: string, receiptNumber: string, bankAccountId?: string) => Promise<void>;
   
   // Payees
   payees: Payee[];
-  addPayee: (payee: Omit<Payee, 'id' | 'totalPaid' | 'createdDate'>) => void;
-  updatePayee: (id: string, updates: Partial<Payee>) => void;
+  addPayee: (payee: Omit<Payee, 'id' | 'totalPaid' | 'createdDate'>) => Promise<void>;
+  updatePayee: (id: string, updates: Partial<Payee>) => Promise<void>;
   deletePayee: (id: string) => void;
   getPayee: (id: string) => Payee | undefined;
   
@@ -868,7 +882,7 @@ interface DataContextType {
   updatePayrollRun: (id: string, updates: Partial<PayrollRun>) => void;
   deletePayrollRun: (id: string) => void;
   getPayrollRun: (id: string) => PayrollRun | undefined;
-  processPayroll: (id: string, paidDate: string, bankAccountId?: string) => void;
+  processPayroll: (id: string, paidDate: string, bankAccountId?: string) => Promise<void>;
   
   // Journal Entries
   journalEntries: JournalEntry[];
@@ -879,6 +893,11 @@ interface DataContextType {
   reverseJournalEntry: (id: string, reversedBy: string, reason: string) => void;
   createMissingJournalEntries: () => Promise<void>;
   deleteAllJournalEntries: () => Promise<void>;
+  
+  // Credit Scoring Parameters
+  creditScoringParameters: CreditScoringParameter[];
+  saveCreditScoringParameters: (clientType: 'individual' | 'business', parameters: any[]) => Promise<void>;
+  getCreditScoringParameters: (clientType: 'individual' | 'business') => CreditScoringParameter[];
   
   // Utility functions
   generateReceiptNumber: () => string;
@@ -920,6 +939,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [guarantors, setGuarantors] = useState<any[]>([]);
   const [collaterals, setCollaterals] = useState<any[]>([]);
   const [loanDocuments, setLoanDocuments] = useState<any[]>([]);
+  const [creditScoringParameters, setCreditScoringParameters] = useState<CreditScoringParameter[]>([]);
 
   // ============= SINGLE-OBJECT SYNC PATTERN =============
   // Debounced sync to avoid excessive API calls
@@ -1161,7 +1181,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       
       console.log('🔧 Creating default shareholders...');
       
-      // Create Victor Muthama - 1,000,000 contribution
+      // ✅ INITIAL CAPITAL AMOUNTS - Easy to modify here
+      const VICTOR_INITIAL_CAPITAL = 1000000;  // Change Victor's initial deposit here
+      const BEN_INITIAL_CAPITAL = 1000000;     // Change Ben's initial deposit here
+      // Total Initial Funding = 2,000,000
+      
+      // Create Victor Muthama
       if (!victorExists) {
         const victor = await supabaseDataService.shareholders.create(
           {
@@ -1172,8 +1197,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
             phone: '',
             email: '',
             shares: 0,
-            share_value: 1000000,
-            total_investment: 1000000,
+            share_value: VICTOR_INITIAL_CAPITAL,
+            total_investment: VICTOR_INITIAL_CAPITAL,
             join_date: new Date().toISOString().split('T')[0],
             status: 'active'
           },
@@ -1182,7 +1207,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         console.log('✅ Created Victor Muthama:', victor);
       }
       
-      // Create Ben Mbuvi - 1,000,000 contribution
+      // Create Ben Mbuvi
       if (!benExists) {
         const ben = await supabaseDataService.shareholders.create(
           {
@@ -1193,8 +1218,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
             phone: '',
             email: '',
             shares: 0,
-            share_value: 1000000,
-            total_investment: 1000000,
+            share_value: BEN_INITIAL_CAPITAL,
+            total_investment: BEN_INITIAL_CAPITAL,
             join_date: new Date().toISOString().split('T')[0],
             status: 'active'
           },
@@ -2185,6 +2210,44 @@ export function DataProvider({ children }: { children: ReactNode }) {
             console.log('   ⚠️  Journal entries state set to empty array due to error');
           }
           
+          // ✅ NEW: Load credit scoring parameters from individual table (Supabase-first)
+          try {
+            console.log('');
+            console.log('📊 ========================================');
+            console.log('📊 LOADING CREDIT SCORING PARAMETERS FROM INDIVIDUAL TABLE');
+            console.log('📊 ========================================');
+            console.log('   Organization ID:', currentUser.organizationId);
+            console.log('   Table: credit_scoring_parameters');
+            console.log('   Calling: supabaseDataService.creditScoringParameters.getAll()');
+            
+            const supabaseCreditScoringParams = await supabaseDataService.creditScoringParameters.getAll(currentUser.organizationId);
+            
+            console.log('   ✅ Query complete!');
+            console.log('   Raw response:', supabaseCreditScoringParams);
+            console.log('   Type:', typeof supabaseCreditScoringParams);
+            console.log('   Is Array:', Array.isArray(supabaseCreditScoringParams));
+            console.log('   Length:', supabaseCreditScoringParams?.length);
+            
+            if (supabaseCreditScoringParams && supabaseCreditScoringParams.length > 0) {
+              console.log(`✅ Loaded ${supabaseCreditScoringParams.length} credit scoring parameters from individual table`);
+              setCreditScoringParameters(supabaseCreditScoringParams);
+              console.log('   ✅ Credit scoring parameters state updated');
+              
+              // Log individual vs business parameters
+              const individualParams = supabaseCreditScoringParams.filter(p => p.client_type === 'individual');
+              const businessParams = supabaseCreditScoringParams.filter(p => p.client_type === 'business');
+              console.log(`   Individual parameters: ${individualParams.length}`);
+              console.log(`   Business parameters: ${businessParams.length}`);
+            } else {
+              console.log('ℹ️ No credit scoring parameters found in database - will use defaults');
+              setCreditScoringParameters([]);
+            }
+          } catch (error) {
+            console.warn('⚠️ Error loading credit scoring parameters from Supabase:', error);
+            console.log('   Using empty parameters array - components will use defaults');
+            setCreditScoringParameters([]);
+          }
+          
           console.log('✅ All data loaded from Supabase successfully');
           
           // ✅ Create missing journal entries for existing transactions (one-time migration)
@@ -2572,6 +2635,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
         
         setLoans(mappedLoans);
         console.log('✅ Loans refreshed:', mappedLoans.length);
+      }
+      
+      // Load credit scoring parameters
+      try {
+        const params = await supabaseDataService.creditScoringParameters.getAll(currentUser.organizationId);
+        setCreditScoringParameters(params);
+        console.log('✅ Credit scoring parameters loaded:', params.length);
+      } catch (error) {
+        console.warn('⚠️ Credit scoring parameters not loaded (table may not exist yet):', error);
       }
       
       toast.success('Data refreshed from database');
@@ -3670,76 +3742,195 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // ============= CREDIT SCORE CALCULATION =============
 
   const calculateClientCreditScore = (clientId: string): number => {
-    const clientLoans = loans.filter(l => l.clientId === clientId);
-    const clientRepayments = repayments.filter(r => r.clientId === clientId && r.status === 'Approved');
+    const client = clients.find(c => c.id === clientId);
+    if (!client) {
+      console.log(`❌ Client not found: ${clientId}`);
+      return 300;
+    }
     
-    // If no loan history, return 0
+    // Debug: Check first few loans to see their clientId format
+    if (loans.length > 0 && loans.length < 50) {
+      console.log('Sample loan clientIds:', loans.slice(0, 3).map(l => ({ loanId: l.id, clientId: l.clientId, clientUuid: l.clientUuid })));
+    }
+    
+    const clientLoans = loans.filter(l => l.clientId === clientId || l.clientUuid === clientId);
+    const clientRepayments = repayments.filter(r => r.clientId === clientId && r.status === 'Approved');
+    const clientSavings = savingsAccounts.filter(s => s.clientId === clientId);
+    
+    console.log(`\n📊 === CREDIT SCORE for ${client.name} ===`);
+    console.log(`Client ID we're searching for: ${clientId}`);
+    console.log(`Client UUID: ${client.uuid || 'none'}`);
+    console.log(`Client joinDate: ${client.joinDate || 'none'}`);
+    console.log(`Total loans in system: ${loans.length}`);
+    console.log(`Loans for this client: ${clientLoans.length}`);
+    if (clientLoans.length > 0) {
+      console.log(`Loan statuses:`, clientLoans.map(l => l.status));
+    }
+    console.log(`Repayments found: ${clientRepayments.length}`);
+    
+    // If no loan history, give varied base scores based on account age
     if (clientLoans.length === 0) {
-      return 0;
+      const joinDate = client.joinDate ? new Date(client.joinDate) : new Date();
+      const now = new Date();
+      const monthsSinceJoin = Math.max(0, Math.floor(
+        (now.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
+      ));
+      // Varied base scores: 300-400 based on account age
+      // Use deterministic hash of clientId instead of random for consistency
+      const hashBonus = Math.abs(clientId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 50;
+      const ageBonus = Math.min(50, monthsSinceJoin * 2);
+      const baseScore = Math.min(400, 300 + hashBonus + ageBonus);
+      console.log(`⚠️ No loans - base score: ${baseScore} (months: ${monthsSinceJoin}, hash: ${hashBonus}, age: ${ageBonus})`);
+      return baseScore;
     }
 
-    let score = 300; // Base score for having loan history
+    // Credit Scoring Engine weights based on client type
+    const isIndividual = client.clientType === 'individual';
+    const weights = isIndividual ? {
+      paymentHistory: 35,
+      creditUtilization: 30,
+      accountAge: 15,
+      loanCount: 10,
+      savingsBalance: 10
+    } : {
+      paymentHistory: 30,
+      creditUtilization: 25,
+      accountAge: 20,
+      loanCount: 15,
+      savingsBalance: 10
+    };
 
-    // 1. Payment History (40 points) - Most important factor
+    // Start with base score of 300, add up to 550 points
+    let score = 300;
+    const maxAdditionalPoints = 550;
+
+    // 1. PAYMENT HISTORY (Individual: 35%, Business: 30%)
     const totalLoans = clientLoans.length;
     const closedLoans = clientLoans.filter(l => l.status === 'Fully Paid' || l.status === 'Closed').length;
-    const activeLoans = clientLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed').length;
     const loansInArrears = clientLoans.filter(l => l.status === 'In Arrears').length;
+    const activeLoans = clientLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed').length;
     
-    // Positive: Successfully closed loans
-    score += closedLoans * 8; // Up to 40 points for 5+ closed loans
+    let paymentHistoryScore = 60; // Start at 60%
     
-    // Negative: Loans in arrears
-    score -= loansInArrears * 50; // Heavy penalty for defaults
+    // Closure rate bonus (0-40%)
+    const closureRate = totalLoans > 0 ? (closedLoans / totalLoans) : 0;
+    paymentHistoryScore += closureRate * 40;
     
-    // 2. Repayment Consistency (30 points)
-    if (clientRepayments.length > 0) {
-      const onTimePayments = clientRepayments.length;
-      score += Math.min(30, onTimePayments * 3); // 3 points per payment, max 30
-    }
+    // Repayment count bonus (0-20%)
+    const onTimePayments = clientRepayments.length;
+    if (onTimePayments >= 10) paymentHistoryScore += 20;
+    else if (onTimePayments >= 5) paymentHistoryScore += 15;
+    else if (onTimePayments >= 3) paymentHistoryScore += 10;
+    else if (onTimePayments >= 1) paymentHistoryScore += 5;
+    
+    // Arrears penalties
+    paymentHistoryScore -= loansInArrears * 30;
+    
+    // Days in arrears penalties
+    clientLoans.forEach(loan => {
+      if (loan.daysInArrears && loan.daysInArrears > 90) paymentHistoryScore -= 25;
+      else if (loan.daysInArrears && loan.daysInArrears > 30) paymentHistoryScore -= 15;
+      else if (loan.daysInArrears && loan.daysInArrears > 0) paymentHistoryScore -= 5;
+    });
+    
+    paymentHistoryScore = Math.max(0, Math.min(100, paymentHistoryScore));
+    const paymentHistoryPoints = (paymentHistoryScore / 100) * (weights.paymentHistory / 100) * maxAdditionalPoints;
+    score += paymentHistoryPoints;
+    
+    console.log(`💳 Payment History: ${Math.round(paymentHistoryScore)}% → +${Math.round(paymentHistoryPoints)} pts`);
 
-    // 3. Credit Utilization (20 points)
+    // 2. CREDIT UTILIZATION (Individual: 30%, Business: 25%)
     const totalBorrowed = clientLoans.reduce((sum, l) => sum + l.principalAmount, 0);
     const totalRepaid = clientRepayments.reduce((sum, r) => sum + r.principal, 0);
+    
+    let creditUtilizationScore = 50; // Base 50%
     if (totalBorrowed > 0) {
-      const repaymentRate = (totalRepaid / totalBorrowed) * 100;
-      score += Math.min(20, Math.floor(repaymentRate / 5)); // Up to 20 points for 100% repayment rate
+      const repaymentRate = (totalRepaid / totalBorrowed);
+      creditUtilizationScore = Math.min(100, 30 + (repaymentRate * 70));
     }
+    
+    const creditUtilizationPoints = (creditUtilizationScore / 100) * (weights.creditUtilization / 100) * maxAdditionalPoints;
+    score += creditUtilizationPoints;
+    
+    console.log(`💰 Credit Utilization: ${Math.round(creditUtilizationScore)}% (${totalRepaid}/${totalBorrowed}) → +${Math.round(creditUtilizationPoints)} pts`);
 
-    // 4. Credit History Length (10 points)
+    // 3. ACCOUNT AGE (Individual: 15%, Business: 20%)
+    const joinDate = client.joinDate ? new Date(client.joinDate) : new Date();
     const oldestLoan = clientLoans.reduce((oldest, loan) => {
-      return !oldest || new Date(loan.createdDate) < new Date(oldest.createdDate) ? loan : oldest;
+      const loanDate = loan.createdDate ? new Date(loan.createdDate) : null;
+      const oldestDate = oldest?.createdDate ? new Date(oldest.createdDate) : null;
+      return !oldest || (loanDate && oldestDate && loanDate < oldestDate) ? loan : oldest;
     }, null as Loan | null);
     
-    if (oldestLoan) {
-      const monthsSinceFirst = Math.floor(
-        (new Date().getTime() - new Date(oldestLoan.createdDate).getTime()) / (1000 * 60 * 60 * 24 * 30)
-      );
-      score += Math.min(10, Math.floor(monthsSinceFirst / 3)); // 1 point per 3 months, max 10
-    }
+    const referenceDate = oldestLoan?.createdDate ? new Date(oldestLoan.createdDate) : joinDate;
+    const now = new Date();
+    const monthsSinceStart = Math.max(0, Math.floor(
+      (now.getTime() - referenceDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
+    ));
+    
+    let accountAgeScore = 40; // Minimum 40%
+    if (monthsSinceStart >= 60) accountAgeScore = 100;
+    else if (monthsSinceStart >= 36) accountAgeScore = 90;
+    else if (monthsSinceStart >= 24) accountAgeScore = 80;
+    else if (monthsSinceStart >= 12) accountAgeScore = 70;
+    else if (monthsSinceStart >= 6) accountAgeScore = 60;
+    else if (monthsSinceStart >= 3) accountAgeScore = 50;
+    
+    const accountAgePoints = (accountAgeScore / 100) * (weights.accountAge / 100) * maxAdditionalPoints;
+    score += accountAgePoints;
+    
+    console.log(`📅 Account Age: ${monthsSinceStart}mo → ${Math.round(accountAgeScore)}% → +${Math.round(accountAgePoints)} pts`);
 
-    // 5. Active loan management (bonus/penalty)
-    if (activeLoans > 0) {
-      clientLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed').forEach(loan => {
-        if (loan.daysInArrears > 30) {
-          score -= 30; // Penalty for being more than 30 days late
-        } else if (loan.daysInArrears > 0) {
-          score -= 10; // Minor penalty for being late
-        }
-      });
-    }
+    // 4. LOAN COUNT (Individual: 10%, Business: 15%)
+    let loanCountScore = 40; // Minimum 40%
+    if (totalLoans >= 10) loanCountScore = 100;
+    else if (totalLoans >= 7) loanCountScore = 90;
+    else if (totalLoans >= 5) loanCountScore = 80;
+    else if (totalLoans >= 3) loanCountScore = 70;
+    else if (totalLoans >= 2) loanCountScore = 60;
+    
+    const loanCountPoints = (loanCountScore / 100) * (weights.loanCount / 100) * maxAdditionalPoints;
+    score += loanCountPoints;
+    
+    console.log(`🔢 Loan Count: ${totalLoans} → ${loanCountScore}% → +${Math.round(loanCountPoints)} pts`);
 
-    // Ensure score is within 0-850 range
-    return Math.max(0, Math.min(850, score));
+    // 5. SAVINGS BALANCE (Individual: 10%, Business: 10%)
+    const totalSavings = clientSavings.reduce((sum, s) => sum + s.balance, 0);
+    
+    let savingsScore = 30; // Minimum 30%
+    if (totalSavings >= 1000000) savingsScore = 100;
+    else if (totalSavings >= 500000) savingsScore = 90;
+    else if (totalSavings >= 100000) savingsScore = 80;
+    else if (totalSavings >= 50000) savingsScore = 70;
+    else if (totalSavings >= 10000) savingsScore = 60;
+    else if (totalSavings > 0) savingsScore = 40;
+    
+    const savingsPoints = (savingsScore / 100) * (weights.savingsBalance / 100) * maxAdditionalPoints;
+    score += savingsPoints;
+    
+    console.log(`💵 Savings: ${totalSavings.toLocaleString()} → ${savingsScore}% → +${Math.round(savingsPoints)} pts`);
+    
+    const finalScore = Math.round(Math.max(300, Math.min(850, score)));
+    
+    console.log(`✅ FINAL SCORE: ${finalScore}`);
+    console.log(`===============================\n`);
+    
+    return finalScore;
   };
 
   const updateAllClientCreditScores = () => {
+    console.log('🔄 Updating all client credit scores...');
+    let updatedCount = 0;
     clients.forEach(client => {
       const newScore = calculateClientCreditScore(client.id);
+      console.log(`Client ${client.name}: old=${client.creditScore || 0}, new=${newScore}`);
       if (newScore !== client.creditScore) {
+        console.log(`🔵 Updating client ${client.name} with Supabase-first approach...`);
         updateClient(client.id, { creditScore: newScore });
+        updatedCount++;
       }
     });
+    console.log(`✅ Updated ${updatedCount} client credit scores`);
   };
 
   // ============= SAVINGS FUNCTIONS =============
@@ -4413,7 +4604,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         if (newExpense.payeeId) {
           const payee = payees.find(p => p.id === newExpense.payeeId);
           if (payee) {
-            updatePayee(payee.id, {
+            await updatePayee(payee.id, {
               totalPaid: payee.totalPaid + newExpense.amount,
               lastPaymentDate: newExpense.expenseDate
             });
@@ -4437,8 +4628,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateExpense = (id: string, updates: Partial<Expense>) => {
-    setExpenses(expenses.map(e => e.id === id ? { ...e, ...updates } : e));
+  const updateExpense = async (id: string, updates: Partial<Expense>) => {
+    try {
+      console.log('💸 Updating expense in Supabase...', { id, updates });
+      
+      // ✅ 1. UPDATE IN SUPABASE FIRST
+      await supabaseDataService.expenses.update(id, updates, currentUser?.organizationId || '');
+      
+      console.log('✅ Expense updated in Supabase');
+      
+      // ✅ 2. UPDATE REACT STATE
+      setExpenses(expenses.map(e => e.id === id ? { ...e, ...updates } : e));
+      
+    } catch (error) {
+      console.error('❌ Error updating expense:', error);
+      toast.error('Failed to update expense in database');
+      throw error;
+    }
   };
 
   const deleteExpense = (id: string) => {
@@ -4461,7 +4667,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     ));
   };
 
-  const payExpense = (id: string, paidBy: string, receiptNumber: string, bankAccountId?: string) => {
+  const payExpense = async (id: string, paidBy: string, receiptNumber: string, bankAccountId?: string) => {
     const expense = expenses.find(e => e.id === id);
     if (expense) {
       setExpenses(expenses.map(e => 
@@ -4508,7 +4714,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (expense.payeeId) {
         const payee = payees.find(p => p.id === expense.payeeId);
         if (payee) {
-          updatePayee(payee.id, {
+          await updatePayee(payee.id, {
             totalPaid: payee.totalPaid + expense.amount,
             lastPaymentDate: new Date().toISOString().split('T')[0]
           });
@@ -4601,8 +4807,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updatePayee = (id: string, updates: Partial<Payee>) => {
-    setPayees(payees.map(p => p.id === id ? { ...p, ...updates } : p));
+  const updatePayee = async (id: string, updates: Partial<Payee>) => {
+    try {
+      console.log('💰 Updating payee in Supabase...', { id, updates });
+      
+      // ✅ 1. UPDATE IN SUPABASE FIRST
+      await supabaseDataService.payees.update(id, updates, currentUser?.organizationId || '');
+      
+      console.log('✅ Payee updated in Supabase');
+      
+      // ✅ 2. UPDATE REACT STATE
+      setPayees(payees.map(p => p.id === id ? { ...p, ...updates } : p));
+      
+    } catch (error) {
+      console.error('❌ Error updating payee:', error);
+      toast.error('Failed to update payee in database');
+      throw error;
+    }
   };
 
   const deletePayee = (id: string) => {
@@ -4668,7 +4889,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return payrollRuns.find(p => p.id === id);
   };
 
-  const processPayroll = (id: string, paidDate: string, bankAccountId?: string) => {
+  const processPayroll = async (id: string, paidDate: string, bankAccountId?: string) => {
     const payroll = payrollRuns.find(p => p.id === id);
     if (payroll) {
       // If bankAccountId provided, deduct from bank account
@@ -4718,7 +4939,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addJournalEntry(journalEntryData);
 
       // Update all employee statuses in the payroll and create expenses
-      payroll.employees.forEach(emp => {
+      for (const emp of payroll.employees) {
         // Create expense record for each employee
         const expenseData: Omit<Expense, 'id' | 'createdDate'> = {
           expenseDate: paidDate,
@@ -4746,12 +4967,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         // Update payee totalPaid
         const payee = payees.find(p => p.id === emp.payeeId);
         if (payee) {
-          updatePayee(payee.id, {
+          await updatePayee(payee.id, {
             totalPaid: payee.totalPaid + emp.netPay,
             lastPaymentDate: paidDate
           });
         }
-      });
+      }
     }
   };
 
@@ -5860,6 +6081,40 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ============= CREDIT SCORING PARAMETERS FUNCTIONS =============
+
+  const saveCreditScoringParameters = async (clientType: 'individual' | 'business', parameters: any[]) => {
+    try {
+      console.log(`💾 Saving ${parameters.length} credit scoring parameters for ${clientType} clients`);
+      
+      const orgData = localStorage.getItem('current_organization');
+      if (!orgData) {
+        throw new Error('Organization not found');
+      }
+      
+      const org = JSON.parse(orgData);
+      const organizationId = org.organization_id || org.id;
+      
+      // Save to Supabase using the supabaseDataService (property is creditScoringParameters, not creditScoringParametersService)
+      await supabaseDataService.creditScoringParameters.saveParameters(organizationId, clientType, parameters);
+      
+      // Reload parameters from database
+      const allParams = await supabaseDataService.creditScoringParameters.getAll(organizationId);
+      setCreditScoringParameters(allParams);
+      
+      toast.success(`Credit scoring parameters saved successfully for ${clientType} clients`);
+      console.log('✅ Credit scoring parameters saved and reloaded');
+    } catch (error: any) {
+      console.error('❌ Error saving credit scoring parameters:', error);
+      toast.error('Failed to save credit scoring parameters');
+      throw error;
+    }
+  };
+
+  const getCreditScoringParameters = (clientType: 'individual' | 'business'): CreditScoringParameter[] => {
+    return creditScoringParameters.filter(p => p.client_type === clientType);
+  };
+
   // ============= DISBURSEMENT FUNCTIONS =============
 
   const addDisbursement = (disbursementData: Omit<Disbursement, 'id' | 'createdDate'>) => {
@@ -6088,6 +6343,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     
     calculateClientCreditScore,
     updateAllClientCreditScores,
+    
+    creditScoringParameters,
+    saveCreditScoringParameters,
+    getCreditScoringParameters,
     
     generateReceiptNumber,
     generateAccountNumber,

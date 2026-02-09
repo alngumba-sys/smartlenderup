@@ -1,4 +1,4 @@
-import { Brain, TrendingUp, AlertTriangle, CheckCircle, Filter, Search, Eye, RefreshCw, Download, Settings, X, Info, Users, Building2, Target, Award, Clock, DollarSign, Percent, Shield } from 'lucide-react';
+import { Brain, TrendingUp, AlertTriangle, CheckCircle, Filter, Search, Eye, RefreshCw, Download, Settings, X, Info, Users, Building2, Target, Award, Clock, DollarSign, Percent, Shield, ChevronUp, ChevronDown } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { CreditScoringParametersModal } from '../modals/CreditScoringParametersModal';
 import { useData } from '../../contexts/DataContext';
@@ -8,6 +8,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, Label } from
 
 interface CreditScore {
   clientId: string;
+  clientNumber: string; // Add client number field
   clientName: string;
   phoneNumber: string;
   location: string;
@@ -33,13 +34,17 @@ interface CreditScore {
 
 export function CreditScoringTab() {
   const { isDark } = useTheme();
-  const { clients, loans, repayments, calculateClientCreditScore, updateClient } = useData();
+  const { clients, loans, repayments, calculateClientCreditScore, updateClient, getCreditScoringParameters } = useData();
   const { navigateToClient } = useNavigation();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRisk, setFilterRisk] = useState<string>('all');
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [showParametersModal, setShowParametersModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'individual' | 'business'>('individual');
+  
+  // Add sorting state
+  const [sortField, setSortField] = useState<'clientName' | 'currentScore' | 'riskCategory' | 'repaymentRate' | 'activeLoans'>('currentScore');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
   // Add mounted state to prevent chart rendering before container dimensions are ready
   const [isMounted, setIsMounted] = useState(false);
@@ -76,24 +81,100 @@ export function CreditScoringTab() {
   const [chartKey, setChartKey] = useState({ individual: 0, business: 0 });
   const [modalClientType, setModalClientType] = useState<'individual' | 'business'>('individual');
 
+  // Function to load parameters from database
+  const loadParametersFromDB = (clientType: 'individual' | 'business') => {
+    const params = getCreditScoringParameters(clientType);
+    
+    if (params && params.length > 0) {
+      const weights = {
+        paymentHistory: 35,
+        creditUtilization: 30,
+        accountAge: 15,
+        loanCount: 10,
+        savingsBalance: 10
+      };
+      
+      params.forEach(param => {
+        if (!param.enabled) return;
+        
+        const name = param.parameter_name.toLowerCase().replace(/\s+/g, '');
+        if (name.includes('payment') && name.includes('history')) {
+          weights.paymentHistory = param.weight;
+        } else if (name.includes('credit') && name.includes('utilization')) {
+          weights.creditUtilization = param.weight;
+        } else if (name.includes('account') && name.includes('age')) {
+          weights.accountAge = param.weight;
+        } else if (name.includes('loan') && name.includes('count')) {
+          weights.loanCount = param.weight;
+        } else if (name.includes('savings') && name.includes('balance')) {
+          weights.savingsBalance = param.weight;
+        }
+      });
+      
+      setScoringWeights(prev => ({ ...prev, [clientType]: weights }));
+      setChartKey(prev => ({ ...prev, [clientType]: prev[clientType] + 1 }));
+      console.log(`✅ ${clientType} parameters loaded:`, weights);
+      return weights;
+    }
+    return null;
+  };
+
+  // Load credit scoring parameters from database on mount
+  useEffect(() => {
+    console.log('📊 Loading credit scoring parameters from database...');
+    
+    // Load parameters for both client types
+    const individualParams = loadParametersFromDB('individual');
+    const businessParams = loadParametersFromDB('business');
+    
+    console.log('Individual params:', individualParams);
+    console.log('Business params:', businessParams);
+    
+    if (!individualParams && !businessParams) {
+      console.log('⚠️ No parameters loaded from database. Charts will show default hardcoded values.');
+      console.log('💡 To update graphs: Click "Configure", modify weights, and click "Save Parameters"');
+    }
+  }, [getCreditScoringParameters]);
+
   // Recalculate all client credit scores on component mount
   useEffect(() => {
     if (clients.length === 0) return;
     
+    console.log('🔄 === STARTING CREDIT SCORE RECALCULATION ===');
+    console.log(`Total clients to process: ${clients.length}`);
     let hasUpdates = false;
-    clients.forEach(client => {
-      const newScore = calculateClientCreditScore(client.id);
-      if (newScore !== client.creditScore) {
-        updateClient(client.id, { creditScore: newScore }, { silent: true });
-        hasUpdates = true;
+    let processedCount = 0;
+    let errorCount = 0;
+    
+    clients.forEach((client, index) => {
+      try {
+        console.log(`\n[${index + 1}/${clients.length}] Processing: ${client.name} (ID: ${client.id})`);
+        const newScore = calculateClientCreditScore(client.id);
+        console.log(`  Result: old=${client.creditScore || 'none'}, new=${newScore}`);
+        
+        if (newScore !== client.creditScore) {
+          console.log(`  ⬆️ Updating score from ${client.creditScore || 0} to ${newScore}`);
+          updateClient(client.id, { creditScore: newScore }, { silent: true });
+          hasUpdates = true;
+        } else {
+          console.log(`  ✅ No update needed`);
+        }
+        processedCount++;
+      } catch (error) {
+        console.error(`  ❌ ERROR processing ${client.name}:`, error);
+        errorCount++;
       }
     });
-    if (hasUpdates) {
-      console.log('Credit scores recalculated for all clients');
-    }
-  }, [clients.length, loans.length]);
+    
+    console.log(`\n✅ === RECALCULATION COMPLETE ===`);
+    console.log(`Processed: ${processedCount}/${clients.length}`);
+    console.log(`Errors: ${errorCount}`);
+    console.log(`Updates applied: ${hasUpdates ? 'Yes' : 'No'}`);
+  }, [clients.length, loans.length, calculateClientCreditScore, updateClient]);
 
   const handleSaveParameters = (parameters: any[]) => {
+    console.log('💾 Saving parameters to local state:', parameters);
+    
     // Convert array of parameter objects to the weights object format
     const weights = {
       paymentHistory: 35,
@@ -129,14 +210,24 @@ export function CreditScoringTab() {
       ...prev,
       [modalClientType]: prev[modalClientType] + 1
     })); // Force chart re-render
-    console.log('Credit scoring parameters updated:', weights);
+    console.log('✅ Credit scoring parameters updated in local state:', weights);
   };
 
   // Generate credit scores from real client data
   const creditScores: CreditScore[] = useMemo(() => {
+    console.log('\n🔍 === GENERATING CREDIT SCORES ===');
+    console.log(`Total clients: ${clients.length}`);
+    console.log(`Total loans: ${loans.length}`);
+    console.log(`Total repayments: ${repayments.length}`);
+    
     return clients.map(client => {
-      const clientLoans = loans.filter(l => l.clientId === client.id);
+      // Match loans using both clientId and clientUuid (loans might use either field)
+      const clientLoans = loans.filter(l => l.clientId === client.id || l.clientUuid === client.id);
       const clientRepayments = repayments.filter(r => r.clientId === client.id && r.status === 'Approved');
+      
+      console.log(`\nClient: ${client.name} (${client.id})`);
+      console.log(`  - Loans found: ${clientLoans.length}`);
+      console.log(`  - Repayments found: ${clientRepayments.length}`);
       
       const totalBorrowed = clientLoans.reduce((sum, l) => sum + l.principalAmount, 0);
       const totalRepaid = clientRepayments.reduce((sum, r) => sum + r.principal, 0);
@@ -144,10 +235,22 @@ export function CreditScoringTab() {
       const closedLoans = clientLoans.filter(l => l.status === 'Fully Paid' || l.status === 'Closed').length;
       const repaymentRate = totalBorrowed > 0 ? (totalRepaid / totalBorrowed) * 100 : 0;
       
+      console.log(`  - Total Borrowed: ${totalBorrowed.toLocaleString()}`);
+      console.log(`  - Total Repaid: ${totalRepaid.toLocaleString()}`);
+      console.log(`  - Active Loans: ${activeLoans}`);
+      console.log(`  - Repayment Rate: ${repaymentRate.toFixed(1)}%`);
+      
       const daysOverdue = Math.max(0, ...clientLoans
         .filter(l => l.status === 'Active' || l.status === 'Disbursed')
         .map(l => l.daysInArrears || 0)
       );
+
+      // Get the most recent loan ID (or first active loan)
+      const activeLoan = clientLoans.find(l => l.status === 'Active' || l.status === 'Disbursed');
+      const mostRecentLoan = clientLoans.sort((a, b) => 
+        new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime()
+      )[0];
+      const displayLoanId = activeLoan?.id || mostRecentLoan?.id || client.id;
 
       const score = client.creditScore || 300;
       let riskCategory: 'excellent' | 'good' | 'average' | 'poor';
@@ -164,7 +267,8 @@ export function CreditScoringTab() {
       const accountAgeScore = Math.min(100, accountAgeMonths * 5);
 
       return {
-        clientId: client.id,
+        clientId: client.id, // Use client ID for internal tracking
+        clientNumber: client.clientNumber || client.client_number || `CL${client.id.slice(-5)}`, // Display client number
         clientName: client.name,
         phoneNumber: client.phone,
         location: client.address || 'N/A',
@@ -200,6 +304,23 @@ export function CreditScoringTab() {
       score.phoneNumber.includes(searchQuery);
     const matchesRisk = filterRisk === 'all' || score.riskCategory === filterRisk;
     return matchesSearch && matchesRisk;
+  });
+
+  // Sort filtered scores
+  const sortedScores = filteredScores.sort((a, b) => {
+    if (sortField === 'clientName') {
+      return sortDirection === 'asc' ? a.clientName.localeCompare(b.clientName) : b.clientName.localeCompare(a.clientName);
+    } else if (sortField === 'currentScore') {
+      return sortDirection === 'asc' ? a.currentScore - b.currentScore : b.currentScore - a.currentScore;
+    } else if (sortField === 'riskCategory') {
+      const order = { 'excellent': 1, 'good': 2, 'average': 3, 'poor': 4 };
+      return sortDirection === 'asc' ? order[a.riskCategory] - order[b.riskCategory] : order[b.riskCategory] - order[a.riskCategory];
+    } else if (sortField === 'repaymentRate') {
+      return sortDirection === 'asc' ? a.repaymentRate - b.repaymentRate : b.repaymentRate - a.repaymentRate;
+    } else if (sortField === 'activeLoans') {
+      return sortDirection === 'asc' ? a.activeLoans - b.activeLoans : b.activeLoans - a.activeLoans;
+    }
+    return 0;
   });
 
   // Separate client lists for individual and business
@@ -243,22 +364,28 @@ export function CreditScoringTab() {
   };
 
   // Donut chart data for individual credit score calculation
-  const individualChartData = useMemo(() => [
-    { name: 'Payment History', value: scoringWeights.individual.paymentHistory, color: '#8b5cf6' },  // Purple
-    { name: 'Credit Utilization', value: scoringWeights.individual.creditUtilization, color: '#06b6d4' },  // Cyan
-    { name: 'Account Age', value: scoringWeights.individual.accountAge, color: '#10b981' },  // Emerald
-    { name: 'Loan Count', value: scoringWeights.individual.loanCount, color: '#f59e0b' },  // Amber
-    { name: 'Savings Balance', value: scoringWeights.individual.savingsBalance, color: '#6366f1' }  // Indigo
-  ], [scoringWeights.individual]);
+  const individualChartData = useMemo(() => {
+    console.log('🔄 Rebuilding individualChartData with weights:', scoringWeights.individual);
+    return [
+      { name: 'Payment History', value: scoringWeights.individual.paymentHistory, color: '#8b5cf6' },  // Purple
+      { name: 'Credit Utilization', value: scoringWeights.individual.creditUtilization, color: '#06b6d4' },  // Cyan
+      { name: 'Account Age', value: scoringWeights.individual.accountAge, color: '#10b981' },  // Emerald
+      { name: 'Loan Count', value: scoringWeights.individual.loanCount, color: '#f59e0b' },  // Amber
+      { name: 'Savings Balance', value: scoringWeights.individual.savingsBalance, color: '#6366f1' }  // Indigo
+    ];
+  }, [scoringWeights.individual]);
 
   // Donut chart data for business credit score calculation
-  const businessChartData = useMemo(() => [
-    { name: 'Payment History', value: scoringWeights.business.paymentHistory, color: '#8b5cf6' },  // Purple
-    { name: 'Credit Utilization', value: scoringWeights.business.creditUtilization, color: '#06b6d4' },  // Cyan
-    { name: 'Account Age', value: scoringWeights.business.accountAge, color: '#10b981' },  // Emerald
-    { name: 'Loan Count', value: scoringWeights.business.loanCount, color: '#f59e0b' },  // Amber
-    { name: 'Savings Balance', value: scoringWeights.business.savingsBalance, color: '#6366f1' }  // Indigo
-  ], [scoringWeights.business]);
+  const businessChartData = useMemo(() => {
+    console.log('🔄 Rebuilding businessChartData with weights:', scoringWeights.business);
+    return [
+      { name: 'Payment History', value: scoringWeights.business.paymentHistory, color: '#8b5cf6' },  // Purple
+      { name: 'Credit Utilization', value: scoringWeights.business.creditUtilization, color: '#06b6d4' },  // Cyan
+      { name: 'Account Age', value: scoringWeights.business.accountAge, color: '#10b981' },  // Emerald
+      { name: 'Loan Count', value: scoringWeights.business.loanCount, color: '#f59e0b' },  // Amber
+      { name: 'Savings Balance', value: scoringWeights.business.savingsBalance, color: '#6366f1' }  // Indigo
+    ];
+  }, [scoringWeights.business]);
 
   const getRiskBadge = (risk: string) => {
     const colors = {
@@ -299,6 +426,26 @@ export function CreditScoringTab() {
     if (score >= 701) return 'bg-blue-600';
     if (score >= 621) return 'bg-amber-600';
     return 'bg-orange-600';
+  };
+
+  // Handle sort column click
+  const handleSort = (field: 'clientName' | 'currentScore' | 'riskCategory' | 'repaymentRate' | 'activeLoans') => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field with default direction
+      setSortField(field);
+      setSortDirection(field === 'clientName' ? 'asc' : 'desc');
+    }
+  };
+
+  // Render sort icon
+  const renderSortIcon = (field: 'clientName' | 'currentScore' | 'riskCategory' | 'repaymentRate' | 'activeLoans') => {
+    if (sortField !== field) {
+      return <ChevronUp className="size-3 opacity-30" />;
+    }
+    return sortDirection === 'asc' ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />;
   };
 
   return (
@@ -736,18 +883,57 @@ export function CreditScoringTab() {
           <table className="w-full">
             <thead className={`${isDark ? 'bg-gray-900/50' : 'bg-gray-50'} sticky top-0 z-10`}>
               <tr>
-                <th className={`px-3 py-2 text-left text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Client Name</th>
+                <th 
+                  onClick={() => handleSort('clientName')}
+                  className={`px-3 py-2 text-left text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'} cursor-pointer hover:bg-gray-700/50 transition-colors`}
+                >
+                  <div className="flex items-center gap-1">
+                    Client Name
+                    {renderSortIcon('clientName')}
+                  </div>
+                </th>
                 <th className={`px-3 py-2 text-left text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Phone</th>
-                <th className={`px-3 py-2 text-left text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Location</th>
-                <th className={`px-3 py-2 text-center text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Credit Score</th>
-                <th className={`px-3 py-2 text-center text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Risk Category</th>
-                <th className={`px-3 py-2 text-center text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Repayment Rate</th>
-                <th className={`px-3 py-2 text-center text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Active Loans</th>
+                <th 
+                  onClick={() => handleSort('currentScore')}
+                  className={`px-3 py-2 text-center text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'} cursor-pointer hover:bg-gray-700/50 transition-colors`}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    Credit Score
+                    {renderSortIcon('currentScore')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('riskCategory')}
+                  className={`px-3 py-2 text-center text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'} cursor-pointer hover:bg-gray-700/50 transition-colors`}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    Risk Category
+                    {renderSortIcon('riskCategory')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('repaymentRate')}
+                  className={`px-3 py-2 text-center text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'} cursor-pointer hover:bg-gray-700/50 transition-colors`}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    Repayment Rate
+                    {renderSortIcon('repaymentRate')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('activeLoans')}
+                  className={`px-3 py-2 text-center text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'} cursor-pointer hover:bg-gray-700/50 transition-colors`}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    Active Loans
+                    {renderSortIcon('activeLoans')}
+                  </div>
+                </th>
                 <th className={`px-3 py-2 text-right text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Actions</th>
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-200'}`}>
-              {filteredScores.map((score) => (
+              {sortedScores.map((score) => (
                 <tr 
                   key={score.clientId}
                   className={`${
@@ -758,12 +944,11 @@ export function CreditScoringTab() {
                     <div className="flex items-center gap-2">
                       <div>
                         <div className="text-xs text-[13px]">{score.clientName}</div>
-                        <div className={`text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{score.clientId}</div>
+                        <div className={`text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{score.clientNumber}</div>
                       </div>
                     </div>
                   </td>
                   <td className={`px-3 py-2 text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>{score.phoneNumber}</td>
-                  <td className={`px-3 py-2 text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>{score.location}</td>
                   <td className="px-3 py-2 text-center">
                     <div className={`text-lg ${getScoreColor(score.currentScore)}`}>
                       {score.currentScore}
@@ -816,7 +1001,13 @@ export function CreditScoringTab() {
       {/* Credit Scoring Parameters Modal */}
       <CreditScoringParametersModal
         isOpen={showParametersModal}
-        onClose={() => setShowParametersModal(false)}
+        onClose={() => {
+          setShowParametersModal(false);
+          // Reload parameters from database after modal closes
+          console.log('🔄 Reloading parameters after modal close...');
+          loadParametersFromDB('individual');
+          loadParametersFromDB('business');
+        }}
         onSave={handleSaveParameters}
         clientType={modalClientType}
         setClientType={setModalClientType}

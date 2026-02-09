@@ -118,6 +118,9 @@ export function AccountingTab() {
     deleteAllJournalEntries
   } = useData();
 
+  // 💰 State for Cash Flow Analysis Breakdown Modal
+  const [showCashFlowBreakdown, setShowCashFlowBreakdown] = useState(false);
+
   // Calculate total share capital from shareholders FIRST (needed for cash flow calculation)
   const totalShareCapital = shareholders
     .filter(s => s.status === 'Active')
@@ -1113,15 +1116,21 @@ export function AccountingTab() {
       </div>
 
       {/* 💰 Cash Flow Tracker - Always Visible */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200 p-6 mb-6">
+      <div 
+        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200 p-6 mb-6 cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-blue-300"
+        onClick={() => setShowCashFlowBreakdown(true)}
+      >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-blue-600 rounded-lg">
               <Wallet className="size-6 text-white" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Cash Flow Analysis</h3>
-              <p className="text-sm text-gray-600">Track your lending pool from initial funding to current balance</p>
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                Cash Flow Analysis
+                <Eye className="size-4 text-blue-600" />
+              </h3>
+              <p className="text-sm text-gray-600">Click to view detailed breakdown</p>
             </div>
           </div>
           <div className="text-right">
@@ -3536,6 +3545,307 @@ export function AccountingTab() {
         currencyCode={currencyCode}
         organizationId={getOrganizationId()}
       />
+
+      {/* 💰 Cash Flow Analysis Breakdown Modal */}
+      {showCashFlowBreakdown && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">Cash Flow Analysis Breakdown</h3>
+                  <p className="text-sm text-gray-600 mt-1">Detailed breakdown of how available cash was calculated</p>
+                </div>
+                <button
+                  onClick={() => setShowCashFlowBreakdown(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <XCircle className="size-6" />
+                </button>
+              </div>
+
+              {/* Summary Cards */}
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSign className="size-4 text-blue-600" />
+                    <p className="text-xs font-medium text-gray-600 uppercase">Initial Funding</p>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-700">
+                    {currencyCode} {INITIAL_FUNDING.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+
+                <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingDown className="size-4 text-red-600" />
+                    <p className="text-xs font-medium text-gray-600 uppercase">Loans Disbursed</p>
+                  </div>
+                  <p className="text-2xl font-bold text-red-700">
+                    -{currencyCode} {totalLoansDisbursed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+
+                <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="size-4 text-emerald-600" />
+                    <p className="text-xs font-medium text-gray-600 uppercase">Repayments Received</p>
+                  </div>
+                  <p className="text-2xl font-bold text-emerald-700">
+                    +{currencyCode} {totalRepayments.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+
+                <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Wallet className="size-4 text-white" />
+                    <p className="text-xs font-medium text-white uppercase">Available Cash</p>
+                  </div>
+                  <p className="text-2xl font-bold text-white">
+                    {currencyCode} {availableCash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              </div>
+
+              {/* Detailed Breakdown Sections */}
+              <div className="space-y-6">
+                {/* 1. Initial Funding Breakdown */}
+                <div className="bg-white rounded-lg border-2 border-blue-200">
+                  <div className="bg-blue-50 px-6 py-4 border-b border-blue-200">
+                    <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <DollarSign className="size-5 text-blue-600" />
+                      Initial Funding Sources
+                    </h4>
+                  </div>
+                  <div className="p-6">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-4 text-gray-700 font-semibold">Source</th>
+                          <th className="text-left py-3 px-4 text-gray-700 font-semibold">Description</th>
+                          <th className="text-right py-3 px-4 text-gray-700 font-semibold">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* Bank Account Opening Balances */}
+                        {bankAccounts.filter(acc => (acc.openingBalance || 0) > 0).length > 0 ? (
+                          bankAccounts.filter(acc => (acc.openingBalance || 0) > 0).map(account => (
+                            <tr key={account.id} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-3 px-4 text-gray-900">Bank Account - {account.name}</td>
+                              <td className="py-3 px-4 text-gray-600">Opening Balance</td>
+                              <td className="py-3 px-4 text-right text-blue-700 font-semibold">
+                                {currencyCode} {account.openingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr className="border-b border-gray-100">
+                            <td className="py-3 px-4 text-gray-500 italic" colSpan={2}>No bank account opening balances</td>
+                            <td className="py-3 px-4 text-right text-gray-500 font-semibold">
+                              {currencyCode} 0.00
+                            </td>
+                          </tr>
+                        )}
+
+                        {/* Funding Transactions */}
+                        {fundingTransactions.filter(t => t.transactionType === 'Credit').length > 0 ? (
+                          fundingTransactions.filter(t => t.transactionType === 'Credit').map(transaction => (
+                            <tr key={transaction.id} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-3 px-4 text-gray-900">Funding Transaction</td>
+                              <td className="py-3 px-4 text-gray-600">{transaction.description || transaction.reference || 'Capital Contribution'}</td>
+                              <td className="py-3 px-4 text-right text-blue-700 font-semibold">
+                                {currencyCode} {transaction.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          ))
+                        ) : null}
+
+                        {/* Total Initial Funding */}
+                        <tr className="bg-blue-50 border-t-2 border-blue-300">
+                          <td className="py-3 px-4 text-gray-900 font-bold" colSpan={2}>Total Initial Funding</td>
+                          <td className="py-3 px-4 text-right text-blue-700 font-bold text-lg">
+                            {currencyCode} {INITIAL_FUNDING.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* 2. Loans Disbursed Breakdown */}
+                <div className="bg-white rounded-lg border-2 border-red-200">
+                  <div className="bg-red-50 px-6 py-4 border-b border-red-200">
+                    <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <TrendingDown className="size-5 text-red-600" />
+                      Loans Disbursed ({loans.filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate).length} loans)
+                    </h4>
+                  </div>
+                  <div className="p-6">
+                    <div className="max-h-96 overflow-y-auto">
+                      <table className="w-full">
+                        <thead className="sticky top-0 bg-white">
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-3 px-4 text-gray-700 font-semibold">Loan ID</th>
+                            <th className="text-left py-3 px-4 text-gray-700 font-semibold">Client</th>
+                            <th className="text-left py-3 px-4 text-gray-700 font-semibold">Status</th>
+                            <th className="text-left py-3 px-4 text-gray-700 font-semibold">Disbursement Date</th>
+                            <th className="text-right py-3 px-4 text-gray-700 font-semibold">Principal Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {loans.filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate).map(loan => (
+                            <tr key={loan.id} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-3 px-4 text-gray-900 font-mono text-sm">{loan.loanId}</td>
+                              <td className="py-3 px-4 text-gray-900">{loan.clientName}</td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                  loan.status === 'Active' ? 'bg-green-100 text-green-700' :
+                                  loan.status === 'Fully Paid' ? 'bg-blue-100 text-blue-700' :
+                                  loan.status === 'Default' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {loan.status}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-gray-600">
+                                {loan.disbursementDate ? new Date(loan.disbursementDate).toLocaleDateString('en-GB', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric'
+                                }) : '-'}
+                              </td>
+                              <td className="py-3 px-4 text-right text-red-700 font-semibold">
+                                {currencyCode} {(loan.principalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-red-50 border-t-2 border-red-300 sticky bottom-0">
+                          <tr>
+                            <td className="py-3 px-4 text-gray-900 font-bold" colSpan={4}>Total Loans Disbursed</td>
+                            <td className="py-3 px-4 text-right text-red-700 font-bold text-lg">
+                              {currencyCode} {totalLoansDisbursed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Repayments Received Breakdown */}
+                <div className="bg-white rounded-lg border-2 border-emerald-200">
+                  <div className="bg-emerald-50 px-6 py-4 border-b border-emerald-200">
+                    <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <TrendingUp className="size-5 text-emerald-600" />
+                      Repayments Received ({repayments.length} payments)
+                    </h4>
+                  </div>
+                  <div className="p-6">
+                    <div className="max-h-96 overflow-y-auto">
+                      <table className="w-full">
+                        <thead className="sticky top-0 bg-white">
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-3 px-4 text-gray-700 font-semibold">Receipt #</th>
+                            <th className="text-left py-3 px-4 text-gray-700 font-semibold">Client</th>
+                            <th className="text-left py-3 px-4 text-gray-700 font-semibold">Payment Date</th>
+                            <th className="text-left py-3 px-4 text-gray-700 font-semibold">Method</th>
+                            <th className="text-right py-3 px-4 text-gray-700 font-semibold">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {repayments.map(payment => {
+                            // Get client name from loan data
+                            const loan = loans.find(l => l.id === payment.loanId || l.id === payment.loan_id);
+                            const clientName = payment.clientName || loan?.clientName || loan?.borrowerName || 'Unknown Client';
+                            
+                            return (
+                              <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                                <td className="py-3 px-4 text-gray-900 font-mono text-sm">{payment.receiptNumber}</td>
+                                <td className="py-3 px-4 text-gray-900">{clientName}</td>
+                                <td className="py-3 px-4 text-gray-600">
+                                  {new Date(payment.paymentDate).toLocaleDateString('en-GB', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric'
+                                  })}
+                                </td>
+                                <td className="py-3 px-4 text-gray-600">{payment.paymentMethod}</td>
+                                <td className="py-3 px-4 text-right text-emerald-700 font-semibold">
+                                  {currencyCode} {Number(payment.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot className="bg-emerald-50 border-t-2 border-emerald-300 sticky bottom-0">
+                          <tr>
+                            <td className="py-3 px-4 text-gray-900 font-bold" colSpan={4}>Total Repayments Received</td>
+                            <td className="py-3 px-4 text-right text-emerald-700 font-bold text-lg">
+                              {currencyCode} {totalRepayments.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Final Calculation */}
+                <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border-2 border-indigo-300 p-6">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Final Calculation</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-white rounded-lg">
+                      <span className="text-gray-700">Initial Funding</span>
+                      <span className="text-blue-700 font-bold">
+                        {currencyCode} {INITIAL_FUNDING.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-center">
+                      <span className="text-gray-400 text-2xl font-bold">−</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-white rounded-lg">
+                      <span className="text-gray-700">Loans Disbursed</span>
+                      <span className="text-red-700 font-bold">
+                        {currencyCode} {totalLoansDisbursed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-center">
+                      <span className="text-gray-400 text-2xl font-bold">+</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-white rounded-lg">
+                      <span className="text-gray-700">Repayments Received</span>
+                      <span className="text-emerald-700 font-bold">
+                        {currencyCode} {totalRepayments.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-center">
+                      <span className="text-gray-400 text-2xl font-bold">=</span>
+                    </div>
+                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-600 to-blue-600 rounded-lg">
+                      <span className="text-white font-semibold text-lg">Available Cash</span>
+                      <span className="text-white font-bold text-2xl">
+                        {currencyCode} {availableCash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowCashFlowBreakdown(false)}
+                  className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
