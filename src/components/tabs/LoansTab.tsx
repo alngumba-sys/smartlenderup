@@ -51,6 +51,9 @@ export function LoansTab() {
   const [showRepaymentSchedule, setShowRepaymentSchedule] = useState<string | null>(null);
   const [showDisbursementModal, setShowDisbursementModal] = useState<string | null>(null);
   
+  // Upcoming payments timeframe
+  const [upcomingPaymentsTimeframe, setUpcomingPaymentsTimeframe] = useState<'today' | 'this-week' | 'next-7-days' | 'this-month'>('next-7-days');
+  
   // Sorting state
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -454,6 +457,92 @@ export function LoansTab() {
     }
   };
 
+  // Helper function to calculate accurate days in arrears based on disbursement date and repayment frequency
+  const calculateDaysInArrears = (loan: any): number => {
+    if (!loan.disbursementDate || loan.status === 'Fully Paid' || loan.status === 'Settled') {
+      return 0;
+    }
+    
+    const today = new Date();
+    const disbursementDate = new Date(loan.disbursementDate);
+    
+    // Calculate first payment due date based on repayment frequency
+    const firstPaymentDue = new Date(disbursementDate);
+    const frequency = loan.repaymentFrequency?.toLowerCase() || 'monthly';
+    
+    switch (frequency) {
+      case 'daily':
+        firstPaymentDue.setDate(disbursementDate.getDate() + 1);
+        break;
+      case 'weekly':
+        firstPaymentDue.setDate(disbursementDate.getDate() + 7);
+        break;
+      case 'bi-weekly':
+        firstPaymentDue.setDate(disbursementDate.getDate() + 14);
+        break;
+      case 'monthly':
+      default:
+        firstPaymentDue.setMonth(disbursementDate.getMonth() + 1);
+        break;
+    }
+    
+    // If we haven't reached the first payment due date, no arrears
+    if (today < firstPaymentDue) {
+      return 0;
+    }
+    
+    // Calculate the expected number of payments that should have been made
+    const daysSinceDisbursement = Math.floor((today.getTime() - disbursementDate.getTime()) / (1000 * 60 * 60 * 24));
+    let expectedPayments = 0;
+    
+    switch (frequency) {
+      case 'daily':
+        expectedPayments = daysSinceDisbursement;
+        break;
+      case 'weekly':
+        expectedPayments = Math.floor(daysSinceDisbursement / 7);
+        break;
+      case 'bi-weekly':
+        expectedPayments = Math.floor(daysSinceDisbursement / 14);
+        break;
+      case 'monthly':
+      default:
+        const monthsDiff = (today.getFullYear() - disbursementDate.getFullYear()) * 12 + 
+                          (today.getMonth() - disbursementDate.getMonth());
+        expectedPayments = Math.max(0, monthsDiff);
+        break;
+    }
+    
+    // Calculate expected amount to have been paid
+    const totalDue = (loan.principalAmount || 0) + (loan.totalInterest || 0);
+    const totalInstallments = loan.numberOfInstallments || loan.termMonths || 12;
+    const installmentAmount = totalDue / totalInstallments;
+    const expectedPaid = installmentAmount * expectedPayments;
+    
+    // If actual paid amount is less than expected, calculate days in arrears
+    const actualPaid = loan.paidAmount || 0;
+    
+    if (actualPaid >= expectedPaid) {
+      return 0; // No arrears
+    }
+    
+    // Calculate how many installments are overdue
+    const unpaidInstallments = Math.ceil((expectedPaid - actualPaid) / installmentAmount);
+    
+    // Calculate days in arrears based on frequency
+    switch (frequency) {
+      case 'daily':
+        return unpaidInstallments;
+      case 'weekly':
+        return unpaidInstallments * 7;
+      case 'bi-weekly':
+        return unpaidInstallments * 14;
+      case 'monthly':
+      default:
+        return unpaidInstallments * 30;
+    }
+  };
+
   // Calculate due date for loans
   const getDueDate = (loan: typeof loans[0]) => {
     const disbursementDate = new Date(loan.disbursementDate);
@@ -463,10 +552,34 @@ export function LoansTab() {
   };
 
   const isDueSoon = (loan: typeof loans[0]) => {
-    const dueDate = getDueDate(loan);
+    // Calculate dynamic days in arrears
+    const daysInArrears = calculateDaysInArrears(loan);
+    
+    // Check if loan is active (case-insensitive)
+    const isActive = loan.status?.toLowerCase() === 'active';
+    
+    if (!isActive) return false;
+    
+    // Check if loan has overdue payments (days in arrears > 0)
+    if (daysInArrears > 0) {
+      return true; // Loan has overdue payments
+    }
+    
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // If loan has a nextPaymentDate field, check if payment is due within 7 days
+    if (loan.nextPaymentDate) {
+      const nextPayment = new Date(loan.nextPaymentDate);
+      nextPayment.setHours(0, 0, 0, 0);
+      const daysUntilDue = Math.floor((nextPayment.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      return daysUntilDue <= 7; // Due within next 7 days
+    }
+    
+    // Otherwise check based on full loan term (legacy) - due within next 30 days
+    const dueDate = getDueDate(loan);
     const daysUntilDue = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return daysUntilDue <= 7 && daysUntilDue >= 0;
+    return daysUntilDue <= 30 && daysUntilDue >= 0;
   };
 
   // Filter loans based on active sub-tab
@@ -824,6 +937,47 @@ export function LoansTab() {
   const dueTodayAmount = dueTodayPayments.reduce((sum, p) => sum + p.installmentAmount, 0);
   const dueSoonAmount = dueSoonPayments.reduce((sum, p) => sum + p.installmentAmount, 0);
 
+  // Calculate upcoming payments based on selected timeframe
+  const getUpcomingPayments = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    let endDate = new Date(today);
+    
+    switch (upcomingPaymentsTimeframe) {
+      case 'today':
+        // Same day
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'this-week':
+        // Until end of current week (Sunday)
+        const dayOfWeek = today.getDay();
+        const daysUntilSunday = 7 - dayOfWeek;
+        endDate.setDate(today.getDate() + daysUntilSunday);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'next-7-days':
+        // Next 7 days from today
+        endDate.setDate(today.getDate() + 7);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'this-month':
+        // Until end of current month
+        endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+    }
+    
+    return repaymentSchedule.filter(p => {
+      const paymentDate = new Date(p.paymentDate);
+      paymentDate.setHours(0, 0, 0, 0);
+      return paymentDate >= today && paymentDate <= endDate && p.status !== 'Paid';
+    });
+  };
+
+  const upcomingPayments = getUpcomingPayments();
+  const upcomingPaymentsAmount = upcomingPayments.reduce((sum, p) => sum + p.installmentAmount, 0);
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -858,6 +1012,103 @@ export function LoansTab() {
             <Plus className="size-4" />
             Add Loan
           </button>
+        </div>
+      </div>
+
+      {/* Upcoming Payments Summary */}
+      <div className={`p-4 rounded-lg border ${isDark ? 'bg-blue-900/40 border-blue-800/50' : 'bg-blue-50 border-blue-200'}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Clock className={`size-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+              <div>
+                <p className={`text-sm font-medium ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
+                  Upcoming Payments
+                </p>
+                <p className={`text-xs ${isDark ? 'text-blue-400/70' : 'text-blue-700/70'}`}>
+                  Payments expected in selected timeframe
+                </p>
+              </div>
+            </div>
+            <div className={`h-10 w-px ${isDark ? 'bg-blue-700/30' : 'bg-blue-300'}`} />
+            <div>
+              <p className={`text-2xl font-bold ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
+                {upcomingPayments.length.toLocaleString()}
+              </p>
+              <p className={`text-xs ${isDark ? 'text-blue-400/70' : 'text-blue-700/70'}`}>
+                Payment{upcomingPayments.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <div className={`h-10 w-px ${isDark ? 'bg-blue-700/30' : 'bg-blue-300'}`} />
+            <div>
+              <p className={`text-2xl font-bold ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
+                {((clients.find(c => c.id === loans[0]?.clientId)?.currency?.code) || 'KES')} {upcomingPaymentsAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className={`text-xs ${isDark ? 'text-blue-400/70' : 'text-blue-700/70'}`}>
+                Total Expected
+              </p>
+            </div>
+          </div>
+          
+          {/* Timeframe Selector */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setUpcomingPaymentsTimeframe('today')}
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+                upcomingPaymentsTimeframe === 'today'
+                  ? isDark 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-blue-600 text-white'
+                  : isDark
+                    ? 'bg-blue-900/30 text-blue-300 hover:bg-blue-900/50'
+                    : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-300'
+              }`}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setUpcomingPaymentsTimeframe('this-week')}
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+                upcomingPaymentsTimeframe === 'this-week'
+                  ? isDark 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-blue-600 text-white'
+                  : isDark
+                    ? 'bg-blue-900/30 text-blue-300 hover:bg-blue-900/50'
+                    : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-300'
+              }`}
+            >
+              This Week
+            </button>
+            <button
+              onClick={() => setUpcomingPaymentsTimeframe('next-7-days')}
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+                upcomingPaymentsTimeframe === 'next-7-days'
+                  ? isDark 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-blue-600 text-white'
+                  : isDark
+                    ? 'bg-blue-900/30 text-blue-300 hover:bg-blue-900/50'
+                    : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-300'
+              }`}
+            >
+              Next 7 Days
+            </button>
+            <button
+              onClick={() => setUpcomingPaymentsTimeframe('this-month')}
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+                upcomingPaymentsTimeframe === 'this-month'
+                  ? isDark 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-blue-600 text-white'
+                  : isDark
+                    ? 'bg-blue-900/30 text-blue-300 hover:bg-blue-900/50'
+                    : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-300'
+              }`}
+            >
+              This Month
+            </button>
+          </div>
         </div>
       </div>
 
@@ -932,7 +1183,7 @@ export function LoansTab() {
                 : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            Due
+            Due / Upcoming Loans (within 7 days)
           </button>
           <button
             onClick={() => setActiveSubTab('no-repayments')}
@@ -1088,7 +1339,7 @@ export function LoansTab() {
             <div className="flex items-center justify-between">
               <div>
                 <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {activeSubTab === 'due' ? 'Due Soon' : 
+                  {activeSubTab === 'due' ? 'Due / Upcoming' : 
                    activeSubTab === 'no-repayments' ? 'No Payments' :
                    activeSubTab === '1-month-late' ? '1 Month Late' :
                    activeSubTab === '3-months-late' ? '3+ Months Late' :
@@ -1237,12 +1488,12 @@ export function LoansTab() {
                    activeSubTab === 'active' ? 'Active Loans' :
                    activeSubTab === 'settled' ? 'Settled Loans' :
                    activeSubTab === 'defaulted' ? 'Defaulted Loans' :
-                   activeSubTab === 'due' ? 'Due Loans' :
+                   activeSubTab === 'due' ? 'Due / Upcoming Loans (within 7 days)' :
                    activeSubTab === 'no-repayments' ? 'Loans with No Repayments' :
                    activeSubTab === 'principal' ? 'Principal Outstanding' :
                    activeSubTab === '1-month-late' ? '1 Month Late Loans' :
                    activeSubTab === '3-months-late' ? '3+ Months Late Loans' :
-                   'Loans'} ({filteredLoans.length})
+                   'Loans'}{activeSubTab === 'due' ? '' : ` (${filteredLoans.length})`}
                 </h3>
               </div>
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto">

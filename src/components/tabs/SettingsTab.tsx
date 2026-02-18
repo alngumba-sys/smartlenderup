@@ -37,6 +37,31 @@ export function SettingsTab() {
   const [isFeeOptional, setIsFeeOptional] = useState(false);
   const [exampleLoanAmount, setExampleLoanAmount] = useState(10000);
   
+  // Email notification template state
+  const [emailSubject, setEmailSubject] = useState('{{notification_type}} - {{organization_name}}');
+  const [emailBody, setEmailBody] = useState(`Dear {{client_name}},
+
+{{notification_message}}
+
+Details:
+- Loan ID: {{loan_id}}
+- Amount: {{currency}} {{amount}}
+- Due Date: {{due_date}}
+- Status: {{status}}
+
+If you have any questions, please contact us at {{organization_email}} or call {{organization_phone}}.
+
+Best regards,
+{{organization_name}}
+{{organization_address}}`);
+  const [showEmailPreview, setShowEmailPreview] = useState(false);
+  
+  // Payment reminder configuration
+  const [paymentReminderEnabled, setPaymentReminderEnabled] = useState(true);
+  const [reminderDaysBefore, setReminderDaysBefore] = useState([7, 3, 1]); // Default: 7 days, 3 days, 1 day before
+  const [reminderOnDueDate, setReminderOnDueDate] = useState(true);
+  const [reminderAfterDueDate, setReminderAfterDueDate] = useState([1, 3, 7]); // Default: 1, 3, 7 days after
+  
   // Calculate example values based on configuration
   const calculateExample = () => {
     const principal = exampleLoanAmount;
@@ -563,10 +588,139 @@ export function SettingsTab() {
                   <p className="text-sm text-gray-600">Receive payment due date reminders</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" defaultChecked />
+                  <input type="checkbox" className="sr-only peer" checked={paymentReminderEnabled} onChange={(e) => setPaymentReminderEnabled(e.target.checked)} />
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                 </label>
               </div>
+              
+              {/* Payment Reminder Schedule Configuration */}
+              {paymentReminderEnabled && (
+                <div className="ml-0 p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
+                  <div className="flex items-start gap-2 mb-3">
+                    <Bell className="size-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="text-sm font-semibold text-blue-900">Payment Reminder Schedule</h4>
+                      <p className="text-xs text-blue-700 mt-1">Configure when email reminders are sent to clients</p>
+                    </div>
+                  </div>
+
+                  {/* Before Due Date */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-900">
+                      📅 Before Due Date
+                    </label>
+                    <p className="text-xs text-gray-600 mb-2">Send reminders X days before payment is due</p>
+                    <div className="flex flex-wrap gap-2">
+                      {[1, 2, 3, 5, 7, 10, 14, 21, 30].map((days) => (
+                        <button
+                          key={days}
+                          onClick={() => {
+                            if (reminderDaysBefore.includes(days)) {
+                              setReminderDaysBefore(reminderDaysBefore.filter(d => d !== days));
+                            } else {
+                              setReminderDaysBefore([...reminderDaysBefore, days].sort((a, b) => b - a));
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                            reminderDaysBefore.includes(days)
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {days} {days === 1 ? 'day' : 'days'}
+                        </button>
+                      ))}
+                    </div>
+                    {reminderDaysBefore.length > 0 && (
+                      <div className="mt-2 p-2 bg-white rounded border border-emerald-200">
+                        <p className="text-xs text-emerald-700">
+                          ✓ Reminders will be sent: {reminderDaysBefore.sort((a, b) => b - a).map(d => `${d} day${d > 1 ? 's' : ''}`).join(', ')} before due date
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* On Due Date */}
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-300">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">🎯 On Due Date</p>
+                      <p className="text-xs text-gray-600">Send reminder on the actual due date</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer" 
+                        checked={reminderOnDueDate} 
+                        onChange={(e) => setReminderOnDueDate(e.target.checked)} 
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                  </div>
+
+                  {/* After Due Date (Overdue) */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-900">
+                      ⚠️ After Due Date (Overdue Reminders)
+                    </label>
+                    <p className="text-xs text-gray-600 mb-2">Send reminders X days after payment becomes overdue</p>
+                    <div className="flex flex-wrap gap-2">
+                      {[1, 2, 3, 5, 7, 10, 14, 21, 30].map((days) => (
+                        <button
+                          key={days}
+                          onClick={() => {
+                            if (reminderAfterDueDate.includes(days)) {
+                              setReminderAfterDueDate(reminderAfterDueDate.filter(d => d !== days));
+                            } else {
+                              setReminderAfterDueDate([...reminderAfterDueDate, days].sort((a, b) => a - b));
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                            reminderAfterDueDate.includes(days)
+                              ? 'bg-red-600 text-white'
+                              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {days} {days === 1 ? 'day' : 'days'}
+                        </button>
+                      ))}
+                    </div>
+                    {reminderAfterDueDate.length > 0 && (
+                      <div className="mt-2 p-2 bg-white rounded border border-red-200">
+                        <p className="text-xs text-red-700">
+                          ⚠ Overdue reminders will be sent: {reminderAfterDueDate.sort((a, b) => a - b).map(d => `${d} day${d > 1 ? 's' : ''}`).join(', ')} after due date
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Summary */}
+                  <div className="pt-3 border-t border-blue-200">
+                    <div className="p-3 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg">
+                      <h5 className="text-sm font-semibold text-blue-900 mb-2">📊 Reminder Schedule Summary</h5>
+                      <div className="space-y-1 text-xs text-blue-800">
+                        {reminderDaysBefore.length > 0 && (
+                          <p>• <strong>{reminderDaysBefore.length}</strong> reminder{reminderDaysBefore.length > 1 ? 's' : ''} before due date</p>
+                        )}
+                        {reminderOnDueDate && (
+                          <p>• <strong>1</strong> reminder on due date</p>
+                        )}
+                        {reminderAfterDueDate.length > 0 && (
+                          <p>• <strong>{reminderAfterDueDate.length}</strong> overdue reminder{reminderAfterDueDate.length > 1 ? 's' : ''} after due date</p>
+                        )}
+                        {reminderDaysBefore.length === 0 && !reminderOnDueDate && reminderAfterDueDate.length === 0 && (
+                          <p className="text-amber-700">⚠ No reminders configured. Select at least one option above.</p>
+                        )}
+                      </div>
+                      {(reminderDaysBefore.length > 0 || reminderOnDueDate || reminderAfterDueDate.length > 0) && (
+                        <p className="mt-2 text-xs text-blue-700 border-t border-blue-200 pt-2">
+                          <strong>Total:</strong> {reminderDaysBefore.length + (reminderOnDueDate ? 1 : 0) + reminderAfterDueDate.length} email{(reminderDaysBefore.length + (reminderOnDueDate ? 1 : 0) + reminderAfterDueDate.length) > 1 ? 's' : ''} per loan cycle
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-900">Overdue Alerts</p>
@@ -576,6 +730,186 @@ export function SettingsTab() {
                   <input type="checkbox" className="sr-only peer" defaultChecked />
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                 </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Email Template Customization */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <Mail className="size-5 text-blue-600" />
+                <div>
+                  <h3 className="text-gray-900">Email Notification Template</h3>
+                  <p className="text-sm text-gray-600">Customize how email notifications are sent to users</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowEmailPreview(!showEmailPreview)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Mail className="size-4" />
+                {showEmailPreview ? 'Hide Preview' : 'Show Preview'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              {/* Template Editor */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">
+                    Email Subject Line
+                  </label>
+                  <input
+                    type="text"
+                    value={emailSubject}
+                    onChange={(e) => setEmailSubject(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="e.g., {{notification_type}} - {{organization_name}}"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Use variables like {`{{notification_type}}`} to insert dynamic content</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">
+                    Email Body
+                  </label>
+                  <textarea
+                    value={emailBody}
+                    onChange={(e) => setEmailBody(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                    rows={16}
+                    placeholder="Enter your email template..."
+                  />
+                </div>
+
+                {/* Available Variables */}
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">📋 Available Variables</h4>
+                  
+                  {/* Info Box */}
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <Info className="size-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-xs text-blue-800">
+                        <p className="font-semibold mb-1">How Variables Work:</p>
+                        <p>These variables are <strong>automatically filled by the system</strong> when notifications are sent. 
+                        You control <strong>where they appear</strong> in your email by typing them in the Email Body above. 
+                        The actual content is generated based on the notification type and loan/client data.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="font-mono text-blue-600">{`{{client_name}}`}</div>
+                    <div className="text-gray-600">Client's full name</div>
+                    
+                    <div className="font-mono text-blue-600">{`{{notification_type}}`}</div>
+                    <div className="text-gray-600">Type of notification</div>
+                    
+                    <div className="font-mono text-blue-600">{`{{notification_message}}`}</div>
+                    <div className="text-gray-600">Main message content</div>
+                    
+                    <div className="font-mono text-blue-600">{`{{loan_id}}`}</div>
+                    <div className="text-gray-600">Loan reference ID</div>
+                    
+                    <div className="font-mono text-blue-600">{`{{amount}}`}</div>
+                    <div className="text-gray-600">Loan/payment amount</div>
+                    
+                    <div className="font-mono text-blue-600">{`{{currency}}`}</div>
+                    <div className="text-gray-600">Currency code</div>
+                    
+                    <div className="font-mono text-blue-600">{`{{due_date}}`}</div>
+                    <div className="text-gray-600">Payment due date</div>
+                    
+                    <div className="font-mono text-blue-600">{`{{status}}`}</div>
+                    <div className="text-gray-600">Loan/payment status</div>
+                    
+                    <div className="font-mono text-blue-600">{`{{organization_name}}`}</div>
+                    <div className="text-gray-600">Your organization</div>
+                    
+                    <div className="font-mono text-blue-600">{`{{organization_email}}`}</div>
+                    <div className="text-gray-600">Support email</div>
+                    
+                    <div className="font-mono text-blue-600">{`{{organization_phone}}`}</div>
+                    <div className="text-gray-600">Contact phone</div>
+                    
+                    <div className="font-mono text-blue-600">{`{{organization_address}}`}</div>
+                    <div className="text-gray-600">Physical address</div>
+                  </div>
+                </div>
+
+                {/* Reset to Default Button */}
+                <button
+                  onClick={() => {
+                    setEmailSubject('{{notification_type}} - {{organization_name}}');
+                    setEmailBody(`Dear {{client_name}},\n\n{{notification_message}}\n\nDetails:\n- Loan ID: {{loan_id}}\n- Amount: {{currency}} {{amount}}\n- Due Date: {{due_date}}\n- Status: {{status}}\n\nIf you have any questions, please contact us at {{organization_email}} or call {{organization_phone}}.\n\nBest regards,\n{{organization_name}}\n{{organization_address}}`);
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Reset to Default Template
+                </button>
+              </div>
+
+              {/* Live Preview */}
+              <div className={showEmailPreview ? '' : 'hidden'}>
+                <div className="sticky top-6">
+                  <div className="border border-gray-300 rounded-lg overflow-hidden bg-white shadow-lg">
+                    {/* Email Header */}
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+                      <h4 className="text-white font-semibold">Email Preview</h4>
+                      <p className="text-blue-100 text-xs mt-1">How recipients will see this notification</p>
+                    </div>
+
+                    {/* Email Subject */}
+                    <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
+                      <div className="flex items-start gap-2">
+                        <span className="text-xs text-gray-500 font-medium mt-0.5">Subject:</span>
+                        <span className="text-sm text-gray-900 font-semibold">
+                          {emailSubject
+                            .replace(/\{\{notification_type\}\}/g, 'Payment Reminder')
+                            .replace(/\{\{organization_name\}\}/g, organizationName)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Email Body */}
+                    <div className="px-6 py-6">
+                      <div className="prose prose-sm max-w-none">
+                        <div className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">
+                          {emailBody
+                            .replace(/\{\{client_name\}\}/g, 'John Kamau')
+                            .replace(/\{\{notification_type\}\}/g, 'Payment Reminder')
+                            .replace(/\{\{notification_message\}\}/g, 'This is a friendly reminder that your loan payment is due soon.')
+                            .replace(/\{\{loan_id\}\}/g, 'LN-2025-001')
+                            .replace(/\{\{amount\}\}/g, '15,000.00')
+                            .replace(/\{\{currency\}\}/g, currencyCode)
+                            .replace(/\{\{due_date\}\}/g, '25 February 2026')
+                            .replace(/\{\{status\}\}/g, 'Active')
+                            .replace(/\{\{organization_name\}\}/g, organizationName)
+                            .replace(/\{\{organization_email\}\}/g, 'support@' + organizationName.toLowerCase().replace(/\s+/g, '') + '.com')
+                            .replace(/\{\{organization_phone\}\}/g, '+254 712 345 678')
+                            .replace(/\{\{organization_address\}\}/g, 'Nairobi, Kenya')}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Email Footer */}
+                    <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                      <p className="text-xs text-gray-500 text-center">
+                        This is an automated message from {organizationName}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Preview Note */}
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-blue-700">
+                      <strong>💡 Preview Note:</strong> This shows how your email will look with sample data. 
+                      Actual emails will use real client and loan information.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

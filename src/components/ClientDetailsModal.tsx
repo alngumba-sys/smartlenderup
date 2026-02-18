@@ -196,35 +196,35 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
   return (
     <ModalWrapper>
       <div className="flex flex-col h-[90vh] max-h-[800px]">
-        {/* Professional Header with Gradient */}
-        <div className="p-5 border-b-2 border-emerald-600/20 bg-gradient-to-br from-slate-800 via-blue-900 to-indigo-900 flex-shrink-0 shadow-xl">
+        {/* Subtle Header */}
+        <div className="p-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 via-slate-50 to-gray-50 dark:from-gray-800 dark:via-gray-850 dark:to-gray-800 flex-shrink-0">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
-              <div className="size-16 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-full flex items-center justify-center text-white overflow-hidden shadow-lg ring-4 ring-white/20">
+              <div className="size-16 bg-gradient-to-br from-slate-200 to-gray-300 dark:from-slate-600 dark:to-gray-700 rounded-full flex items-center justify-center text-gray-700 dark:text-gray-200 overflow-hidden shadow-sm border-2 border-gray-300 dark:border-gray-600">
                 {client.photo ? (
                   <img src={client.photo} alt={client.name} className="size-full object-cover" />
                 ) : (
-                  <span className="text-2xl font-bold">{client.name.split(' ').map(n => n[0]).join('')}</span>
+                  <span className="text-2xl font-semibold">{client.name.split(' ').map(n => n[0]).join('')}</span>
                 )}
               </div>
               <div>
-                <h2 className="text-white text-2xl font-semibold tracking-wide">{client.name}</h2>
+                <h2 className="text-gray-800 dark:text-gray-100 text-2xl font-medium tracking-tight">{client.name}</h2>
                 <div className="flex items-center gap-3 mt-1">
-                  <span className="text-emerald-300 font-mono text-sm bg-emerald-950/40 px-2.5 py-0.5 rounded-md border border-emerald-500/30">
+                  <span className="text-gray-600 dark:text-gray-400 font-mono text-sm bg-gray-100 dark:bg-gray-700 px-2.5 py-0.5 rounded border border-gray-300 dark:border-gray-600">
                     {client.clientNumber || client.client_number || `CL${client.id.slice(-5)}`}
                   </span>
-                  <span className={`px-2.5 py-0.5 rounded-md text-xs font-medium shadow-sm ${
-                    client.status === 'active' ? 'bg-emerald-500 text-white' :
-                    client.status === 'In Arrears' ? 'bg-red-500 text-white' :
-                    client.status === 'Fully Paid' ? 'bg-blue-500 text-white' :
-                    'bg-gray-500 text-white'
+                  <span className={`px-2.5 py-0.5 rounded text-xs font-medium border ${
+                    client.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800' :
+                    client.status === 'In Arrears' ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800' :
+                    client.status === 'Fully Paid' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' :
+                    'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600'
                   }`}>
                     {client.status || 'Active'}
                   </span>
                 </div>
               </div>
             </div>
-            <button onClick={onClose} className="text-gray-300 hover:text-white hover:bg-white/10 p-2 rounded-lg transition-all">
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded-lg transition-all">
               <X className="size-6" />
             </button>
           </div>
@@ -268,9 +268,9 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
                 </div>
 
                 {/* Credit Score Compact */}
-                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950 dark:to-indigo-950 p-3 rounded-lg border border-purple-200 dark:border-purple-800">
+                <div className="bg-gradient-to-br from-slate-50 to-gray-100 dark:from-slate-800 dark:to-gray-850 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
                   <h3 className="text-gray-900 dark:text-white text-sm mb-2 flex items-center gap-1.5">
-                    <CreditCard className="size-4 text-purple-600 dark:text-purple-400" />
+                    <CreditCard className="size-4 text-slate-600 dark:text-slate-400" />
                     Credit Score
                   </h3>
                   <div className="text-center">
@@ -293,25 +293,25 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
               {/* Financial Summary */}
               <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
                 <h3 className="text-gray-900 dark:text-white text-sm mb-2 flex items-center gap-1.5">
-                  <DollarSign className="size-4 text-emerald-600 dark:text-emerald-400" />
+                  <DollarSign className="size-4 text-slate-600 dark:text-slate-400" />
                   Financial Summary
                 </h3>
                 <div className="grid grid-cols-4 gap-2">
-                  <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
-                    <p className="text-blue-600 dark:text-blue-400 text-xs">Borrowed</p>
-                    <p className="text-blue-900 dark:text-blue-300 text-sm mt-0.5">KES {(totalBorrowed / 1000).toFixed(0)}K</p>
+                  <div className="text-center p-2 bg-slate-50 dark:bg-slate-800/50 rounded border border-slate-200 dark:border-slate-700">
+                    <p className="text-slate-600 dark:text-slate-400 text-xs">Borrowed</p>
+                    <p className="text-slate-800 dark:text-slate-200 text-sm mt-0.5 font-medium">KES {(totalBorrowed / 1000).toFixed(0)}K</p>
                   </div>
-                  <div className="text-center p-2 bg-amber-50 dark:bg-amber-900/20 rounded">
-                    <p className="text-amber-600 dark:text-amber-400 text-xs">Outstanding</p>
-                    <p className="text-amber-900 dark:text-amber-300 text-sm mt-0.5">KES {(totalOutstanding / 1000).toFixed(0)}K</p>
+                  <div className="text-center p-2 bg-orange-50 dark:bg-orange-900/10 rounded border border-orange-200 dark:border-orange-800/30">
+                    <p className="text-orange-600 dark:text-orange-400 text-xs">Outstanding</p>
+                    <p className="text-orange-800 dark:text-orange-200 text-sm mt-0.5 font-medium">KES {(totalOutstanding / 1000).toFixed(0)}K</p>
                   </div>
-                  <div className="text-center p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded">
-                    <p className="text-emerald-600 dark:text-emerald-400 text-xs">Paid</p>
-                    <p className="text-emerald-900 dark:text-emerald-300 text-sm mt-0.5">KES {(totalPaid / 1000).toFixed(0)}K</p>
+                  <div className="text-center p-2 bg-teal-50 dark:bg-teal-900/10 rounded border border-teal-200 dark:border-teal-800/30">
+                    <p className="text-teal-600 dark:text-teal-400 text-xs">Paid</p>
+                    <p className="text-teal-800 dark:text-teal-200 text-sm mt-0.5 font-medium">KES {(totalPaid / 1000).toFixed(0)}K</p>
                   </div>
-                  <div className="text-center p-2 bg-purple-50 dark:bg-purple-900/20 rounded">
-                    <p className="text-purple-600 dark:text-purple-400 text-xs">Rate</p>
-                    <p className="text-purple-900 dark:text-purple-300 text-sm mt-0.5">{paymentRate}%</p>
+                  <div className="text-center p-2 bg-indigo-50 dark:bg-indigo-900/10 rounded border border-indigo-200 dark:border-indigo-800/30">
+                    <p className="text-indigo-600 dark:text-indigo-400 text-xs">Rate</p>
+                    <p className="text-indigo-800 dark:text-indigo-200 text-sm mt-0.5 font-medium">{paymentRate}%</p>
                   </div>
                 </div>
               </div>

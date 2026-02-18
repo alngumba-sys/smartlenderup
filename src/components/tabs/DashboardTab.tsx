@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { useThemeStyles } from '../../hooks/useThemeStyles';
 import { useTheme } from '../../contexts/ThemeContext';
-import { DollarSign, Users, TrendingUp, AlertTriangle, Activity, Banknote, Receipt, Wallet, X, Info, ChevronDown, Calendar } from 'lucide-react';
+import { DollarSign, Users, TrendingUp, AlertTriangle, Activity, Banknote, Receipt, Wallet, X, Info, ChevronDown, Calendar, Clock } from 'lucide-react';
 import { safePercentage, safeToFixed, safeDivideNum, safeFormat, safePercentageNum, safeDivide } from '../../utils/safeCalculations';
 import { getCurrencySymbol, getCurrencyCode, formatCurrency } from '../../utils/currencyUtils';
 import { getOrganizationName } from '../../utils/organizationUtils';
@@ -112,6 +112,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const currencySymbol = getCurrencySymbol();
   const currencyCode = getCurrencyCode();
   
+  // Upcoming payments timeframe
+  const [upcomingPaymentsTimeframe, setUpcomingPaymentsTimeframe] = useState<'today' | 'this-week' | 'next-7-days' | 'this-month'>('next-7-days');
+  
+  const [showUpcomingPaymentsModal, setShowUpcomingPaymentsModal] = useState(false);
+
   // Helper function to calculate accurate days in arrears based on disbursement date and repayment frequency
   const calculateDaysInArrears = (loan: any): number => {
     if (!loan.disbursementDate || loan.status === 'Fully Paid' || loan.status === 'Settled') {
@@ -614,10 +619,15 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   
   // ✅ Calculate PAR 30: Outstanding balance of loans 30+ days overdue / Total outstanding
   const par30Loans = contextLoans
-    .map((l: any) => ({
-      ...l,
-      daysInArrears: calculateDaysInArrears(l) // Override with calculated value
-    }))
+    .map((l: any) => {
+      // Calculate actual outstanding: Principal + Interest - Paid
+      const actualOutstanding = (l.principalAmount || 0) + (l.totalInterest || 0) - (l.paidAmount || 0);
+      return {
+        ...l,
+        daysInArrears: calculateDaysInArrears(l), // Override with calculated value
+        outstandingBalance: actualOutstanding // Use calculated outstanding
+      };
+    })
     .filter((l: any) => isActiveStatus(l.status) && l.daysInArrears >= 30);
   const par30Amount = par30Loans.reduce((sum: number, l: any) => sum + Math.abs(l.outstandingBalance || 0), 0);
   const par30Rate = totalOutstanding > 0 ? (par30Amount / totalOutstanding) * 100 : 0;
@@ -682,6 +692,139 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     }))
     .filter((l: any) => l.daysInArrears > 0);
   const recentApplications = contextLoans.slice(-5).reverse();
+
+  // Generate complete repayment schedule with individual installments
+  const generateRepaymentSchedule = () => {
+    const schedule: Array<{
+      paymentDate: Date;
+      installmentAmount: number;
+      status: 'Paid' | 'Overdue' | 'Due Today' | 'Due Soon' | 'Upcoming';
+      loanId: string;
+      clientName: string;
+      loanNumber: string;
+    }> = [];
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    contextLoans.filter((loan: any) => isActiveStatus(loan.status)).forEach((loan: any) => {
+      // Robust date handling
+      let firstRepaymentDate;
+      if (loan.firstRepaymentDate && !isNaN(new Date(loan.firstRepaymentDate).getTime())) {
+        firstRepaymentDate = new Date(loan.firstRepaymentDate);
+      } else if (loan.disbursementDate && !isNaN(new Date(loan.disbursementDate).getTime())) {
+        // Fallback: Disbursement date + 1 month (or based on frequency)
+        firstRepaymentDate = new Date(loan.disbursementDate);
+        if (loan.repaymentFrequency === 'Weekly') firstRepaymentDate.setDate(firstRepaymentDate.getDate() + 7);
+        else if (loan.repaymentFrequency === 'Daily') firstRepaymentDate.setDate(firstRepaymentDate.getDate() + 1);
+        else firstRepaymentDate.setMonth(firstRepaymentDate.getMonth() + 1);
+      } else {
+        return; // Skip if no valid dates
+      }
+
+      // Robust installment calculation
+      const numInstallments = loan.numberOfInstallments || loan.term || 12;
+      let installmentAmount = loan.installmentAmount || 0;
+      
+      // Calculate installment amount if missing
+      if (!installmentAmount && numInstallments > 0) {
+        const principal = loan.principalAmount || 0;
+        const interest = loan.totalInterest || 0;
+        installmentAmount = (principal + interest) / numInstallments;
+      }
+      
+      const clientName = loan.clientName || loan.client_name || 'Unknown Client';
+      const loanNumber = loan.loanNumber || loan.loan_number || loan.id;
+
+      for (let i = 0; i < numInstallments; i++) {
+        const paymentDate = new Date(firstRepaymentDate);
+        
+        // Handle frequency case-insensitive
+        const frequency = (loan.repaymentFrequency || 'Monthly').toLowerCase();
+        
+        if (frequency.includes('month')) {
+          paymentDate.setMonth(paymentDate.getMonth() + i);
+        } else if (frequency.includes('week')) {
+          paymentDate.setDate(paymentDate.getDate() + (i * 7));
+        } else if (frequency.includes('daily')) {
+          paymentDate.setDate(paymentDate.getDate() + i);
+        } else {
+          paymentDate.setMonth(paymentDate.getMonth() + (i * 12));
+        }
+        
+        paymentDate.setHours(0, 0, 0, 0);
+
+        let status: 'Paid' | 'Overdue' | 'Due Today' | 'Due Soon' | 'Upcoming' = 'Upcoming';
+        const daysDiff = Math.floor((today.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        const totalPaidInstallments = Math.floor((loan.paidAmount || 0) / (installmentAmount || 1));
+        
+        if (i < totalPaidInstallments) {
+          status = 'Paid';
+        } else if (paymentDate < today) {
+          status = 'Overdue';
+        } else if (paymentDate.getTime() === today.getTime()) {
+          status = 'Due Today';
+        } else if (daysDiff >= -7 && daysDiff < 0) {
+          status = 'Due Soon';
+        }
+
+        schedule.push({
+          paymentDate,
+          installmentAmount,
+          status,
+          loanId: loan.id,
+          clientName,
+          loanNumber
+        });
+      }
+    });
+
+    return schedule.sort((a, b) => a.paymentDate.getTime() - b.paymentDate.getTime());
+  };
+
+  const repaymentSchedule = generateRepaymentSchedule();
+
+  // Calculate upcoming payments based on selected timeframe
+  const getUpcomingPayments = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    let endDate = new Date(today);
+    
+    switch (upcomingPaymentsTimeframe) {
+      case 'today':
+        // Same day
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'this-week':
+        // Until end of current week (Sunday)
+        const dayOfWeek = today.getDay();
+        const daysUntilSunday = 7 - dayOfWeek;
+        endDate.setDate(today.getDate() + daysUntilSunday);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'next-7-days':
+        // Next 7 days from today
+        endDate.setDate(today.getDate() + 7);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'this-month':
+        // Until end of current month
+        endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+    }
+    
+    return repaymentSchedule.filter(p => {
+      const paymentDate = new Date(p.paymentDate);
+      paymentDate.setHours(0, 0, 0, 0);
+      return paymentDate >= today && paymentDate <= endDate && p.status !== 'Paid';
+    });
+  };
+
+  const upcomingPayments = getUpcomingPayments();
+  const upcomingPaymentsAmount = upcomingPayments.reduce((sum, p) => sum + p.installmentAmount, 0);
 
   // Use theme colors
   const themeColors = isDark ? currentTheme.darkColors : currentTheme.colors;
@@ -868,7 +1011,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             { label: 'Calculation', value: `(${par30Amount.toLocaleString()} ÷ ${totalOutstanding.toLocaleString()}) × 100` }
           ],
           result: `${par30Rate.toFixed(2)}%`,
-          details: par30Loans.slice(0, 10).map((l: any) => ({
+          details: par30Loans.map((l: any) => ({
             clientName: l.clientName,
             daysOverdue: `${l.daysInArrears} days`,
             outstanding: `${currencyCode} ${l.outstandingBalance.toLocaleString()}`
@@ -916,6 +1059,108 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       <div>
         <h2 className={`${theme.textPrimary} text-xl sm:text-2xl`}>Dashboard</h2>
         <p className={`${theme.textSecondary} text-sm sm:text-base`}>Overview of portfolio performance and key metrics</p>
+      </div>
+
+      {/* Upcoming Payments Summary */}
+      <div 
+        className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${isDark ? 'bg-blue-900/40 border-blue-800/50 hover:bg-blue-900/50' : 'bg-blue-50 border-blue-200 hover:bg-blue-100/50'}`}
+        onClick={() => setShowUpcomingPaymentsModal(true)}
+      >
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Clock className={`size-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+              <div>
+                <p className={`text-sm font-medium ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
+                  Upcoming Payments
+                </p>
+                <p className={`text-xs ${isDark ? 'text-blue-400/70' : 'text-blue-700/70'}`}>
+                  Payments expected in selected timeframe
+                </p>
+              </div>
+            </div>
+            <div className={`hidden sm:block h-10 w-px ${isDark ? 'bg-blue-700/30' : 'bg-blue-300'}`} />
+            <div className="flex gap-6">
+              <div>
+                <p className={`text-2xl font-bold ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
+                  {upcomingPayments.length.toLocaleString()}
+                </p>
+                <p className={`text-xs ${isDark ? 'text-blue-400/70' : 'text-blue-700/70'}`}>
+                  Payment{upcomingPayments.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <div className={`h-10 w-px ${isDark ? 'bg-blue-700/30' : 'bg-blue-300'}`} />
+              <div>
+                <p className={`text-2xl font-bold ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
+                  {currencySymbol} {upcomingPaymentsAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className={`text-xs ${isDark ? 'text-blue-400/70' : 'text-blue-700/70'}`}>
+                  Total Expected
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Timeframe Selector */}
+          <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setUpcomingPaymentsTimeframe('today')}
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors whitespace-nowrap ${
+                upcomingPaymentsTimeframe === 'today'
+                  ? isDark 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-blue-600 text-white'
+                  : isDark
+                    ? 'bg-blue-900/30 text-blue-300 hover:bg-blue-900/50'
+                    : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-300'
+              }`}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setUpcomingPaymentsTimeframe('this-week')}
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors whitespace-nowrap ${
+                upcomingPaymentsTimeframe === 'this-week'
+                  ? isDark 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-blue-600 text-white'
+                  : isDark
+                    ? 'bg-blue-900/30 text-blue-300 hover:bg-blue-900/50'
+                    : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-300'
+              }`}
+            >
+              This Week
+            </button>
+            <button
+              onClick={() => setUpcomingPaymentsTimeframe('next-7-days')}
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors whitespace-nowrap ${
+                upcomingPaymentsTimeframe === 'next-7-days'
+                  ? isDark 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-blue-600 text-white'
+                  : isDark
+                    ? 'bg-blue-900/30 text-blue-300 hover:bg-blue-900/50'
+                    : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-300'
+              }`}
+            >
+              Next 7 Days
+            </button>
+            <button
+              onClick={() => setUpcomingPaymentsTimeframe('this-month')}
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors whitespace-nowrap ${
+                upcomingPaymentsTimeframe === 'this-month'
+                  ? isDark 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-blue-600 text-white'
+                  : isDark
+                    ? 'bg-blue-900/30 text-blue-300 hover:bg-blue-900/50'
+                    : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-300'
+              }`}
+            >
+              This Month
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Loan Health Metrics - Top Row */}
@@ -2431,7 +2676,9 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
               {calculationBreakdown.details && calculationBreakdown.details.length > 0 && (
                 <div>
                   <h3 className="text-[10px] mb-2 tracking-wider" style={{ color: isDark ? '#93c5fd' : '#3b82f6' }}>
-                    {calculationBreakdown.details[0].clientName ? 'SAMPLE DATA (First 10 Records)' : 'ADDITIONAL NOTES'}
+                    {calculationBreakdown.details[0].clientName ? 
+                      `OVERDUE LOANS (${calculationBreakdown.details.length} ${calculationBreakdown.details.length === 1 ? 'Record' : 'Records'})` 
+                      : 'ADDITIONAL NOTES'}
                   </h3>
                   <div className="space-y-1.5 max-h-48 overflow-y-auto">
                     {calculationBreakdown.details.map((detail: any, idx: number) => (
@@ -2489,6 +2736,131 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   </p>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal for Upcoming Payments Details */}
+      {showUpcomingPaymentsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div 
+            className="w-full max-w-2xl rounded-xl shadow-2xl max-h-[80vh] flex flex-col"
+            style={{ 
+              backgroundColor: isDark ? '#1a1d29' : '#ffffff',
+              borderColor: isDark ? '#252932' : '#e5e7eb',
+              borderWidth: '1px'
+            }}
+          >
+            <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: isDark ? '#252932' : '#e5e7eb' }}>
+              <div>
+                <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Upcoming Payments</h3>
+                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Showing {upcomingPayments.length} payment{upcomingPayments.length !== 1 ? 's' : ''} for {upcomingPaymentsTimeframe.replace('-', ' ')}
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowUpcomingPaymentsModal(false)}
+                className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            
+            <div className="overflow-auto p-4 flex-1">
+              {upcomingPayments.length > 0 ? (
+                <div className="relative overflow-x-auto rounded-lg">
+                  <table className="w-full text-sm text-left">
+                    <thead className={`text-xs uppercase ${isDark ? 'bg-gray-800 text-gray-400' : 'bg-gray-50 text-gray-700'}`}>
+                      <tr>
+                        <th className="px-4 py-3 rounded-tl-lg">Client / Loan</th>
+                        <th className="px-4 py-3">Due Date</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3 text-right rounded-tr-lg">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y" style={{ borderColor: isDark ? '#252932' : '#e5e7eb' }}>
+                      {upcomingPayments.map((payment, index) => (
+                        <tr 
+                          key={`${payment.loanId}-${index}`}
+                          className={`
+                            ${isDark ? 'hover:bg-gray-800/50' : 'hover:bg-gray-50'} 
+                            transition-colors cursor-pointer
+                          `}
+                          onClick={() => {
+                            if (onNavigate) {
+                              // If using navigation, go to loans tab
+                              onNavigate('loans');
+                              setShowUpcomingPaymentsModal(false);
+                            }
+                          }}
+                        >
+                          <td className="px-4 py-3">
+                            <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {payment.clientName}
+                            </div>
+                            <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                              {payment.loanNumber || payment.loanId}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className={isDark ? 'text-gray-300' : 'text-gray-700'}>
+                              {payment.paymentDate.toLocaleDateString()}
+                            </div>
+                            <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                              {payment.paymentDate.toLocaleDateString('en-US', { weekday: 'long' })}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              payment.status === 'Overdue' 
+                                ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                                : payment.status === 'Due Today'
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                            }`}>
+                              {payment.status}
+                            </span>
+                          </td>
+                          <td className={`px-4 py-3 text-right font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {currencySymbol} {payment.installmentAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className={`font-bold ${isDark ? 'bg-gray-800/50 text-white' : 'bg-gray-50 text-gray-900'}`}>
+                      <tr>
+                        <td colSpan={3} className="px-4 py-3 text-right">Total:</td>
+                        <td className="px-4 py-3 text-right">
+                          {currencySymbol} {upcomingPayments.reduce((sum, p) => sum + p.installmentAmount, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className={`p-4 rounded-full mb-4 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                    <Clock className={`size-8 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
+                  </div>
+                  <h3 className={`text-lg font-medium mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>No upcoming payments</h3>
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    There are no payments due for the selected timeframe.
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t flex justify-end" style={{ borderColor: isDark ? '#252932' : '#e5e7eb' }}>
+              <button
+                onClick={() => setShowUpcomingPaymentsModal(false)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isDark 
+                    ? 'bg-gray-800 text-white hover:bg-gray-700' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
