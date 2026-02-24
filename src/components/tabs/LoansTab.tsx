@@ -12,6 +12,7 @@ import { ViewToggle } from '../ViewToggle';
 import { useTheme } from '../../contexts/ThemeContext';
 import { toast } from 'sonner';
 import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
+import { getCurrencySymbol, getCurrencyCode } from '../../utils/currencyUtils';
 
 // ✨ Professional redesign: Compact tables + Expected payments analytics
 export function LoansTab() {
@@ -50,6 +51,16 @@ export function LoansTab() {
   const [selectedLoanForComment, setSelectedLoanForComment] = useState<string | null>(null);
   const [showRepaymentSchedule, setShowRepaymentSchedule] = useState<string | null>(null);
   const [showDisbursementModal, setShowDisbursementModal] = useState<string | null>(null);
+  
+  // Get dynamic currency
+  const currencySymbol = getCurrencySymbol();
+  const currencyCode = getCurrencyCode();
+  
+  // Helper function to normalize status (handle both lowercase and capitalized)
+  const isActiveStatus = (status: string) => {
+    const normalized = status?.toLowerCase();
+    return normalized === 'active' || normalized === 'in arrears' || normalized === 'overdue';
+  };
   
   // Upcoming payments timeframe
   const [upcomingPaymentsTimeframe, setUpcomingPaymentsTimeframe] = useState<'today' | 'this-week' | 'next-7-days' | 'this-month'>('next-7-days');
@@ -459,7 +470,7 @@ export function LoansTab() {
 
   // Helper function to calculate accurate days in arrears based on disbursement date and repayment frequency
   const calculateDaysInArrears = (loan: any): number => {
-    if (!loan.disbursementDate || loan.status === 'Fully Paid' || loan.status === 'Settled') {
+    if (!loan.disbursementDate || loan.status === 'Paid') {
       return 0;
     }
     
@@ -601,18 +612,17 @@ export function LoansTab() {
       );
       break;
     case 'settled':
-      // Include loans with status 'settled', 'Fully Paid', 'Closed', OR loans where balance is 0
+      // Include loans with status 'Paid', 'Closed', OR loans where balance is 0
       displayLoans = loans.filter(loan => {
         const status = (loan.status || '').toLowerCase();
-        const isSettled = status === 'settled' || 
-               status === 'fully paid' || 
+        const isPaid = status === 'paid' || 
                status === 'closed' ||
                (loan.balance !== undefined && parseFloat(loan.balance.toString()) === 0) ||
                (loan.outstandingBalance !== undefined && parseFloat(loan.outstandingBalance.toString()) === 0);
         
-        return isSettled;
+        return isPaid;
       });
-      console.log(`🔍 Settled filter result: ${displayLoans.length} loans found`);
+      console.log(`🔍 Paid filter result: ${displayLoans.length} loans found`);
       break;
     case 'defaulted':
       displayLoans = loans.filter(loan => 
@@ -701,8 +711,8 @@ export function LoansTab() {
         bValue = outstandingB;
         break;
       case 'status':
-        const statusA = ((a.principalAmount || 0) + (a.totalInterest || 0) - (a.paidAmount || 0)) <= 0 ? 'Fully Paid' : a.status;
-        const statusB = ((b.principalAmount || 0) + (b.totalInterest || 0) - (b.paidAmount || 0)) <= 0 ? 'Fully Paid' : b.status;
+        const statusA = ((a.principalAmount || 0) + (a.totalInterest || 0) - (a.paidAmount || 0)) <= 0 ? 'Paid' : a.status;
+        const statusB = ((b.principalAmount || 0) + (b.totalInterest || 0) - (b.paidAmount || 0)) <= 0 ? 'Paid' : b.status;
         aValue = statusA.toLowerCase();
         bValue = statusB.toLowerCase();
         break;
@@ -750,7 +760,7 @@ export function LoansTab() {
         return <CheckCircle className="size-5 text-emerald-600" />;
       case 'In Arrears':
         return <AlertCircle className="size-5 text-red-600" />;
-      case 'Fully Paid':
+      case 'Paid':
         return <CheckCircle className="size-5 text-blue-600" />;
       default:
         return <XCircle className="size-5 text-gray-600" />;
@@ -762,10 +772,10 @@ export function LoansTab() {
     const normalizedStatus = status.toLowerCase().trim();
     
     if (normalizedStatus === 'active') {
-      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400';
+      return 'bg-blue-600 text-white dark:bg-blue-500 dark:text-white';
     } else if (normalizedStatus === 'in arrears') {
       return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
-    } else if (normalizedStatus === 'fully paid') {
+    } else if (normalizedStatus === 'paid' || normalizedStatus === 'settled') {
       return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
     } else if (normalizedStatus === 'written off') {
       return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
@@ -870,23 +880,50 @@ export function LoansTab() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    loans.filter(loan => loan.status === 'Active').forEach(loan => {
-      const firstRepaymentDate = new Date(loan.firstRepaymentDate);
-      const installmentAmount = loan.installmentAmount || 0;
+    loans.filter(loan => isActiveStatus(loan.status)).forEach(loan => {
+      // Robust date handling (like DashboardTab)
+      let firstRepaymentDate;
+      if (loan.firstRepaymentDate && !isNaN(new Date(loan.firstRepaymentDate).getTime())) {
+        firstRepaymentDate = new Date(loan.firstRepaymentDate);
+      } else if (loan.disbursementDate && !isNaN(new Date(loan.disbursementDate).getTime())) {
+        // Fallback: Disbursement date + 1 month (or based on frequency)
+        firstRepaymentDate = new Date(loan.disbursementDate);
+        const frequency = (loan.repaymentFrequency || 'Monthly').toLowerCase();
+        if (frequency.includes('week')) firstRepaymentDate.setDate(firstRepaymentDate.getDate() + 7);
+        else if (frequency.includes('daily')) firstRepaymentDate.setDate(firstRepaymentDate.getDate() + 1);
+        else firstRepaymentDate.setMonth(firstRepaymentDate.getMonth() + 1);
+      } else {
+        return; // Skip if no valid dates
+      }
+
+      // Robust installment calculation (like DashboardTab)
+      const numInstallments = loan.numberOfInstallments || loan.term || 12;
+      let installmentAmount = loan.installmentAmount || 0;
+      
+      // Calculate installment amount if missing
+      if (!installmentAmount && numInstallments > 0) {
+        const principal = loan.principalAmount || 0;
+        const interest = loan.totalInterest || 0;
+        installmentAmount = (principal + interest) / numInstallments;
+      }
+      
       const totalPrincipal = loan.principalAmount || 0;
       const totalInterest = loan.totalInterest || 0;
       
-      const principalPerInstallment = totalPrincipal / loan.numberOfInstallments;
-      const interestPerInstallment = totalInterest / loan.numberOfInstallments;
+      const principalPerInstallment = totalPrincipal / numInstallments;
+      const interestPerInstallment = totalInterest / numInstallments;
 
-      for (let i = 0; i < loan.numberOfInstallments; i++) {
+      for (let i = 0; i < numInstallments; i++) {
         const paymentDate = new Date(firstRepaymentDate);
         
-        if (loan.repaymentFrequency === 'Monthly') {
+        // Handle frequency case-insensitive (like DashboardTab)
+        const frequency = (loan.repaymentFrequency || 'Monthly').toLowerCase();
+        
+        if (frequency.includes('month')) {
           paymentDate.setMonth(paymentDate.getMonth() + i);
-        } else if (loan.repaymentFrequency === 'Weekly') {
+        } else if (frequency.includes('week')) {
           paymentDate.setDate(paymentDate.getDate() + (i * 7));
-        } else if (loan.repaymentFrequency === 'Daily') {
+        } else if (frequency.includes('daily')) {
           paymentDate.setDate(paymentDate.getDate() + i);
         } else {
           paymentDate.setMonth(paymentDate.getMonth() + (i * 12));
@@ -897,7 +934,7 @@ export function LoansTab() {
         let status: 'Paid' | 'Overdue' | 'Due Today' | 'Due Soon' | 'Upcoming' = 'Upcoming';
         const daysDiff = Math.floor((today.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24));
         
-        const totalPaidInstallments = Math.floor((loan.paidAmount || 0) / installmentAmount);
+        const totalPaidInstallments = Math.floor((loan.paidAmount || 0) / (installmentAmount || 1));
         
         if (i < totalPaidInstallments) {
           status = 'Paid';
@@ -1042,7 +1079,7 @@ export function LoansTab() {
             <div className={`h-10 w-px ${isDark ? 'bg-blue-700/30' : 'bg-blue-300'}`} />
             <div>
               <p className={`text-2xl font-bold ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
-                {((clients.find(c => c.id === loans[0]?.clientId)?.currency?.code) || 'KES')} {upcomingPaymentsAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {currencySymbol} {upcomingPaymentsAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
               <p className={`text-xs ${isDark ? 'text-blue-400/70' : 'text-blue-700/70'}`}>
                 Total Expected
@@ -1163,7 +1200,7 @@ export function LoansTab() {
                 : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            Settled
+            Paid
           </button>
           <button
             onClick={() => setActiveSubTab('defaulted')}
@@ -1285,8 +1322,32 @@ export function LoansTab() {
           return status === 'active' || status === 'in arrears';
         });
         
+        // Pending Review loans (application submitted but not yet reviewed)
+        const pendingReviewLoans = loans.filter(l => {
+          const status = (l.status || '').toLowerCase().trim();
+          return status === 'pending' || status === 'pending review' || status === 'submitted';
+        });
+        
+        // Pending Disbursement loans (approved but not yet disbursed)
+        const pendingDisbursementLoans = loans.filter(l => {
+          const status = (l.status || '').toLowerCase().trim();
+          return status === 'approved' && !l.disbursementDate;
+        });
+        
+        // Paid loans
+        const paidLoans = loans.filter(l => {
+          const status = (l.status || '').toLowerCase().trim();
+          return status === 'paid' || status === 'fully paid' || status === 'closed';
+        });
+        
+        // Defaulted loans (loans that are severely overdue)
+        const defaultedLoans = loans.filter(l => {
+          const status = (l.status || '').toLowerCase().trim();
+          return status === 'defaulted' || status === 'default' || status === 'written off';
+        });
+        
         return (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
           <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
           }`}
@@ -1352,6 +1413,70 @@ export function LoansTab() {
               <CheckCircle className="size-8 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
+
+          {/* NEW: Pending Review */}
+          <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
+            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Pending Review</p>
+                <p className={`text-2xl mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {pendingReviewLoans.length}
+                </p>
+              </div>
+              <Clock className="size-8 text-amber-600 dark:text-amber-400" />
+            </div>
+          </div>
+
+          {/* NEW: Pending Disbursement */}
+          <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
+            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Pending Disbursement</p>
+                <p className={`text-2xl mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {pendingDisbursementLoans.length}
+                </p>
+              </div>
+              <Wallet className="size-8 text-cyan-600 dark:text-cyan-400" />
+            </div>
+          </div>
+
+          {/* NEW: Settled Loans */}
+          <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
+            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Paid Loans</p>
+                <p className={`text-2xl mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {paidLoans.length}
+                </p>
+              </div>
+              <CheckCircle className="size-8 text-emerald-600 dark:text-emerald-400" />
+            </div>
+          </div>
+
+          {/* NEW: Defaults */}
+          <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
+            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Defaults</p>
+                <p className={`text-2xl mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {defaultedLoans.length}
+                </p>
+              </div>
+              <XCircle className="size-8 text-red-600 dark:text-red-400" />
+            </div>
+          </div>
         </div>
         );
       })()}
@@ -1384,7 +1509,7 @@ export function LoansTab() {
               <option value="Approved">Approved</option>
               <option value="Disbursed">Disbursed</option>
               <option value="Active">Active</option>
-              <option value="Fully Paid">Fully Paid</option>
+              <option value="Paid">Paid</option>
               <option value="Closed">Closed</option>
               <option value="Written Off">Written Off</option>
               <option value="Rejected">Rejected</option>
@@ -1405,6 +1530,9 @@ export function LoansTab() {
                 const paidAmt = loan.paidAmount || 0;
                 const progress = principalAmt > 0 ? (paidAmt / principalAmt) * 100 : 0;
                 
+                // Convert "Settled" to "Paid" for display
+                const displayStatus = loan.status?.toLowerCase() === 'settled' ? 'Paid' : loan.status;
+                
                 return (
                   <div
                     key={loan.id}
@@ -1418,8 +1546,8 @@ export function LoansTab() {
                         <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{loan.loanNumber || loan.id}</p>
                         <p className={isDark ? 'text-white' : 'text-gray-900'}>{client?.name}</p>
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(loan.status)}`}>
-                        {loan.status}
+                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(displayStatus)}`}>
+                        {displayStatus}
                       </span>
                     </div>
 
@@ -1486,7 +1614,7 @@ export function LoansTab() {
                    activeSubTab === 'pending-review' ? 'Pending Review' :
                    activeSubTab === 'pending-disbursement' ? 'Pending Disbursement' :
                    activeSubTab === 'active' ? 'Active Loans' :
-                   activeSubTab === 'settled' ? 'Settled Loans' :
+                   activeSubTab === 'settled' ? 'Paid Loans' :
                    activeSubTab === 'defaulted' ? 'Defaulted Loans' :
                    activeSubTab === 'due' ? 'Due / Upcoming Loans (within 7 days)' :
                    activeSubTab === 'no-repayments' ? 'Loans with No Repayments' :
@@ -1597,8 +1725,14 @@ export function LoansTab() {
                       const principalAmt = loan.principalAmount || 0;
                       const paidAmt = loan.paidAmount || 0;
                       const outstandingAmt = principalAmt + (loan.totalInterest || 0) - paidAmt;
-                      // Determine actual display status: if outstanding is 0 or less, show "Fully Paid"
-                      const displayStatus = outstandingAmt <= 0 ? 'Fully Paid' : loan.status;
+                      // Determine actual display status: if outstanding is 0 or less, show "Paid"
+                      // Also convert "Settled" to "Paid"
+                      let displayStatus = loan.status;
+                      if (outstandingAmt <= 0) {
+                        displayStatus = 'Paid';
+                      } else if (loan.status?.toLowerCase() === 'settled') {
+                        displayStatus = 'Paid';
+                      }
                       
                       return (
                         <tr key={loan.id} className={`border-t ${isDark ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-100 hover:bg-gray-50'}`}>
@@ -1627,11 +1761,7 @@ export function LoansTab() {
                           <td className={`px-4 py-2 text-right text-xs text-orange-600 dark:text-orange-400`}>
                             KES {outstandingAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
-                          <td className="px-4 py-2 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(displayStatus)}`}>
-                              {displayStatus}
-                            </span>
-                          </td>
+                          <td className="px-4 py-2 text-center"><span className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(displayStatus)}`}>{displayStatus}</span></td>
                           <td className="px-4 py-2 text-center">
                             <div className="flex gap-2 justify-center items-center flex-wrap">
                               <button

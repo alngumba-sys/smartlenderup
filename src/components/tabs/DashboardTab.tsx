@@ -119,7 +119,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
   // Helper function to calculate accurate days in arrears based on disbursement date and repayment frequency
   const calculateDaysInArrears = (loan: any): number => {
-    if (!loan.disbursementDate || loan.status === 'Fully Paid' || loan.status === 'Settled') {
+    if (!loan.disbursementDate || loan.status === 'Paid') {
       return 0;
     }
     
@@ -219,14 +219,21 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   );
   const filteredPayments = filterByDuration(payments, 'paymentDate', collectionsDuration);
   
+  // ✅ Helper to calculate outstanding balance correctly
+  const calculateOutstanding = (l: any) => {
+    const totalRepayable = l.totalRepayable || l.totalRepayment || 0;
+    const paidAmount = l.paidAmount || l.amount_paid || l.amountPaid || 0;
+    return Math.max(0, totalRepayable - paidAmount);
+  };
+  
   // Helper functions to calculate analytics from real data
   const getPARData = () => {
     const totalPortfolio = contextLoans.filter((l: any) => isActiveStatus(l.status))
-      .reduce((sum: number, l: any) => sum + Math.abs(l.outstandingBalance || 0), 0);
+      .reduce((sum: number, l: any) => sum + calculateOutstanding(l), 0);
     const par30 = contextLoans.filter((l: any) => (l.daysInArrears || 0) >= 30)
-      .reduce((sum: number, l: any) => sum + Math.abs(l.outstandingBalance || 0), 0);
+      .reduce((sum: number, l: any) => sum + calculateOutstanding(l), 0);
     const par90 = contextLoans.filter((l: any) => (l.daysInArrears || 0) >= 90)
-      .reduce((sum: number, l: any) => sum + Math.abs(l.outstandingBalance || 0), 0);
+      .reduce((sum: number, l: any) => sum + calculateOutstanding(l), 0);
     return {
       totalPortfolio,
       par30Ratio: safePercentage(par30, totalPortfolio, 2),
@@ -257,7 +264,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         
         // Check if loan was paid off before this month started
         const monthStart = new Date(year, month, 1);
-        const isClosed = loan.status?.toLowerCase() === 'fully paid' || loan.status?.toLowerCase() === 'closed';
+        const isClosed = loan.status?.toLowerCase() === 'paid' || loan.status?.toLowerCase() === 'closed';
         if (isClosed && loan.dateFullyPaid) {
           const paidDate = new Date(loan.dateFullyPaid);
           if (paidDate < monthStart) return false; // Paid before this month
@@ -308,8 +315,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         l.productId === product.id && isActiveStatus(l.status)
       );
       
-      // Calculate total outstanding balance from active loans
-      const totalOutstanding = productLoans.reduce((sum: number, l: any) => sum + Math.abs(l.outstandingBalance || 0), 0);
+      // ✅ Calculate total outstanding balance from active loans correctly
+      const totalOutstanding = productLoans.reduce((sum: number, l: any) => sum + calculateOutstanding(l), 0);
       
       return {
         name: product.name,
@@ -411,7 +418,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       const expected = contextLoans
         .filter((l: any) => {
           const status = (l.status || '').toLowerCase().trim();
-          return status === 'active' || status === 'in arrears' || status === 'settled';
+          return status === 'active' || status === 'in arrears' || status === 'paid';
         })
         .reduce((sum: number, loan: any) => {
           if (!loan.disbursementDate) return sum;
@@ -526,14 +533,14 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     .reduce((sum: number, l: any) => sum + (l.principalAmount || 0), 0);
   const savingsBalance = savingsAccounts.reduce((sum: number, acc: any) => sum + (acc.balance || 0), 0);
   
-  // Calculate outstanding balance from active loans only
+  // ✅ Calculate outstanding balance from active loans only - using correct calculation
   const activeLoansData = contextLoans.filter((l: any) => l.status === 'Active' || l.status === 'In Arrears');
-  const totalOutstanding = activeLoansData.reduce((sum: number, l: any) => sum + (l.outstandingBalance || 0), 0);
+  const totalOutstanding = activeLoansData.reduce((sum: number, l: any) => sum + calculateOutstanding(l), 0);
   
   // Calculate filtered metrics based on duration selection
   const filteredTotalClients = filteredClientsForCount.length;
-  // Use absolute value for outstandingBalance to handle imported data with negative balances
-  const filteredPortfolioTotal = filteredLoansForPortfolio.reduce((sum: number, l: any) => sum + Math.abs(l.outstandingBalance || 0), 0);
+  // ✅ Calculate portfolio total correctly
+  const filteredPortfolioTotal = filteredLoansForPortfolio.reduce((sum: number, l: any) => sum + calculateOutstanding(l), 0);
   
   // Calculate principal outstanding correctly: 
   // ALWAYS calculate - don't use stored principalOutstanding from imports (may be wrong)
@@ -541,7 +548,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     const principalAmount = l.principalAmount || 0;
     const totalInterest = l.totalInterest || 0;
     const totalRepayable = l.totalRepayable || (principalAmount + totalInterest);
-    const outstandingBalance = Math.abs(l.outstandingBalance || 0);
+    const outstandingBalance = calculateOutstanding(l);
     
     // If we have interest paid info, use it for accurate calculation
     if (l.interestPaid !== undefined && l.interestPaid !== null) {
@@ -601,7 +608,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   // Total Collected = All payments received
   const totalCollected = payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
   const totalDisbursedForEfficiency = contextLoans.reduce((sum: number, l: any) => sum + (l.principalAmount || 0), 0);
-  const totalOutstandingForEfficiency = contextLoans.reduce((sum: number, l: any) => sum + Math.abs(l.outstandingBalance || 0), 0);
+  const totalOutstandingForEfficiency = contextLoans.reduce((sum: number, l: any) => sum + calculateOutstanding(l), 0);
   const expectedCollections = totalDisbursedForEfficiency - totalOutstandingForEfficiency;
   const collectionEfficiency = expectedCollections > 0 ? (totalCollected / expectedCollections) * 100 : 0;
   
@@ -615,7 +622,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     .filter((l: any) => l.daysInArrears >= 30);
   const atRiskClientIds = new Set(atRiskLoans.map((l: any) => l.clientId));
   const atRiskClientsCount = atRiskClientIds.size;
-  const potentialDefaults = atRiskLoans.reduce((sum: number, l: any) => sum + (l.outstandingBalance || 0), 0);
+  const potentialDefaults = atRiskLoans.reduce((sum: number, l: any) => sum + calculateOutstanding(l), 0);
   
   // ✅ Calculate PAR 30: Outstanding balance of loans 30+ days overdue / Total outstanding
   const par30Loans = contextLoans
@@ -629,7 +636,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       };
     })
     .filter((l: any) => isActiveStatus(l.status) && l.daysInArrears >= 30);
-  const par30Amount = par30Loans.reduce((sum: number, l: any) => sum + Math.abs(l.outstandingBalance || 0), 0);
+  const par30Amount = par30Loans.reduce((sum: number, l: any) => sum + calculateOutstanding(l), 0);
   const par30Rate = totalOutstanding > 0 ? (par30Amount / totalOutstanding) * 100 : 0;
   
   // ✅ Calculate Processing Fee Revenue from loans table's processing_fee column
@@ -665,7 +672,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     }
     // Fallback: estimate based on totalInterest
     const totalInterest = l.totalInterest || 0;
-    const outstandingBalance = l.outstandingBalance || 0;
+    const outstandingBalance = calculateOutstanding(l);
     const principalPart = outstandingBalance > totalInterest ? outstandingBalance - totalInterest : outstandingBalance * 0.9;
     return sum + principalPart;
   }, 0);
@@ -676,7 +683,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     }
     // Fallback: estimate as remaining interest
     const totalInterest = l.totalInterest || 0;
-    const outstandingBalance = l.outstandingBalance || 0;
+    const outstandingBalance = calculateOutstanding(l);
     const interestPart = outstandingBalance > totalInterest ? totalInterest : outstandingBalance * 0.1;
     return sum + interestPart;
   }, 0);
@@ -844,10 +851,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         color: '#4ade80' 
       },
       { 
-        status: 'Settled', 
+        status: 'Paid', 
         count: contextLoans.filter((l: any) => {
           const s = normalizeStatus(l.status);
-          return s === 'settled' || s === 'fully paid' || s === 'closed' || s === 'paid off';
+          return s === 'paid' || s === 'closed' || s === 'paid off';
         }).length, 
         color: '#60a5fa' 
       },
@@ -886,9 +893,9 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       const s = normalizeStatusDebug(l.status);
       return s === 'active' || s === 'disbursed';
     }).length,
-    'Fully Paid': contextLoans.filter((l: any) => {
+    'Paid': contextLoans.filter((l: any) => {
       const s = normalizeStatusDebug(l.status);
-      return s === 'fully paid' || s === 'closed' || s === 'paid off';
+      return s === 'paid' || s === 'closed' || s === 'paid off';
     }).length,
     'In Arrears': contextLoans.filter((l: any) => {
       const s = normalizeStatusDebug(l.status);
@@ -901,7 +908,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     'Other/Unmatched': contextLoans.filter((l: any) => {
       const s = normalizeStatusDebug(l.status);
       return s !== 'active' && s !== 'disbursed' && 
-             s !== 'fully paid' && s !== 'closed' && s !== 'paid off' &&
+             s !== 'paid' && s !== 'closed' && s !== 'paid off' &&
              s !== 'in arrears' && s !== 'overdue' &&
              s !== 'written off' && s !== 'defaulted';
     }).length
@@ -2240,7 +2247,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                         <p className="text-gray-900 dark:text-white text-emerald-600 dark:text-emerald-400">{activeLoans}</p>
                       </div>
                       <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <p className="text-gray-600 dark:text-gray-400 text-xs">Fully Paid</p>
+                        <p className="text-gray-600 dark:text-gray-400 text-xs">Paid</p>
                         <p className="text-gray-900 dark:text-white">9 loans</p>
                       </div>
                     </div>

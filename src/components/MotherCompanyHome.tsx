@@ -1,7 +1,7 @@
 import { ArrowRight, Sparkles, Scissors, DollarSign, TrendingUp, ChevronDown, Search, MessageCircle, Plus, Minus, Calendar, Users, Award, Share2, Copy, Check, Download, X, Clock } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useState, useEffect, useRef } from 'react';
-const consortiumLogo = '/logo.svg'; // 3consortium main logo
+import smartLenderUpHeaderLogo from 'figma:asset/f0b40ab18f6b5d594a18db04f4234532b02a6636.png';
 const scissorUpLogo = '/scissorup-logo.svg'; // ScissorUp platform logo
 const smartLenderUpLogo = '/smartlenderup-logo.svg'; // SmartLenderUp platform logo
 const salesUpLogo = '/salesup-logo.svg'; // SalesUp platform logo
@@ -647,10 +647,10 @@ export function MotherCompanyHome({ onSelectPlatform }: MotherCompanyHomeProps) 
             {/* Left side - Logo */}
             <div className="flex items-center">
               <img 
-                src={consortiumLogo} 
-                alt="3consortium" 
+                src={smartLenderUpHeaderLogo} 
+                alt="SmartLenderUp" 
                 className="h-auto"
-                style={{ width: '40px' }}
+                style={{ width: '180px' }}
               />
             </div>
             
@@ -1786,10 +1786,10 @@ export function MotherCompanyHome({ onSelectPlatform }: MotherCompanyHomeProps) 
 
           <div className="flex flex-col items-center gap-4">
             <img 
-              src={consortiumLogo} 
-              alt="3consortium" 
+              src={smartLenderUpHeaderLogo} 
+              alt="SmartLenderUp" 
               className="h-auto"
-              style={{ width: '180px' }}
+              style={{ width: '280px' }}
             />
             <p 
               className="max-w-2xl"

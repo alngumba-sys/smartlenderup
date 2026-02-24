@@ -232,7 +232,7 @@ export function CreditScoringTab() {
       const totalBorrowed = clientLoans.reduce((sum, l) => sum + l.principalAmount, 0);
       const totalRepaid = clientRepayments.reduce((sum, r) => sum + r.principal, 0);
       const activeLoans = clientLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed').length;
-      const closedLoans = clientLoans.filter(l => l.status === 'Fully Paid' || l.status === 'Closed').length;
+      const closedLoans = clientLoans.filter(l => l.status === 'Paid' || l.status === 'Closed').length;
       const repaymentRate = totalBorrowed > 0 ? (totalRepaid / totalBorrowed) * 100 : 0;
       
       console.log(`  - Total Borrowed: ${totalBorrowed.toLocaleString()}`);

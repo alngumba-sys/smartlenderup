@@ -24,7 +24,7 @@ export function CreditScoreStatsModal({ isOpen, onClose, statType, creditScores,
   const lowRiskShare = Math.round(((excellentCount + goodCount) / creditScores.length) * 100);
 
   // Calculate actual PAR from loans data
-  const activeLoans = loans.filter(loan => loan.status !== 'Fully Paid' && loan.outstandingBalance > 0);
+  const activeLoans = loans.filter(loan => loan.status !== 'Paid' && loan.outstandingBalance > 0);
   const totalPortfolio = activeLoans.reduce((sum, loan) => sum + loan.outstandingBalance, 0);
   
   const par1to7 = activeLoans.filter(loan => loan.daysInArrears >= 1 && loan.daysInArrears <= 7);
@@ -610,8 +610,8 @@ export function CreditScoreStatsModal({ isOpen, onClose, statType, creditScores,
                       <p className="text-gray-500 text-xs">All approved</p>
                     </div>
                     <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                      <p className="text-gray-600 text-xs mb-1">Fully Paid</p>
-                      <p className="text-gray-900 text-lg">{loans.filter(l => l.status === 'Fully Paid').length}</p>
+                      <p className="text-gray-600 text-xs mb-1">Paid</p>
+                      <p className="text-gray-900 text-lg">{loans.filter(l => l.status === 'Paid').length}</p>
                       <p className="text-gray-500 text-xs">Completed</p>
                     </div>
                     <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
@@ -634,7 +634,7 @@ export function CreditScoreStatsModal({ isOpen, onClose, statType, creditScores,
                     </li>
                     <li className="text-blue-900 text-sm flex items-start gap-2">
                       <CheckCircle className="size-4 text-blue-600 mt-0.5 shrink-0" />
-                      <span>{loans.filter(l => l.status === 'Fully Paid').length} loans fully repaid - {((loans.filter(l => l.status === 'Fully Paid').length / loans.length) * 100).toFixed(0)}% completion rate</span>
+                      <span>{loans.filter(l => l.status === 'Paid').length} loans fully repaid - {((loans.filter(l => l.status === 'Paid').length / loans.length) * 100).toFixed(0)}% completion rate</span>
                     </li>
                     <li className="text-blue-900 text-sm flex items-start gap-2">
                       <CheckCircle className="size-4 text-blue-600 mt-0.5 shrink-0" />

@@ -8,7 +8,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 
 export function GroupsTab() {
   const { isDark } = useTheme();
-  const { groups, addGroup } = useData();
+  const { groups, addGroup, clients, loans } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
@@ -60,7 +60,7 @@ export function GroupsTab() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Active': return 'bg-emerald-100 text-emerald-800';
+      case 'Active': return 'bg-blue-600 text-white dark:bg-blue-500 dark:text-white';
       case 'Inactive': return 'bg-gray-100 text-gray-800';
       case 'Suspended': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';

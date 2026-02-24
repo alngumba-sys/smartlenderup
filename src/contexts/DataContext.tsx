@@ -1190,16 +1190,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (!victorExists) {
         const victor = await supabaseDataService.shareholders.create(
           {
-            shareholder_id: 'SH001',
             name: 'Victor Muthama',
-            shareholder_name: 'Victor Muthama',
             id_number: 'VM001',
             phone: '',
             email: '',
             shares: 0,
             share_value: VICTOR_INITIAL_CAPITAL,
             total_investment: VICTOR_INITIAL_CAPITAL,
-            join_date: new Date().toISOString().split('T')[0],
+            ownership_percentage: 50,
             status: 'active'
           },
           organizationId
@@ -1211,16 +1209,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (!benExists) {
         const ben = await supabaseDataService.shareholders.create(
           {
-            shareholder_id: 'SH002',
             name: 'Ben Mbuvi',
-            shareholder_name: 'Ben Mbuvi',
             id_number: 'BM001',
             phone: '',
             email: '',
             shares: 0,
             share_value: BEN_INITIAL_CAPITAL,
             total_investment: BEN_INITIAL_CAPITAL,
-            join_date: new Date().toISOString().split('T')[0],
+            ownership_percentage: 50,
             status: 'active'
           },
           organizationId
@@ -1252,15 +1248,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
         status: (s.status === 'active' ? 'Active' : 'Inactive') as 'Active' | 'Inactive',
         totalDividends: s.total_dividends || 0,
         shareCapital: s.total_investment || s.share_capital || 0,
-        joinDate: s.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        joinDate: s.join_date || s.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
         ownershipPercentage: 50 // 50% each
       }));
       
       setShareholders(mapped);
       console.log('✅ Default shareholders initialized successfully');
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error initializing default shareholders:', error);
+      console.log('⚠️ Skipping shareholder initialization - shareholders table may not exist in Supabase yet');
+      console.log('');
+      console.log('═══════════════════════════════════════════════════════════════');
+      console.log('📖 TO FIX THIS ERROR:');
+      console.log('═══════════════════════════════════════════════════════════════');
+      console.log('1. Open your Supabase dashboard SQL Editor');
+      console.log('2. Copy the SQL from /SUPABASE_SETUP.sql');
+      console.log('3. Run the SQL to create the shareholders table');
+      console.log('4. Refresh this page');
+      console.log('');
+      console.log('See /SUPABASE_README.md for detailed instructions');
+      console.log('═══════════════════════════════════════════════════════════════');
+      console.log('');
     }
   };
   
@@ -1539,7 +1548,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 investmentDate: s.investment_date || s.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
                 status: (s.status === 'active' ? 'Active' : 'Inactive') as 'Active' | 'Inactive',
                 totalDividends: s.total_dividends || 0,
-                shareCapital: s.total_investment || s.share_capital || 0
+                shareCapital: s.total_investment || s.share_capital || 0,
+                joinDate: s.join_date || s.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+                ownershipPercentage: s.ownership_percentage || 0
               }));
               
               setShareholders(mappedShareholders);
@@ -1555,9 +1566,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
               await initializeDefaultShareholders(currentUser.organizationId);
               // Don't set to empty array - initializeDefaultShareholders will set the state
             }
-          } catch (error) {
+          } catch (error: any) {
             console.error('❌ Error loading shareholders from Supabase:', error);
-            toast.error('Database not reachable. Check your internet connection.');
+            
+            // Check if it's a schema error
+            if (error?.message?.includes('column') && error?.message?.includes('does not exist')) {
+              console.log('⚠️ SCHEMA ERROR: shareholders table is missing columns');
+              console.log('📖 See SUPABASE_README.md for setup instructions');
+              toast.error('Shareholders table not set up. See console for instructions.');
+            } else if (error?.code === 'PGRST204' || error?.message?.includes('schema cache')) {
+              console.log('⚠️ SCHEMA ERROR: shareholders table not found or has wrong schema');
+              console.log('📖 See SUPABASE_README.md for setup instructions');
+              toast.error('Shareholders table not found. See console for setup instructions.');
+            } else {
+              toast.error('Database not reachable. Check your internet connection.');
+            }
+            
             setShareholders([]);
           }
           
@@ -4441,7 +4465,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
           investmentDate: s.investment_date || s.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
           status: s.status || 'active',
           totalDividends: s.total_dividends || 0,
-          shareCapital: s.share_capital || 0
+          shareCapital: s.share_capital || 0,
+          joinDate: s.join_date || s.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+          ownershipPercentage: s.ownership_percentage || 0
         }));
         
         console.log(`✅ Refreshed ${mappedShareholders.length} shareholders from database`);

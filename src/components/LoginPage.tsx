@@ -3,7 +3,7 @@ import { Eye, EyeOff, ChevronDown, Search, Globe, Menu, X, Users, TrendingUp, Sh
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 const abcLogo = '/logo.svg'; // Replaced figma:asset for deployment
-import smartLenderLogo from 'figma:asset/fd18aa8c77f7b0374c9ef5d44e370cbe0bc4832b.png';
+import smartLenderLogo from 'figma:asset/f0b40ab18f6b5d594a18db04f4234532b02a6636.png';
 import laptopImage from 'figma:asset/2dba3dabe7010b763ebec2a8f70edae4bf1041a6.png';
 const aiInsightsImage = '/logo.svg'; // Replaced figma:asset for deployment
 import { OrganizationSignUpModal } from './modals/OrganizationSignUpModal';
@@ -29,6 +29,19 @@ interface LoginPageProps {
 export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onGoToRegister }: LoginPageProps) {
   const { login } = useAuth();
   const { currentTheme, isDark, mode, toggleMode } = useTheme();
+  
+  // Color theme - GREEN scheme
+  const colors = {
+    accent: '#90ee90', // Light green (was #ade8f4)
+    accentDark: '#00563f', // Dark green (was #023e8a)
+    bgDark: '#081a10', // Dark green bg (was #0a1128)
+    accentRgba05: 'rgba(144, 238, 144, 0.05)', // Light green with opacity (was rgba(173, 232, 244, 0.05))
+    accentRgba1: 'rgba(144, 238, 144, 0.1)',
+    accentRgba15: 'rgba(144, 238, 144, 0.15)',
+    accentRgba2: 'rgba(144, 238, 144, 0.2)',
+    accentRgba3: 'rgba(144, 238, 144, 0.3)'
+  };
+  
   const [showSignInDropdown, setShowSignInDropdown] = useState(false);
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -928,7 +941,7 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundImage: 'radial-gradient(circle farthest-corner at 17.6% 50.7%, rgba(25,0,184,1) 0%, rgba(0,0,0,1) 90%)' }}>
+    <div className="min-h-screen" style={{ backgroundImage: 'radial-gradient(circle farthest-corner at 17.6% 50.7%, rgba(0,100,50,1) 0%, rgba(0,0,0,1) 90%)' }}>
       {/* Navigation Header */}
       <nav className="border-b sticky top-0 z-50" style={{ 
         backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -1135,8 +1148,8 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                     />
                     
                     <div className="fixed top-20 left-1/2 -translate-x-1/2 w-[900px] max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl border p-6 z-50" style={{
-                      backgroundColor: '#0a1128',
-                      borderColor: '#ade8f4'
+                      backgroundColor: '#081a10',
+                      borderColor: '#90ee90'
                     }}>
                     <div className="text-center mb-5">
                       <h3 className="text-2xl font-semibold mb-1" style={{ color: '#ffffff' }}>Choose Your Plan</h3>
@@ -1155,12 +1168,12 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                       }}
                       >
                         <div className="text-center mb-3">
-                          <div className="inline-flex items-center justify-center size-12 rounded-full mb-2" style={{ backgroundColor: '#ade8f4' }}>
-                            <Users className="size-6" style={{ color: '#023e8a', strokeWidth: 2.5 }} />
+                          <div className="inline-flex items-center justify-center size-12 rounded-full mb-2" style={{ backgroundColor: '#90ee90' }}>
+                            <Users className="size-6" style={{ color: '#00563f', strokeWidth: 2.5 }} />
                           </div>
                           <h4 className="text-lg font-semibold mb-1" style={{ color: '#ffffff' }}>Starter</h4>
                           <div className="mb-2">
-                            <span className="text-2xl font-bold" style={{ color: '#ade8f4' }}>
+                            <span className="text-2xl font-bold" style={{ color: '#90ee90' }}>
                               {pricingPlans.starter.monthlyPrice === 0 ? 'FREE' : `$${pricingPlans.starter.monthlyPrice}`}
                             </span>
                             {pricingPlans.starter.monthlyPrice > 0 && (
@@ -1168,29 +1181,29 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                             )}
                           </div>
                           <p className="text-xs mb-1" style={{ color: '#ffffff', opacity: 0.7 }}>Perfect for getting started</p>
-                          <p className="text-xs font-medium" style={{ color: '#ade8f4' }}>+ {trialDays}-day trial</p>
+                          <p className="text-xs font-medium" style={{ color: '#90ee90' }}>+ {trialDays}-day trial</p>
                         </div>
                         <ul className="space-y-1.5 mb-4 flex-1">
                           <li className="flex items-start gap-2 text-xs" style={{ color: '#ffffff', opacity: 0.8 }}>
-                            <span style={{ color: '#ade8f4' }}>✓</span>
+                            <span style={{ color: '#90ee90' }}>✓</span>
                             <span>Up to 10 clients</span>
                           </li>
                           <li className="flex items-start gap-2 text-xs" style={{ color: '#ffffff', opacity: 0.8 }}>
-                            <span style={{ color: '#ade8f4' }}>✓</span>
+                            <span style={{ color: '#90ee90' }}>✓</span>
                             <span>Basic loan management</span>
                           </li>
                           <li className="flex items-start gap-2 text-xs" style={{ color: '#ffffff', opacity: 0.8 }}>
-                            <span style={{ color: '#ade8f4' }}>✓</span>
+                            <span style={{ color: '#90ee90' }}>✓</span>
                             <span>5 staff accounts</span>
                           </li>
                           <li className="flex items-start gap-2 text-xs" style={{ color: '#ffffff', opacity: 0.8 }}>
-                            <span style={{ color: '#ade8f4' }}>✓</span>
+                            <span style={{ color: '#90ee90' }}>✓</span>
                             <span>Email support</span>
                           </li>
                         </ul>
                         <button className="w-full py-2 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity mt-auto" style={{
-                          backgroundColor: '#ade8f4',
-                          color: '#023e8a'
+                          backgroundColor: '#90ee90',
+                          color: '#00563f'
                         }}>
                           Get Started
                         </button>
@@ -1207,38 +1220,38 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                       }}
                       >
                         <div className="text-center mb-3">
-                          <div className="inline-flex items-center justify-center size-12 rounded-full mb-2" style={{ backgroundColor: '#ade8f4' }}>
-                            <TrendingUp className="size-6" style={{ color: '#023e8a', strokeWidth: 2.5 }} />
+                          <div className="inline-flex items-center justify-center size-12 rounded-full mb-2" style={{ backgroundColor: colors.accent }}>
+                            <TrendingUp className="size-6" style={{ color: colors.accentDark, strokeWidth: 2.5 }} />
                           </div>
                           <h4 className="text-lg font-semibold mb-1" style={{ color: '#ffffff' }}>Growth</h4>
                           <div className="mb-2">
-                            <span className="text-2xl font-bold" style={{ color: '#ade8f4' }}>${pricingPlans.growth.monthlyPrice}</span>
+                            <span className="text-2xl font-bold" style={{ color: colors.accent }}>${pricingPlans.growth.monthlyPrice}</span>
                             <span className="text-sm" style={{ color: '#ffffff', opacity: 0.6 }}>/mo</span>
                           </div>
                           <p className="text-xs mb-1" style={{ color: '#ffffff', opacity: 0.7 }}>For growing institutions</p>
-                          <p className="text-xs font-medium" style={{ color: '#ade8f4' }}>+ {trialDays}-day trial</p>
+                          <p className="text-xs font-medium" style={{ color: colors.accent }}>+ {trialDays}-day trial</p>
                         </div>
                         <ul className="space-y-1.5 mb-4 flex-1">
                           <li className="flex items-start gap-2 text-xs" style={{ color: '#ffffff', opacity: 0.8 }}>
-                            <span style={{ color: '#ade8f4' }}>✓</span>
+                            <span style={{ color: colors.accent }}>✓</span>
                             <span>Up to 500 clients</span>
                           </li>
                           <li className="flex items-start gap-2 text-xs" style={{ color: '#ffffff', opacity: 0.8 }}>
-                            <span style={{ color: '#ade8f4' }}>✓</span>
+                            <span style={{ color: colors.accent }}>✓</span>
                             <span>Advanced analytics</span>
                           </li>
                           <li className="flex items-start gap-2 text-xs" style={{ color: '#ffffff', opacity: 0.8 }}>
-                            <span style={{ color: '#ade8f4' }}>✓</span>
+                            <span style={{ color: colors.accent }}>✓</span>
                             <span>15 staff accounts</span>
                           </li>
                           <li className="flex items-start gap-2 text-xs" style={{ color: '#ffffff', opacity: 0.8 }}>
-                            <span style={{ color: '#ade8f4' }}>✓</span>
+                            <span style={{ color: colors.accent }}>✓</span>
                             <span>Priority support</span>
                           </li>
                         </ul>
                         <button className="w-full py-2 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity mt-auto" style={{
-                          backgroundColor: '#ade8f4',
-                          color: '#023e8a'
+                          backgroundColor: colors.accent,
+                          color: colors.accentDark
                         }}>
                           Choose Plan
                         </button>
@@ -1261,38 +1274,38 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                           POPULAR
                         </div>
                         <div className="text-center mb-3">
-                          <div className="inline-flex items-center justify-center size-12 rounded-full mb-2" style={{ backgroundColor: '#ade8f4' }}>
-                            <BarChart3 className="size-6" style={{ color: '#023e8a', strokeWidth: 2.5 }} />
+                          <div className="inline-flex items-center justify-center size-12 rounded-full mb-2" style={{ backgroundColor: colors.accent }}>
+                            <BarChart3 className="size-6" style={{ color: colors.accentDark, strokeWidth: 2.5 }} />
                           </div>
                           <h4 className="text-lg font-semibold mb-1" style={{ color: '#ffffff' }}>Professional</h4>
                           <div className="mb-2">
-                            <span className="text-2xl font-bold" style={{ color: '#ade8f4' }}>${pricingPlans.professional.monthlyPrice}</span>
+                            <span className="text-2xl font-bold" style={{ color: colors.accent }}>${pricingPlans.professional.monthlyPrice}</span>
                             <span className="text-sm" style={{ color: '#ffffff', opacity: 0.6 }}>/mo</span>
                           </div>
                           <p className="text-xs mb-1" style={{ color: '#ffffff', opacity: 0.7 }}>For established organizations</p>
-                          <p className="text-xs font-medium" style={{ color: '#ade8f4' }}>+ {trialDays}-day trial</p>
+                          <p className="text-xs font-medium" style={{ color: colors.accent }}>+ {trialDays}-day trial</p>
                         </div>
                         <ul className="space-y-1.5 mb-4 flex-1">
                           <li className="flex items-start gap-2 text-xs" style={{ color: '#ffffff', opacity: 0.8 }}>
-                            <span style={{ color: '#ade8f4' }}>✓</span>
+                            <span style={{ color: colors.accent }}>✓</span>
                             <span>Up to 2,000 clients</span>
                           </li>
                           <li className="flex items-start gap-2 text-xs" style={{ color: '#ffffff', opacity: 0.8 }}>
-                            <span style={{ color: '#ade8f4' }}>✓</span>
+                            <span style={{ color: colors.accent }}>✓</span>
                             <span>AI insights & predictions</span>
                           </li>
                           <li className="flex items-start gap-2 text-xs" style={{ color: '#ffffff', opacity: 0.8 }}>
-                            <span style={{ color: '#ade8f4' }}>✓</span>
+                            <span style={{ color: colors.accent }}>✓</span>
                             <span>Unlimited staff</span>
                           </li>
                           <li className="flex items-start gap-2 text-xs" style={{ color: '#ffffff', opacity: 0.8 }}>
-                            <span style={{ color: '#ade8f4' }}>✓</span>
+                            <span style={{ color: colors.accent }}>✓</span>
                             <span>24/7 support & training</span>
                           </li>
                         </ul>
                         <button className="w-full py-2 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity mt-auto" style={{
-                          backgroundColor: '#ade8f4',
-                          color: '#023e8a'
+                          backgroundColor: colors.accent,
+                          color: colors.accentDark
                         }}>
                           Choose Plan
                         </button>
@@ -1309,12 +1322,12 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                       }}
                       >
                         <div className="text-center mb-3">
-                          <div className="inline-flex items-center justify-center size-12 rounded-full mb-2" style={{ backgroundColor: '#ade8f4' }}>
-                            <Shield className="size-6" style={{ color: '#023e8a', strokeWidth: 2.5 }} />
+                          <div className="inline-flex items-center justify-center size-12 rounded-full mb-2" style={{ backgroundColor: colors.accent }}>
+                            <Shield className="size-6" style={{ color: colors.accentDark, strokeWidth: 2.5 }} />
                           </div>
                           <h4 className="text-lg font-semibold mb-1" style={{ color: '#ffffff' }}>Enterprise</h4>
                           <div className="mb-2">
-                            <span className="text-2xl font-bold" style={{ color: '#ade8f4' }}>
+                            <span className="text-2xl font-bold" style={{ color: colors.accent }}>
                               {pricingPlans.enterprise.monthlyPrice === 0 ? 'Custom' : `$${pricingPlans.enterprise.monthlyPrice}`}
                             </span>
                             {pricingPlans.enterprise.monthlyPrice > 0 && (
@@ -1322,11 +1335,11 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                             )}
                           </div>
                           <p className="text-xs mb-1" style={{ color: '#ffffff', opacity: 0.7 }}>For large scale operations</p>
-                          <p className="text-xs font-medium" style={{ color: '#ade8f4' }}>+ {trialDays}-day trial</p>
+                          <p className="text-xs font-medium" style={{ color: colors.accent }}>+ {trialDays}-day trial</p>
                         </div>
                         <ul className="space-y-1.5 mb-4 flex-1">
                           <li className="flex items-start gap-2 text-xs" style={{ color: '#ffffff', opacity: 0.8 }}>
-                            <span style={{ color: '#ade8f4' }}>✓</span>
+                            <span style={{ color: colors.accent }}>✓</span>
                             <span>Unlimited clients</span>
                           </li>
                           <li className="flex items-start gap-2 text-xs" style={{ color: '#ffffff', opacity: 0.8 }}>
@@ -1343,8 +1356,8 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                           </li>
                         </ul>
                         <button className="w-full py-2 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity mt-auto" style={{
-                          backgroundColor: '#ade8f4',
-                          color: '#023e8a'
+                          backgroundColor: colors.accent,
+                          color: colors.accentDark
                         }}>
                           Contact Sales
                         </button>
@@ -1376,8 +1389,8 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
 
                 {showSignInDropdown && (
                   <div className="absolute top-full right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-md rounded-2xl shadow-2xl border p-4 sm:p-6 z-50" style={{
-                    backgroundColor: '#0a1128',
-                    borderColor: '#ade8f4'
+                    backgroundColor: '#081a10',
+                    borderColor: '#90ee90'
                   }}>
                     <div className="text-center mb-4 sm:mb-5">
                       <h3 className="text-lg sm:text-xl font-semibold mb-1.5" style={{ color: '#ffffff' }}>Welcome Back</h3>
@@ -1392,8 +1405,8 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                           onChange={(e) => setIdentifier(e.target.value)}
                           className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:border-transparent transition-all text-sm"
                           style={{
-                            borderColor: 'rgba(173, 232, 244, 0.3)',
-                            backgroundColor: 'rgba(173, 232, 244, 0.05)',
+                            borderColor: colors.accentRgba3,
+                            backgroundColor: colors.accentRgba05,
                             color: '#ffffff'
                           }}
                           placeholder="Enter your email or username"
@@ -1410,8 +1423,8 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                             onChange={(e) => setPassword(e.target.value)}
                             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:border-transparent pr-10 transition-all text-sm"
                             style={{
-                              borderColor: 'rgba(173, 232, 244, 0.3)',
-                              backgroundColor: 'rgba(173, 232, 244, 0.05)',
+                              borderColor: colors.accentRgba3,
+                              backgroundColor: colors.accentRgba05,
                               color: '#ffffff'
                             }}
                             placeholder="Enter your password"
@@ -1421,7 +1434,7 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
                             className="absolute right-4 top-1/2 -translate-y-1/2 hover:opacity-80"
-                            style={{ color: '#ade8f4' }}
+                            style={{ color: colors.accent }}
                           >
                             {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
                           </button>
@@ -1437,7 +1450,7 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                             onChange={(e) => setRememberMe(e.target.checked)}
                             className="size-4 border rounded"
                             style={{
-                              accentColor: '#ade8f4'
+                              accentColor: colors.accent
                             }}
                           />
                           <label htmlFor="remember" className="ml-2 text-sm" style={{ color: '#ffffff', opacity: 0.8 }}>
@@ -1448,7 +1461,7 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                           type="button"
                           onClick={() => setShowForgotPassword(true)} 
                           className="text-sm hover:opacity-80" 
-                          style={{ color: '#ade8f4' }}
+                          style={{ color: colors.accent }}
                         >
                           Forgot password?
                         </button>
@@ -1468,12 +1481,12 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                         type="submit"
                         disabled={loading}
                         className="w-full py-2.5 rounded-lg font-semibold disabled:opacity-50 hover:opacity-90 transition-all text-sm"
-                        style={{ backgroundColor: '#ade8f4', color: '#023e8a' }}
+                        style={{ backgroundColor: colors.accent, color: colors.accentDark }}
                       >
                         {loading ? 'Signing in...' : 'Sign In'}
                       </button>
 
-                      <div className="text-center pt-3 border-t" style={{ borderColor: 'rgba(173, 232, 244, 0.2)' }}>
+                      <div className="text-center pt-3 border-t" style={{ borderColor: colors.accentRgba2 }}>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1485,8 +1498,8 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                           }}
                           className="w-full text-sm py-2 mb-3 rounded-lg border hover:opacity-90 transition-all"
                           style={{
-                            borderColor: 'rgba(173, 232, 244, 0.5)',
-                            color: '#ade8f4'
+                            borderColor: colors.accentRgba3,
+                            color: colors.accent
                           }}
                         >
                           Staff Login
@@ -1499,7 +1512,7 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                               setShowSignInDropdown(false); 
                               setShowRegistrationType(true);
                             }
-                          }} className="font-semibold hover:opacity-80" style={{ color: '#ade8f4' }}>Sign Up</button>
+                          }} className="font-semibold hover:opacity-80" style={{ color: colors.accent }}>Sign Up</button>
                         </p>
                       </div>
                     </form>
@@ -1559,15 +1572,15 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
           {/* Main Content */}
           <div className="animate-fadeIn">
             <h1 className="leading-tight mb-4 text-[46px]" style={{ color: '#ffffff', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-              <span className="font-bold" style={{ color: '#00b4d8' }}>Empower</span> <span className="font-light">your lending business</span>
+              <span className="font-bold" style={{ color: '#84C777' }}>Empower</span> <span className="font-light">your lending business</span>
               <br />
-              <span className="font-light">powered by</span> <span className="font-bold" style={{ color: '#00b4d8' }}>innovation</span>
+              <span className="font-light">powered by</span> <span className="font-bold" style={{ color: '#84C777' }}>innovation</span>
             </h1>
             <p className="text-lg mb-6 leading-relaxed" style={{ color: '#ffffff', opacity: 0.9 }}>
               A modern, end-to-end lending platform for small, growing, or niche credit providers. 
               Designed with strong security, compliance, and efficiency to support your business at every stage
             </p>
-            <button className="px-6 py-2.5 rounded-lg font-medium text-base flex items-center gap-2 hover:opacity-90 mx-auto" style={{ backgroundColor: 'rgba(173, 232, 244, 0.15)', color: '#ade8f4', border: '1px solid rgba(173, 232, 244, 0.3)' }} onClick={() => setShowRegistrationType(true)}>
+            <button className="px-6 py-2.5 rounded-lg font-medium text-base flex items-center gap-2 hover:opacity-90 mx-auto" style={{ backgroundColor: colors.accentRgba15, color: colors.accent, border: `1px solid ${colors.accentRgba3}` }} onClick={() => setShowRegistrationType(true)}>
               GET STARTED FOR FREE
               <ChevronDown className="size-5 -rotate-90" />
             </button>
@@ -1623,8 +1636,8 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
               <div className="grid grid-cols-4 gap-6">
                 {/* Loan Management */}
                 <div className="rounded-2xl p-6 text-center transition-transform hover:scale-105" style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
-                  <div className="inline-flex items-center justify-center size-16 rounded-full mb-4" style={{ backgroundColor: '#ade8f4' }}>
-                    <DollarSign className="size-8" style={{ color: '#023e8a', strokeWidth: 2.5 }} />
+                  <div className="inline-flex items-center justify-center size-16 rounded-full mb-4" style={{ backgroundColor: colors.accent }}>
+                    <DollarSign className="size-8" style={{ color: colors.accentDark, strokeWidth: 2.5 }} />
                   </div>
                   <h3 className="text-xl font-semibold mb-3" style={{ color: '#ffffff' }}>
                     Loan Management
@@ -1632,7 +1645,7 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                   <p className="text-sm mb-4" style={{ color: '#ffffff', opacity: 0.7 }}>
                     Manage loans from application to repayment with automated workflows and smart tracking.
                   </p>
-                  <button className="text-sm font-medium flex items-center gap-1 mx-auto hover:gap-2 transition-all" style={{ color: '#ade8f4' }}>
+                  <button className="text-sm font-medium flex items-center gap-1 mx-auto hover:gap-2 transition-all" style={{ color: colors.accent }}>
                     Learn more
                     <ChevronDown className="size-4 -rotate-90" />
                   </button>
@@ -1640,8 +1653,8 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
 
                 {/* M-Pesa Integration */}
                 <div className="rounded-2xl p-6 text-center transition-transform hover:scale-105" style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
-                  <div className="inline-flex items-center justify-center size-16 rounded-full mb-4" style={{ backgroundColor: '#ade8f4' }}>
-                    <Smartphone className="size-8" style={{ color: '#023e8a', strokeWidth: 2.5 }} />
+                  <div className="inline-flex items-center justify-center size-16 rounded-full mb-4" style={{ backgroundColor: colors.accent }}>
+                    <Smartphone className="size-8" style={{ color: colors.accentDark, strokeWidth: 2.5 }} />
                   </div>
                   <h3 className="text-xl font-semibold mb-3" style={{ color: '#ffffff' }}>
                     M-Pesa Integration
@@ -1649,7 +1662,7 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                   <p className="text-sm mb-4" style={{ color: '#ffffff', opacity: 0.7 }}>
                     Accept payments and disburse loans via mobile money seamlessly with real-time processing.
                   </p>
-                  <button className="text-sm font-medium flex items-center gap-1 mx-auto hover:gap-2 transition-all" style={{ color: '#ade8f4' }}>
+                  <button className="text-sm font-medium flex items-center gap-1 mx-auto hover:gap-2 transition-all" style={{ color: colors.accent }}>
                     Learn more
                     <ChevronDown className="size-4 -rotate-90" />
                   </button>
@@ -1657,8 +1670,8 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
 
                 {/* AI-Powered Insights */}
                 <div className="rounded-2xl p-6 text-center transition-transform hover:scale-105" style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
-                  <div className="inline-flex items-center justify-center size-16 rounded-full mb-4" style={{ backgroundColor: '#ade8f4' }}>
-                    <TrendingUp className="size-8" style={{ color: '#023e8a', strokeWidth: 2.5 }} />
+                  <div className="inline-flex items-center justify-center size-16 rounded-full mb-4" style={{ backgroundColor: colors.accent }}>
+                    <TrendingUp className="size-8" style={{ color: colors.accentDark, strokeWidth: 2.5 }} />
                   </div>
                   <h3 className="text-xl font-semibold mb-3" style={{ color: '#ffffff' }}>
                     AI-Powered Insights
@@ -1666,7 +1679,7 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                   <p className="text-sm mb-4" style={{ color: '#ffffff', opacity: 0.7 }}>
                     Get intelligent recommendations and risk analysis for better lending decisions.
                   </p>
-                  <button className="text-sm font-medium flex items-center gap-1 mx-auto hover:gap-2 transition-all" style={{ color: '#ade8f4' }}>
+                  <button className="text-sm font-medium flex items-center gap-1 mx-auto hover:gap-2 transition-all" style={{ color: colors.accent }}>
                     Learn more
                     <ChevronDown className="size-4 -rotate-90" />
                   </button>
@@ -1674,8 +1687,8 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
 
                 {/* Client Management */}
                 <div className="rounded-2xl p-6 text-center transition-transform hover:scale-105" style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
-                  <div className="inline-flex items-center justify-center size-16 rounded-full mb-4" style={{ backgroundColor: '#ade8f4' }}>
-                    <Users className="size-8" style={{ color: '#023e8a', strokeWidth: 2.5 }} />
+                  <div className="inline-flex items-center justify-center size-16 rounded-full mb-4" style={{ backgroundColor: colors.accent }}>
+                    <Users className="size-8" style={{ color: colors.accentDark, strokeWidth: 2.5 }} />
                   </div>
                   <h3 className="text-xl font-semibold mb-3" style={{ color: '#ffffff' }}>
                     Client Management
@@ -1683,7 +1696,7 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                   <p className="text-sm mb-4" style={{ color: '#ffffff', opacity: 0.7 }}>
                     Track and manage all your clients' information securely in one centralized place.
                   </p>
-                  <button className="text-sm font-medium flex items-center gap-1 mx-auto hover:gap-2 transition-all" style={{ color: '#ade8f4' }}>
+                  <button className="text-sm font-medium flex items-center gap-1 mx-auto hover:gap-2 transition-all" style={{ color: colors.accent }}>
                     Learn more
                     <ChevronDown className="size-4 -rotate-90" />
                   </button>
@@ -1725,8 +1738,8 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                       "SmartLenderUp has transformed how we manage our loan portfolio. The AI insights have helped us reduce defaults by 40%."
                     </p>
                     <div className="flex items-center gap-3">
-                      <div className="size-12 rounded-full flex items-center justify-center" style={{ backgroundColor: '#ade8f4' }}>
-                        <span className="font-semibold" style={{ color: '#023e8a' }}>JK</span>
+                      <div className="size-12 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.accent }}>
+                        <span className="font-semibold" style={{ color: colors.accentDark }}>JK</span>
                       </div>
                       <div>
                         <p className="font-semibold text-sm" style={{ color: '#ffffff' }}>Jane Kamau</p>
@@ -1746,8 +1759,8 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                       "The M-Pesa integration is seamless. Our members can now repay loans instantly, improving our cash flow significantly."
                     </p>
                     <div className="flex items-center gap-3">
-                      <div className="size-12 rounded-full flex items-center justify-center" style={{ backgroundColor: '#ade8f4' }}>
-                        <span className="font-semibold" style={{ color: '#023e8a' }}>PM</span>
+                      <div className="size-12 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.accent }}>
+                        <span className="font-semibold" style={{ color: colors.accentDark }}>PM</span>
                       </div>
                       <div>
                         <p className="font-semibold text-sm" style={{ color: '#ffffff' }}>Peter Mwangi</p>
@@ -1767,8 +1780,8 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                       "Outstanding platform! The analytics dashboard gives us real-time insights that help us make better lending decisions."
                     </p>
                     <div className="flex items-center gap-3">
-                      <div className="size-12 rounded-full flex items-center justify-center" style={{ backgroundColor: '#ade8f4' }}>
-                        <span className="font-semibold" style={{ color: '#023e8a' }}>SA</span>
+                      <div className="size-12 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.accent }}>
+                        <span className="font-semibold" style={{ color: colors.accentDark }}>SA</span>
                       </div>
                       <div>
                         <p className="font-semibold text-sm" style={{ color: '#ffffff' }}>Sarah Achieng</p>
@@ -1788,8 +1801,8 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                       "Best decision we made! The automation features save us hours every day and the customer support is exceptional."
                     </p>
                     <div className="flex items-center gap-3">
-                      <div className="size-12 rounded-full flex items-center justify-center" style={{ backgroundColor: '#ade8f4' }}>
-                        <span className="font-semibold" style={{ color: '#023e8a' }}>DO</span>
+                      <div className="size-12 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.accent }}>
+                        <span className="font-semibold" style={{ color: colors.accentDark }}>DO</span>
                       </div>
                       <div>
                         <p className="font-semibold text-sm" style={{ color: '#ffffff' }}>David Ochieng</p>
@@ -1819,16 +1832,16 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
               </p>
               <div className="flex gap-3">
                 <a href="#" className="p-2 rounded-lg hover:opacity-80 transition-opacity" style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
-                  <Facebook className="size-5" style={{ color: '#ade8f4' }} />
+                  <Facebook className="size-5" style={{ color: colors.accent }} />
                 </a>
                 <a href="#" className="p-2 rounded-lg hover:opacity-80 transition-opacity" style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
-                  <Twitter className="size-5" style={{ color: '#ade8f4' }} />
+                  <Twitter className="size-5" style={{ color: colors.accent }} />
                 </a>
                 <a href="#" className="p-2 rounded-lg hover:opacity-80 transition-opacity" style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
-                  <Linkedin className="size-5" style={{ color: '#ade8f4' }} />
+                  <Linkedin className="size-5" style={{ color: colors.accent }} />
                 </a>
                 <a href="#" className="p-2 rounded-lg hover:opacity-80 transition-opacity" style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
-                  <Instagram className="size-5" style={{ color: '#ade8f4' }} />
+                  <Instagram className="size-5" style={{ color: colors.accent }} />
                 </a>
               </div>
             </div>
@@ -1862,19 +1875,19 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
               <h4 className="font-semibold mb-4" style={{ color: '#ffffff' }}>Contact</h4>
               <ul className="space-y-3">
                 <li className="flex items-start gap-2">
-                  <Mail className="size-4 mt-0.5 flex-shrink-0" style={{ color: '#ade8f4' }} />
+                  <Mail className="size-4 mt-0.5 flex-shrink-0" style={{ color: colors.accent }} />
                   <a href="mailto:info@smartlenderup.com" className="text-sm hover:opacity-80" style={{ color: '#ffffff', opacity: 0.7 }}>
                     info@smartlenderup.com
                   </a>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Phone className="size-4 mt-0.5 flex-shrink-0" style={{ color: '#ade8f4' }} />
+                  <Phone className="size-4 mt-0.5 flex-shrink-0" style={{ color: colors.accent }} />
                   <a href="tel:+254700000000" className="text-sm hover:opacity-80" style={{ color: '#ffffff', opacity: 0.7 }}>
                     +254 700 000 000
                   </a>
                 </li>
                 <li className="flex items-start gap-2">
-                  <MapPin className="size-4 mt-0.5 flex-shrink-0" style={{ color: '#ade8f4' }} />
+                  <MapPin className="size-4 mt-0.5 flex-shrink-0" style={{ color: colors.accent }} />
                   <span className="text-sm" style={{ color: '#ffffff', opacity: 0.7 }}>
                     Nairobi, Kenya
                   </span>

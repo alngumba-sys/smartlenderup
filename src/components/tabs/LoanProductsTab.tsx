@@ -150,7 +150,7 @@ export function LoanProductsTab() {
     const activeLoans = productLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed' || l.status === 'In Arrears');
     
     // Total disbursed: sum of principal amounts for all loans that were disbursed
-    const disbursedLoans = productLoans.filter(l => l.disbursementDate || l.status === 'Active' || l.status === 'Disbursed' || l.status === 'In Arrears' || l.status === 'Fully Paid');
+    const disbursedLoans = productLoans.filter(l => l.disbursementDate || l.status === 'Active' || l.status === 'Disbursed' || l.status === 'In Arrears' || l.status === 'Paid');
     const totalDisbursed = disbursedLoans.reduce((sum, l) => sum + (l.principalAmount || 0), 0);
     
     const totalOutstanding = activeLoans.reduce((sum, l) => sum + (l.outstandingBalance || 0), 0);

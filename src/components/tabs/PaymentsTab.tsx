@@ -223,6 +223,7 @@ export function PaymentsTab() {
                     <th className="px-4 py-3 text-left text-gray-700 dark:text-gray-300">Client</th>
                     <th className="px-4 py-3 text-left text-gray-700 dark:text-gray-300">Loan ID</th>
                     <th className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">Amount</th>
+                    <th className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">✓</th>
                     <th className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">Method</th>
                     <th className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">Status</th>
                   </tr>
@@ -239,6 +240,12 @@ export function PaymentsTab() {
                         <td className="px-4 py-3 text-gray-900">{client?.name}</td>
                         <td className="px-4 py-3 text-gray-900">{loan?.loanNumber || payment.loanId}</td>
                         <td className="px-4 py-3 text-right text-gray-900">KES {payment.amount.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-center">
+                          <input 
+                            type="checkbox" 
+                            className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                        </td>
                         <td className="px-4 py-3 text-center">
                           <span className="flex items-center justify-center gap-1">
                             {payment.paymentMethod === 'M-Pesa' && <Smartphone className="size-3 text-emerald-600" />}

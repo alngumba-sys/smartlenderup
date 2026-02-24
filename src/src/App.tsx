@@ -42,7 +42,7 @@ import logoImage from "figma:asset/8c9a9782f822a04113fd7bff4f68f1bc0ac7a2af.png"
 
 function AppContent() {
   const { currentUser, isAuthenticated, isLoading, logout, login } = useAuth();
-  const [currentPlatform, setCurrentPlatform] = useState<string | null>('smartlenderup'); // Start directly with SmartLenderUp
+  const [currentPlatform, setCurrentPlatform] = useState<string | null>('smartlenderup'); // Go directly to SmartLenderUp
   const [currentRoute, setCurrentRoute] = useState<string>(window.location.pathname);
   const [portalView, setPortalView] = useState<'staff' | 'client'>('staff');
   const [selectedClientId, setSelectedClientId] = useState('CL001'); // Default client ID

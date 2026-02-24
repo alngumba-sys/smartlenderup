@@ -41,7 +41,7 @@ export const EXPECTED_SCHEMAS: TableSchema[] = [
       { name: 'share_capital', type: 'NUMERIC(15, 2)', default: 0 },
       { name: 'ownership_percentage', type: 'NUMERIC(5, 2)', default: 0 },
       { name: 'bank_account', type: 'JSONB', nullable: true, isJsonb: true },
-      { name: 'join_date', type: 'TEXT NOT NULL' },
+      { name: 'join_date', type: 'TEXT', nullable: true },
       { name: 'status', type: 'TEXT NOT NULL' },
       { name: 'total_dividends', type: 'NUMERIC(15, 2)', default: 0 },
       { name: 'shares', type: 'NUMERIC(10, 2)', default: 0 }, // Legacy column

@@ -57,7 +57,7 @@ export function AIInsightsTab() {
   }, []);
 
   // Pre-calculate loan filters that are used in multiple places
-  const activeLoansData = loans.filter(loan => loan.status !== 'Fully Paid' && loan.outstandingBalance > 0);
+  const activeLoansData = loans.filter(loan => loan.status !== 'Paid' && loan.outstandingBalance > 0);
   const loansWithArrears = loans.filter(loan => loan.daysInArrears > 0);
 
   // Calculate actual high-risk clients from loan data - memoized to prevent duplicate keys on re-render
@@ -156,7 +156,7 @@ export function AIInsightsTab() {
   ];
 
   // Client segmentation - based on actual loan performance
-  const fullyPaidClients = loans.filter(l => l.status === 'Fully Paid').map(l => l.clientId);
+  const fullyPaidClients = loans.filter(l => l.status === 'Paid').map(l => l.clientId);
   const uniqueFullyPaidClients = [...new Set(fullyPaidClients)].length;
   const activeClients = activeLoansData.map(l => l.clientId);
   const uniqueActiveClients = [...new Set(activeClients)].length;
@@ -233,7 +233,7 @@ export function AIInsightsTab() {
   const totalFraudInstances = fraudPatterns.reduce((sum, pattern) => sum + pattern.instances, 0);
 
   // Collection optimization - based on actual portfolio performance
-  const fullPaidLoans = loans.filter(l => l.status === 'Fully Paid').length;
+  const fullPaidLoans = loans.filter(l => l.status === 'Paid').length;
   const totalLoansCount = loans.length;
   const actualCollectionRate = totalLoansCount > 0 ? Math.round((fullPaidLoans / totalLoansCount) * 100) : 0;
   const optimizedCollectionRate = Math.min(actualCollectionRate + 5, 100); // Potential 5% improvement
@@ -253,12 +253,12 @@ export function AIInsightsTab() {
   const preventableAmount = totalExposure * 0.73;
   const paymentHistoryCount = highRiskClients.filter(c => c.daysInArrears > 0).length;
 
-  // Calculate cross-sell opportunities - clients with fully paid loans who could upgrade
-  const clientsWithFullyPaidLoans = [...new Set(loans.filter(l => l.status === 'Fully Paid').map(l => l.clientId))];
+  // Calculate cross-sell opportunities - clients with paid loans who could upgrade
+  const clientsWithFullyPaidLoans = [...new Set(loans.filter(l => l.status === 'Paid').map(l => l.clientId))];
   const eligibleForUpgrade = clientsWithFullyPaidLoans.filter(clientId => {
     const clientLoans = loans.filter(l => l.clientId === clientId);
-    const hasActiveLoans = clientLoans.some(l => l.status !== 'Fully Paid');
-    return !hasActiveLoans; // Clients who fully paid and don't have active loans can get new/upgraded loans
+    const hasActiveLoans = clientLoans.some(l => l.status !== 'Paid');
+    return !hasActiveLoans; // Clients who paid and don't have active loans can get new/upgraded loans
   }).length;
   const crossSellPotential = eligibleForUpgrade * 125000; // Average potential per client
 

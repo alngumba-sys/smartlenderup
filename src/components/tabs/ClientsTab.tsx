@@ -76,10 +76,10 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
       // Calculate client status based on loans
       const clientLoans = loans.filter(l => l.clientUuid === client.id);
       const activeLoans = clientLoans.filter(l => l.status === 'Active' || l.status === 'In Arrears');
-      let newStatus: 'Active' | 'Inactive' | 'Blacklisted' | 'Good Standing' | 'In Arrears' | 'Fully Paid' | 'Current' = 'Active';
+      let newStatus: 'Active' | 'Inactive' | 'Blacklisted' | 'Good Standing' | 'In Arrears' | 'Paid' | 'Current' = 'Active';
       
       if (activeLoans.length === 0 && clientLoans.length > 0) {
-        newStatus = 'Fully Paid';
+        newStatus = 'Paid';
       } else if (activeLoans.some(l => l.status === 'In Arrears' || (l.daysInArrears && l.daysInArrears > 0))) {
         newStatus = 'In Arrears';
       } else if (activeLoans.length > 0) {
@@ -174,8 +174,10 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
         return 'bg-emerald-100 text-emerald-800';
       case 'In Arrears':
         return 'bg-red-100 text-red-800';
-      case 'Fully Paid':
+      case 'Paid':
         return 'bg-blue-100 text-blue-800';
+      case 'Active':
+        return 'bg-blue-600 text-white dark:bg-blue-500 dark:text-white';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -437,7 +439,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
               <option value="all">All Status</option>
               <option value="Good Standing">Good Standing</option>
               <option value="In Arrears">In Arrears</option>
-              <option value="Fully Paid">Fully Paid</option>
+              <option value="Paid">Paid</option>
             </select>
             
             {/* View Mode Toggle */}

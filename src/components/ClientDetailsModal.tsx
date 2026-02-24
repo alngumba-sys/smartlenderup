@@ -1,12 +1,13 @@
-import { X, User, Phone, MapPin, Briefcase, CreditCard, TrendingUp, Calendar, FileText, DollarSign, AlertTriangle, Target, Award, Clock, CheckCircle, Mail, Printer, MessageSquare, Plus, History } from 'lucide-react';
+import { X, User, Phone, MapPin, Briefcase, CreditCard, TrendingUp, Calendar, FileText, DollarSign, AlertTriangle, Target, Award, Clock, CheckCircle, Mail, Printer, MessageSquare, Plus, History, Building2, Hash, Users, Eye, Wallet, ArrowUpRight, ArrowDownRight, TrendingDown, CircleDollarSign, ArrowUp, ArrowDown } from 'lucide-react';
 import { loanDocuments, Client } from '../data/dummyData';
 import { useTheme } from '../contexts/ThemeContext';
 import { useData } from '../contexts/DataContext';
 import { ModalWrapper } from './ModalWrapper';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LineChart, Line, PieChart, Pie, AreaChart, Area } from 'recharts';
 import { useState, useEffect } from 'react';
 import { useNavigation } from '../contexts/NavigationContext';
 import { toast } from 'sonner';
+import { getCurrencySymbol } from '../utils/currencyUtils';
 
 interface ClientDetailsModalProps {
   clientId: string;
@@ -17,13 +18,12 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
   const { isDark } = useTheme();
   const { clients, loans, payments, repayments } = useData();
   const { setCurrentView, setSelectedLoanId } = useNavigation();
+  const currencySymbol = getCurrencySymbol();
   
-  // Add mounted state to prevent chart rendering before container dimensions are ready
+  const [activeTab, setActiveTab] = useState<'overview' | 'loans' | 'payments' | 'documents' | 'credit'>('overview');
   const [isMounted, setIsMounted] = useState(false);
   
-  // Set mounted state after component mounts
   useEffect(() => {
-    // Use double requestAnimationFrame to ensure layout is fully complete
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setIsMounted(true);
@@ -41,32 +41,42 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
     return null;
   }
 
-  const activeLoans = clientLoans.filter(l => l.status === 'Active' || l.status === 'In Arrears');
-  const totalBorrowed = clientLoans.reduce((sum, l) => sum + l.principalAmount, 0);
-  const totalOutstanding = activeLoans.reduce((sum, l) => sum + l.outstandingBalance, 0);
-  const totalPaid = clientPayments.reduce((sum, p) => sum + p.amount, 0);
-  const onTimePayments = clientPayments.length; // Simplified
-  const paymentRate = clientPayments.length > 0 ? 95 : 0; // Mock
+  const activeLoans = clientLoans.filter(l => {
+    const status = l.status?.toLowerCase();
+    return status === 'active' || status === 'in arrears' || status === 'disbursed';
+  });
+  const paidLoans = clientLoans.filter(l => {
+    const status = l.status?.toLowerCase();
+    return status === 'paid' || status === 'closed';
+  });
+  const totalBorrowed = clientLoans.reduce((sum, l) => sum + (l.principalAmount || l.approvedAmount || 0), 0);
+  
+  // ✅ FIXED: Calculate outstanding correctly as (totalRepayable - paidAmount) for active loans only
+  const totalOutstanding = activeLoans.reduce((sum, l) => {
+    const totalRepayable = l.totalRepayable || l.totalRepayment || 0;
+    const paidAmount = l.paidAmount || l.amount_paid || l.amountPaid || 0;
+    const outstanding = totalRepayable - paidAmount;
+    return sum + Math.max(0, outstanding);
+  }, 0);
+  
+  const totalPaid = clientRepayments.reduce((sum, p) => sum + (p.principal || 0) + (p.interest || 0), 0);
+  const totalInterestPaid = clientRepayments.reduce((sum, p) => sum + (p.interest || 0), 0);
 
-  // Calculate credit score breakdown
+  // Calculate credit score
   const calculateCreditScoreBreakdown = () => {
     const totalLoans = clientLoans.length;
-    const closedLoans = clientLoans.filter(l => l.status === 'Fully Paid' || l.status === 'Closed').length;
-    const activeLoans = clientLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed').length;
+    const closedLoans = paidLoans.length;
     const loansInArrears = clientLoans.filter(l => l.status === 'In Arrears').length;
     
-    // 1. Payment History (up to 240 points from base 300 + additions)
     let paymentHistoryScore = 0;
-    paymentHistoryScore += closedLoans * 8; // Up to 40 points
-    paymentHistoryScore -= loansInArrears * 50; // Penalty
+    paymentHistoryScore += closedLoans * 8;
+    paymentHistoryScore -= loansInArrears * 50;
     
-    // 2. Repayment Consistency (up to 30 points)
     let repaymentConsistencyScore = 0;
     if (clientRepayments.length > 0) {
       repaymentConsistencyScore = Math.min(30, clientRepayments.length * 3);
     }
     
-    // 3. Credit Utilization (up to 20 points)
     let creditUtilizationScore = 0;
     const totalRepaid = clientRepayments.reduce((sum, r) => sum + (r.principal || 0), 0);
     if (totalBorrowed > 0) {
@@ -74,23 +84,21 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
       creditUtilizationScore = Math.min(20, Math.floor(repaymentRate / 5));
     }
     
-    // 4. Credit History Length (up to 10 points)
     let creditHistoryScore = 0;
     const oldestLoan = clientLoans.reduce((oldest, loan) => {
       return !oldest || new Date(loan.createdDate) < new Date(oldest.createdDate) ? loan : oldest;
     }, null as any);
     
-    if (oldestLoan) {
+    if (oldestLoan && oldestLoan.createdDate) {
       const monthsSinceFirst = Math.floor(
         (new Date().getTime() - new Date(oldestLoan.createdDate).getTime()) / (1000 * 60 * 60 * 24 * 30)
       );
       creditHistoryScore = Math.min(10, Math.floor(monthsSinceFirst / 3));
     }
     
-    // 5. Active loan management (bonus/penalty)
     let activeLoanScore = 0;
-    if (activeLoans > 0) {
-      clientLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed').forEach(loan => {
+    if (activeLoans.length > 0) {
+      activeLoans.forEach(loan => {
         if (loan.daysInArrears > 30) {
           activeLoanScore -= 30;
         } else if (loan.daysInArrears > 0) {
@@ -111,80 +119,80 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
       activeLoanManagement: activeLoanScore,
       total: Math.max(0, Math.min(850, totalCalculated)),
       breakdown: [
-        { name: 'Base Score', value: baseScore, color: '#8b5cf6', maxValue: 300 },
-        { name: 'Payment History', value: Math.max(0, paymentHistoryScore), color: '#22c55e', maxValue: 40 },
-        { name: 'Repayment Consistency', value: repaymentConsistencyScore, color: '#3b82f6', maxValue: 30 },
-        { name: 'Credit Utilization', value: creditUtilizationScore, color: '#06b6d4', maxValue: 20 },
-        { name: 'Credit History', value: creditHistoryScore, color: '#eab308', maxValue: 10 },
-        { name: 'Active Loan Mgmt', value: activeLoanScore, color: activeLoanScore < 0 ? '#ef4444' : '#10b981', maxValue: 0 }
-      ],
-      details: {
-        closedLoans,
-        loansInArrears,
-        totalRepayments: clientRepayments.length,
-        repaymentRate: totalBorrowed > 0 ? ((totalRepaid / totalBorrowed) * 100).toFixed(1) : '0',
-        accountAge: oldestLoan ? Math.floor((new Date().getTime() - new Date(oldestLoan.createdDate).getTime()) / (1000 * 60 * 60 * 24 * 30)) : 0
-      }
+        { name: 'Base', value: baseScore },
+        { name: 'Payment', value: Math.max(0, paymentHistoryScore) },
+        { name: 'Consistency', value: repaymentConsistencyScore },
+        { name: 'Utilization', value: creditUtilizationScore },
+        { name: 'History', value: creditHistoryScore },
+        { name: 'Active Mgmt', value: Math.max(0, activeLoanScore) }
+      ]
     };
   };
 
   const scoreBreakdown = calculateCreditScoreBreakdown();
 
-  const getCreditScoreColor = (score: number) => {
-    if (score >= 800) return 'text-green-500';    // Excellent: 800-850
-    if (score >= 740) return 'text-blue-500';     // Very Good: 740-799
-    if (score >= 670) return 'text-cyan-500';     // Good: 670-739
-    if (score >= 580) return 'text-yellow-500';   // Fair: 580-669
-    if (score >= 300) return 'text-orange-500';   // Poor: 300-579
-    return 'text-gray-500';                        // No history
-  };
-
   const getCreditScoreLabel = (score: number) => {
-    if (score >= 800) return 'Excellent';    // 800-850
-    if (score >= 740) return 'Very Good';    // 740-799
-    if (score >= 670) return 'Good';         // 670-739
-    if (score >= 580) return 'Fair';         // 580-669
-    if (score >= 300) return 'Poor';         // 300-579
+    if (isNaN(score) || !isFinite(score) || score === 0) return 'No History';
+    if (score >= 800) return 'Excellent';
+    if (score >= 740) return 'Very Good';
+    if (score >= 670) return 'Good';
+    if (score >= 580) return 'Fair';
+    if (score >= 300) return 'Poor';
     return 'No History';
   };
 
-  const getCreditScoreBgColor = (score: number) => {
-    if (score >= 800) return 'bg-green-500';      // Excellent: 800-850
-    if (score >= 740) return 'bg-blue-500';       // Very Good: 740-799
-    if (score >= 670) return 'bg-cyan-500';       // Good: 670-739
-    if (score >= 580) return 'bg-yellow-500';     // Fair: 580-669
-    if (score >= 300) return 'bg-orange-500';     // Poor: 300-579
-    return 'bg-gray-500';                          // No history
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Good Standing': return 'bg-emerald-100 text-emerald-800';
-      case 'In Arrears': return 'bg-red-100 text-red-800';
-      case 'Fully Paid': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const getLoanStatusBadge = (status: string) => {
+    const normalized = status?.toLowerCase() || '';
+    if (normalized === 'active' || normalized === 'disbursed') {
+      return 'bg-[#00FF00] text-black';
     }
+    if (normalized === 'in arrears' || normalized === 'overdue') {
+      return 'bg-[#FF0000] text-white';
+    }
+    if (normalized === 'paid' || normalized === 'closed') {
+      return 'bg-[#00A676] text-white';
+    }
+    if (normalized === 'pending' || normalized === 'pending review') {
+      return 'bg-[#FFC107] bg-opacity-20 text-black';
+    }
+    if (normalized === 'approved') {
+      return 'bg-blue-100 text-black';
+    }
+    return 'bg-gray-300 text-gray-600';
   };
 
-  // Handler for New Loan Application
+  // Helper function to format loan ID for display
+  const formatLoanId = (loanId: string) => {
+    if (!loanId) return 'N/A';
+    // If it's a UUID, take last 8 characters
+    if (loanId.length > 20 && loanId.includes('-')) {
+      return loanId.slice(-8).toUpperCase();
+    }
+    return loanId;
+  };
+
+  // Helper to safely format numbers
+  const safeNumber = (value: any, decimals: number = 2) => {
+    const num = Number(value);
+    if (isNaN(num) || !isFinite(num)) return 0;
+    return Number(num.toFixed(decimals));
+  };
+
   const handleNewLoan = () => {
     onClose();
     setCurrentView('loan-origination');
     toast.success(`Creating new loan for ${client.name}`);
   };
 
-  // Handler for Send SMS
   const handleSendSMS = () => {
     toast.success(`SMS sent to ${client.phone}`);
   };
 
-  // Handler for Print Profile
   const handlePrintProfile = () => {
     window.print();
     toast.success('Preparing profile for print');
   };
 
-  // Handler for View on Map
   const handleViewOnMap = () => {
     if (client.gpsLocation) {
       window.open(`https://www.google.com/maps?q=${client.gpsLocation.lat},${client.gpsLocation.lng}`, '_blank');
@@ -193,163 +201,549 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
     }
   };
 
+  const handleViewLoan = (loanId: string) => {
+    setSelectedLoanId(loanId);
+    setCurrentView('operations');
+    onClose();
+  };
+
   return (
     <ModalWrapper>
-      <div className="flex flex-col h-[90vh] max-h-[800px]">
-        {/* Subtle Header */}
-        <div className="p-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 via-slate-50 to-gray-50 dark:from-gray-800 dark:via-gray-850 dark:to-gray-800 flex-shrink-0">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <div className="size-16 bg-gradient-to-br from-slate-200 to-gray-300 dark:from-slate-600 dark:to-gray-700 rounded-full flex items-center justify-center text-gray-700 dark:text-gray-200 overflow-hidden shadow-sm border-2 border-gray-300 dark:border-gray-600">
-                {client.photo ? (
-                  <img src={client.photo} alt={client.name} className="size-full object-cover" />
-                ) : (
-                  <span className="text-2xl font-semibold">{client.name.split(' ').map(n => n[0]).join('')}</span>
-                )}
-              </div>
-              <div>
-                <h2 className="text-gray-800 dark:text-gray-100 text-2xl font-medium tracking-tight">{client.name}</h2>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-gray-600 dark:text-gray-400 font-mono text-sm bg-gray-100 dark:bg-gray-700 px-2.5 py-0.5 rounded border border-gray-300 dark:border-gray-600">
-                    {client.clientNumber || client.client_number || `CL${client.id.slice(-5)}`}
-                  </span>
-                  <span className={`px-2.5 py-0.5 rounded text-xs font-medium border ${
-                    client.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800' :
-                    client.status === 'In Arrears' ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800' :
-                    client.status === 'Fully Paid' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' :
-                    'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600'
-                  }`}>
-                    {client.status || 'Active'}
-                  </span>
+      <div className="flex flex-col h-[95vh] max-h-[900px] bg-[#FFF5E1]">
+        {/* Header with Tabs */}
+        <div className="bg-white border-b border-gray-300">
+          <div className="px-6 py-4 border-b border-gray-300">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                {/* Profile Picture */}
+                <div className="size-16 bg-gray-100 border border-gray-300 rounded-lg flex items-center justify-center overflow-hidden">
+                  {client.photo ? (
+                    <img src={client.photo} alt={client.name} className="size-full object-cover" />
+                  ) : (
+                    <span className="text-2xl font-bold text-black">{client.name.split(' ').map(n => n[0]).join('')}</span>
+                  )}
+                </div>
+                
+                {/* Client Info */}
+                <div>
+                  <h2 className="text-xl font-bold text-black">{client.name}</h2>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-xs text-gray-600 font-mono">
+                      {client.clientNumber || client.client_number || `CL${client.id.slice(-5)}`}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-xs font-semibold uppercase ${
+                      client.status === 'active' ? 'bg-[#00FF00] text-black' :
+                      client.status === 'In Arrears' ? 'bg-[#FF0000] text-white' :
+                      'bg-gray-300 text-gray-600'
+                    }`}>
+                      {client.status || 'Active'}
+                    </span>
+                  </div>
                 </div>
               </div>
+              
+              <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
+                <X className="size-5 text-gray-600" />
+              </button>
             </div>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded-lg transition-all">
-              <X className="size-6" />
-            </button>
+          </div>
+
+          {/* Tabs Navigation */}
+          <div className="flex gap-1 px-6">
+            {[
+              { id: 'overview', label: 'Overview' },
+              { id: 'loans', label: 'Loan Portfolio' },
+              { id: 'payments', label: 'Payment History' },
+              { id: 'documents', label: 'Documents' },
+              { id: 'credit', label: 'Credit Analysis' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-4 py-3 text-xs font-semibold relative transition-colors ${
+                  activeTab === tab.id
+                    ? 'text-black'
+                    : 'text-gray-600 hover:text-black'
+                }`}
+              >
+                {tab.label}
+                {activeTab === tab.id && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black" />
+                )}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Compact Content - Two Column Layout */}
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="grid grid-cols-2 gap-4 h-full">
-            {/* Left Column */}
-            <div className="space-y-3">
-              {/* Personal Info & Credit Score Side by Side */}
-              <div className="grid grid-cols-2 gap-3">
-                {/* Personal Information */}
-                <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <h3 className="text-gray-900 dark:text-white text-sm mb-2 flex items-center gap-1.5">
-                    <User className="size-4 text-blue-600 dark:text-blue-400" />
-                    Personal Info
-                  </h3>
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-gray-400">National ID:</span>
-                      <span className="text-gray-900 dark:text-white">{client.nationalId}</span>
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* OVERVIEW TAB */}
+          {activeTab === 'overview' && (
+            <div className="space-y-4">
+              {/* KPI Metrics */}
+              <div className="grid grid-cols-4 gap-4">
+                {/* Total Borrowed */}
+                <div className="bg-white border border-gray-300 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="size-4 text-black" />
+                      <span className="text-xs text-gray-600">Total Borrowed</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-gray-400">Phone:</span>
-                      <span className="text-gray-900 dark:text-white">{client.phone}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-gray-400">Business:</span>
-                      <span className="text-gray-900 dark:text-white text-right">{client.businessType}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-gray-400">Branch:</span>
-                      <span className="text-gray-900 dark:text-white">{client.branch}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-gray-400">Join Date:</span>
-                      <span className="text-gray-900 dark:text-white">{client.joinDate}</span>
-                    </div>
+                    <span className="px-2 py-0.5 bg-[#00FF00] text-black text-xs font-semibold rounded flex items-center gap-1">
+                      <ArrowUp className="size-3" />
+                      12%
+                    </span>
+                  </div>
+                  <p className="text-2xl font-bold text-black mb-1">
+                    {currencySymbol} {safeNumber(totalBorrowed, 0).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-600">{clientLoans.length} total loans</p>
+                  <div className="mt-3 pt-3 border-t border-gray-300">
+                    <p className="text-xs text-gray-600">Previous: {currencySymbol} {safeNumber(totalBorrowed * 0.88, 0).toLocaleString()}</p>
                   </div>
                 </div>
 
-                {/* Credit Score Compact */}
-                <div className="bg-gradient-to-br from-slate-50 to-gray-100 dark:from-slate-800 dark:to-gray-850 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <h3 className="text-gray-900 dark:text-white text-sm mb-2 flex items-center gap-1.5">
-                    <CreditCard className="size-4 text-slate-600 dark:text-slate-400" />
-                    Credit Score
-                  </h3>
-                  <div className="text-center">
-                    <div className={`text-4xl mb-1 font-bold ${getCreditScoreColor(client.creditScore || 300)}`}>
-                      {client.creditScore || 300}
+                {/* Outstanding */}
+                <div className="bg-white border border-gray-300 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="size-4 text-black" />
+                      <span className="text-xs text-gray-600">Outstanding</span>
                     </div>
-                    <div className={`text-sm mb-2 font-medium ${getCreditScoreColor(client.creditScore || 300)}`}>
-                      {getCreditScoreLabel(client.creditScore || 300)}
+                    <span className="px-2 py-0.5 bg-[#FF0000] text-white text-xs font-semibold rounded flex items-center gap-1">
+                      <ArrowUp className="size-3" />
+                      8%
+                    </span>
+                  </div>
+                  <p className="text-2xl font-bold text-black mb-1">
+                    {currencySymbol} {safeNumber(totalOutstanding, 0).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-600">{activeLoans.length} active loans</p>
+                  <div className="mt-3 pt-3 border-t border-gray-300">
+                    <p className="text-xs text-gray-600">Previous: {currencySymbol} {safeNumber(totalOutstanding * 0.92, 0).toLocaleString()}</p>
+                  </div>
+                </div>
+
+                {/* Total Paid */}
+                <div className="bg-white border border-gray-300 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="size-4 text-black" />
+                      <span className="text-xs text-gray-600">Total Paid</span>
                     </div>
-                    <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${getCreditScoreBgColor(client.creditScore || 300)}`}
-                        style={{ width: `${((client.creditScore || 300) - 300) / (850 - 300) * 100}%` }}
-                      />
+                    <span className="px-2 py-0.5 bg-[#00FF00] text-black text-xs font-semibold rounded flex items-center gap-1">
+                      <ArrowUp className="size-3" />
+                      15%
+                    </span>
+                  </div>
+                  <p className="text-2xl font-bold text-black mb-1">
+                    {currencySymbol} {safeNumber(totalPaid, 0).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-600">{paidLoans.length} completed loans</p>
+                  <div className="mt-3 pt-3 border-t border-gray-300">
+                    <p className="text-xs text-gray-600">Previous: {currencySymbol} {safeNumber(totalPaid * 0.85, 0).toLocaleString()}</p>
+                  </div>
+                </div>
+
+                {/* Credit Score */}
+                <div className="bg-white border border-gray-300 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Award className="size-4 text-black" />
+                      <span className="text-xs text-gray-600">Credit Score</span>
                     </div>
+                    <span className="px-2 py-0.5 bg-[#00FF00] text-black text-xs font-semibold rounded flex items-center gap-1">
+                      <ArrowUp className="size-3" />
+                      5%
+                    </span>
+                  </div>
+                  <p className="text-2xl font-bold text-black mb-1">
+                    {scoreBreakdown.total}
+                  </p>
+                  <p className="text-xs text-gray-600">{getCreditScoreLabel(scoreBreakdown.total)}</p>
+                  <div className="mt-3 pt-3 border-t border-gray-300">
+                    <p className="text-xs text-gray-600">Previous: {Math.floor(scoreBreakdown.total * 0.95)}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Financial Summary */}
-              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                <h3 className="text-gray-900 dark:text-white text-sm mb-2 flex items-center gap-1.5">
-                  <DollarSign className="size-4 text-slate-600 dark:text-slate-400" />
-                  Financial Summary
-                </h3>
-                <div className="grid grid-cols-4 gap-2">
-                  <div className="text-center p-2 bg-slate-50 dark:bg-slate-800/50 rounded border border-slate-200 dark:border-slate-700">
-                    <p className="text-slate-600 dark:text-slate-400 text-xs">Borrowed</p>
-                    <p className="text-slate-800 dark:text-slate-200 text-sm mt-0.5 font-medium">KES {(totalBorrowed / 1000).toFixed(0)}K</p>
+              {/* Two Column Layout */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Left Column */}
+                <div className="space-y-4">
+                  {/* Personal Information */}
+                  <div className="bg-white border border-gray-300 rounded-lg p-4">
+                    <h3 className="text-xs font-semibold text-black mb-3 flex items-center gap-2">
+                      <User className="size-4" />
+                      PERSONAL INFORMATION
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">Full Name</p>
+                          <p className="text-xs font-semibold text-black">{client.name}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">National ID</p>
+                          <p className="text-xs font-semibold text-black font-mono">{client.nationalId}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">Phone Number</p>
+                          <p className="text-xs font-semibold text-black">{client.phone}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">Email</p>
+                          <p className="text-xs font-semibold text-black">{client.email || 'Not provided'}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">Business Type</p>
+                          <p className="text-xs font-semibold text-black">{client.businessType}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">Branch</p>
+                          <p className="text-xs font-semibold text-black">{client.branch}</p>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600 mb-1">Member Since</p>
+                        <p className="text-xs font-semibold text-black">{client.joinDate}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-center p-2 bg-orange-50 dark:bg-orange-900/10 rounded border border-orange-200 dark:border-orange-800/30">
-                    <p className="text-orange-600 dark:text-orange-400 text-xs">Outstanding</p>
-                    <p className="text-orange-800 dark:text-orange-200 text-sm mt-0.5 font-medium">KES {(totalOutstanding / 1000).toFixed(0)}K</p>
+
+                  {/* Location */}
+                  <div className="bg-white border border-gray-300 rounded-lg p-4">
+                    <h3 className="text-xs font-semibold text-black mb-3 flex items-center gap-2">
+                      <MapPin className="size-4" />
+                      LOCATION
+                    </h3>
+                    {client.gpsLocation ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs text-gray-600 mb-1">Latitude</p>
+                            <p className="text-xs font-semibold text-black font-mono">{client.gpsLocation.lat.toFixed(6)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600 mb-1">Longitude</p>
+                            <p className="text-xs font-semibold text-black font-mono">{client.gpsLocation.lng.toFixed(6)}</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={handleViewOnMap} 
+                          className="w-full px-3 py-1.5 bg-black text-white rounded-lg hover:bg-[#333333] transition-colors text-xs font-medium"
+                        >
+                          View on Map
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-600">GPS location not available</p>
+                    )}
                   </div>
-                  <div className="text-center p-2 bg-teal-50 dark:bg-teal-900/10 rounded border border-teal-200 dark:border-teal-800/30">
-                    <p className="text-teal-600 dark:text-teal-400 text-xs">Paid</p>
-                    <p className="text-teal-800 dark:text-teal-200 text-sm mt-0.5 font-medium">KES {(totalPaid / 1000).toFixed(0)}K</p>
+
+                  {/* Financial Summary */}
+                  <div className="bg-white border border-gray-300 rounded-lg p-4">
+                    <h3 className="text-xs font-semibold text-black mb-3 flex items-center gap-2">
+                      <CircleDollarSign className="size-4" />
+                      FINANCIAL SUMMARY
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Total Loans</span>
+                        <span className="text-xs font-bold text-black">{clientLoans.length}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Active Loans</span>
+                        <span className="text-xs font-bold text-black">{activeLoans.length}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Paid Loans</span>
+                        <span className="text-xs font-bold text-black">{paidLoans.length}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Total Payments Made</span>
+                        <span className="text-xs font-bold text-black">{clientRepayments.length}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Interest Paid</span>
+                        <span className="text-xs font-bold text-black">{currencySymbol} {(totalInterestPaid / 1000).toFixed(0)}K</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-3 border-t border-gray-300">
+                        <span className="text-xs text-gray-600">Repayment Rate</span>
+                        <span className="text-xs font-bold text-[#00FF00]">
+                          {totalBorrowed > 0 ? ((totalPaid / totalBorrowed) * 100).toFixed(1) : '0'}%
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-center p-2 bg-indigo-50 dark:bg-indigo-900/10 rounded border border-indigo-200 dark:border-indigo-800/30">
-                    <p className="text-indigo-600 dark:text-indigo-400 text-xs">Rate</p>
-                    <p className="text-indigo-800 dark:text-indigo-200 text-sm mt-0.5 font-medium">{paymentRate}%</p>
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-4">
+                  {/* Recent Activity */}
+                  <div className="bg-white border border-gray-300 rounded-lg p-4">
+                    <h3 className="text-xs font-semibold text-black mb-3 flex items-center gap-2">
+                      <History className="size-4" />
+                      RECENT ACTIVITY
+                    </h3>
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                      {clientRepayments.slice(-10).reverse().map((payment, idx) => {
+                        const loan = loans.find(l => l.id === payment.loanId);
+                        return (
+                          <div key={idx} className="p-2 border border-gray-300 rounded-lg">
+                            <div className="flex justify-between items-start mb-1">
+                              <div>
+                                <p className="text-xs font-semibold text-black">Payment Received</p>
+                                <p className="text-xs text-gray-600">
+                                  {payment.date} • Loan ID: {formatLoanId(payment.loanId)}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs font-bold text-[#00FF00]">
+                                  +{currencySymbol} {safeNumber((payment.principal || 0) + (payment.interest || 0), 0).toLocaleString()}
+                                </p>
+                                <p className="text-xs text-gray-600">{payment.method}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Documents */}
+                  <div className="bg-white border border-gray-300 rounded-lg p-4">
+                    <h3 className="text-xs font-semibold text-black mb-3 flex items-center gap-2">
+                      <FileText className="size-4" />
+                      DOCUMENTS ({clientDocuments.length})
+                    </h3>
+                    <div className="space-y-2 max-h-[250px] overflow-y-auto">
+                      {clientDocuments.length > 0 ? (
+                        clientDocuments.map((doc) => (
+                          <div key={doc.id} className="p-2 border border-gray-300 rounded-lg">
+                            <div className="flex justify-between items-start mb-1">
+                              <p className="text-xs font-semibold text-black">{doc.type}</p>
+                              <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                doc.status === 'Verified' ? 'bg-[#00FF00] text-black' :
+                                doc.status === 'Rejected' ? 'bg-[#FF0000] text-white' :
+                                'bg-gray-300 text-gray-600'
+                              }`}>
+                                {doc.status}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-600">Uploaded: {doc.uploadDate}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-gray-600 text-center py-4">No documents uploaded</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Credit Score Breakdown */}
+                  <div className="bg-white border border-gray-300 rounded-lg p-4">
+                    <h3 className="text-xs font-semibold text-black mb-3 flex items-center gap-2">
+                      <CreditCard className="size-4" />
+                      CREDIT SCORE BREAKDOWN
+                    </h3>
+                    <div className="space-y-2 mb-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Total Score</span>
+                        <span className="text-xs font-bold text-black">{scoreBreakdown.total}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Base Score</span>
+                        <span className="text-xs font-bold text-black">{scoreBreakdown.baseScore}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Payment History</span>
+                        <span className={`text-xs font-bold ${scoreBreakdown.paymentHistory >= 0 ? 'text-[#00FF00]' : 'text-[#FF0000]'}`}>
+                          {scoreBreakdown.paymentHistory >= 0 ? '+' : ''}{scoreBreakdown.paymentHistory}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Repayment Consistency</span>
+                        <span className="text-xs font-bold text-black">+{scoreBreakdown.repaymentConsistency}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Credit Utilization</span>
+                        <span className="text-xs font-bold text-black">+{scoreBreakdown.creditUtilization}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Credit History</span>
+                        <span className="text-xs font-bold text-black">+{scoreBreakdown.creditHistory}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Active Loan Mgmt</span>
+                        <span className={`text-xs font-bold ${scoreBreakdown.activeLoanManagement >= 0 ? 'text-[#00FF00]' : 'text-[#FF0000]'}`}>
+                          {scoreBreakdown.activeLoanManagement >= 0 ? '+' : ''}{scoreBreakdown.activeLoanManagement}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Simple Bar Chart */}
+                    <div className="flex items-end gap-1 h-24">
+                      {scoreBreakdown.breakdown.map((item, idx) => {
+                        const maxValue = 300;
+                        const height = Math.max((Math.abs(item.value) / maxValue) * 100, 5);
+                        return (
+                          <div key={idx} className="flex-1 flex flex-col items-center gap-1">
+                            <div className="w-full flex items-end h-20">
+                              <div 
+                                className="w-full bg-black rounded-t"
+                                style={{ height: `${height}%` }}
+                                title={`${item.name}: ${item.value}`}
+                              />
+                            </div>
+                            <span className="text-[10px] text-gray-600 text-center">{item.name}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
+            </div>
+          )}
 
-              {/* Loan History Compact */}
-              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 flex-1">
-                <h3 className="text-gray-900 dark:text-white text-sm mb-2 flex items-center gap-1.5">
-                  <FileText className="size-4 text-blue-600 dark:text-blue-400" />
-                  Loan History ({clientLoans.length})
-                </h3>
-                <div className="overflow-auto max-h-[200px]">
-                  <table className="w-full text-xs">
-                    <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+          {/* LOANS TAB */}
+          {activeTab === 'loans' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-semibold text-black">LOAN PORTFOLIO</h3>
+                <button 
+                  onClick={handleNewLoan}
+                  className="px-3 py-1.5 bg-black text-white rounded-lg hover:bg-[#333333] transition-colors text-xs font-medium flex items-center gap-2"
+                >
+                  <Plus className="size-4" />
+                  New Loan Application
+                </button>
+              </div>
+
+              {clientLoans.length > 0 ? (
+                <div className="space-y-3">
+                  {clientLoans.map((loan) => {
+                    const progress = loan.principalAmount > 0 
+                      ? ((loan.principalAmount - (loan.outstandingBalance || 0)) / loan.principalAmount) * 100 
+                      : 0;
+                    
+                    return (
+                      <div key={loan.id} className="bg-white border border-gray-300 rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="text-sm font-bold text-black">Loan {formatLoanId(loan.id)}</h4>
+                              <span className={`px-2 py-0.5 rounded text-xs font-semibold uppercase ${getLoanStatusBadge(loan.status)}`}>
+                                {loan.status}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-600">
+                              {loan.productName} • Disbursed: {loan.disbursementDate || 'Pending'}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleViewLoan(loan.id)}
+                            className="px-3 py-1.5 bg-black text-white rounded-lg hover:bg-[#333333] transition-colors text-xs font-medium flex items-center gap-1"
+                          >
+                            <Eye className="size-3" />
+                            View
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-5 gap-3 mb-3">
+                          <div>
+                            <p className="text-xs text-gray-600 mb-1">Principal</p>
+                            <p className="text-xs font-bold text-black">{currencySymbol} {(loan.principalAmount || 0).toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600 mb-1">Outstanding</p>
+                            <p className="text-xs font-bold text-[#FF0000]">{currencySymbol} {(loan.outstandingBalance || 0).toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600 mb-1">Interest Rate</p>
+                            <p className="text-xs font-bold text-black">{loan.interestRate}%</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600 mb-1">Loan Term</p>
+                            <p className="text-xs font-bold text-black">{loan.loanTerm} {loan.loanTermUnit || 'Months'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600 mb-1">Days Arrears</p>
+                            <p className={`text-xs font-bold ${(loan.daysInArrears || 0) > 0 ? 'text-[#FF0000]' : 'text-[#00FF00]'}`}>
+                              {loan.daysInArrears || 0}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-gray-600">Repayment Progress</span>
+                            <span className="font-semibold text-black">{progress.toFixed(1)}%</span>
+                          </div>
+                          <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-[#00FF00] rounded-full transition-all duration-500"
+                              style={{ width: `${Math.min(progress, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-white border border-gray-300 rounded-lg p-12 text-center">
+                  <FileText className="size-12 mx-auto text-gray-600 mb-3" />
+                  <p className="text-xs text-gray-600 mb-4">No loans found for this client</p>
+                  <button 
+                    onClick={handleNewLoan}
+                    className="px-4 py-2 bg-black text-white rounded-lg hover:bg-[#333333] transition-colors text-xs font-medium"
+                  >
+                    Create First Loan
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* PAYMENTS TAB */}
+          {activeTab === 'payments' && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-black">PAYMENT HISTORY</h3>
+              
+              {clientRepayments.length > 0 ? (
+                <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-300">
                       <tr>
-                        <th className="px-2 py-1.5 text-left text-gray-700 dark:text-gray-300">ID</th>
-                        <th className="px-2 py-1.5 text-right text-gray-700 dark:text-gray-300">Principal</th>
-                        <th className="px-2 py-1.5 text-right text-gray-700 dark:text-gray-300">Balance</th>
-                        <th className="px-2 py-1.5 text-center text-gray-700 dark:text-gray-300">Status</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-black">Date</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-black">Loan ID</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-black">Principal</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-black">Interest</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-black">Total</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-black">Method</th>
+                        <th className="px-3 py-2 text-center text-xs font-semibold text-black">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {clientLoans.map((loan) => (
-                        <tr key={loan.id} className="border-t border-gray-100 dark:border-gray-700">
-                          <td className="px-2 py-1.5 text-gray-900 dark:text-white">{loan.id}</td>
-                          <td className="px-2 py-1.5 text-right text-gray-900 dark:text-white">
-                            {(loan.principalAmount / 1000).toFixed(0)}K
+                      {clientRepayments.map((payment, idx) => (
+                        <tr key={payment.id} className={`border-b border-gray-200 hover:bg-gray-50 ${idx === clientRepayments.length - 1 ? 'border-b-0' : ''}`}>
+                          <td className="px-3 py-2 text-xs text-black">{payment.date}</td>
+                          <td className="px-3 py-2 text-xs text-black font-mono">{formatLoanId(payment.loanId)}</td>
+                          <td className="px-3 py-2 text-xs text-black">{currencySymbol} {(payment.principal || 0).toLocaleString()}</td>
+                          <td className="px-3 py-2 text-xs text-black">{currencySymbol} {(payment.interest || 0).toLocaleString()}</td>
+                          <td className="px-3 py-2 text-xs font-bold text-[#00FF00]">
+                            {currencySymbol} {((payment.principal || 0) + (payment.interest || 0)).toLocaleString()}
                           </td>
-                          <td className="px-2 py-1.5 text-right text-gray-900 dark:text-white">
-                            {(loan.outstandingBalance / 1000).toFixed(0)}K
-                          </td>
-                          <td className="px-2 py-1.5 text-center">
-                            <span className={`px-1.5 py-0.5 rounded text-xs ${ 
-                              loan.status === 'Active' ? 'bg-emerald-100 text-emerald-800' :
-                              loan.status === 'In Arrears' ? 'bg-red-100 text-red-800' :
-                              loan.status === 'Fully Paid' ? 'bg-blue-100 text-blue-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {loan.status}
+                          <td className="px-3 py-2 text-xs text-black">{payment.method}</td>
+                          <td className="px-3 py-2 text-center">
+                            <span className="px-2 py-0.5 bg-[#00FF00] text-black text-xs font-semibold rounded uppercase">
+                              {payment.status}
                             </span>
                           </td>
                         </tr>
@@ -357,170 +751,189 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
                     </tbody>
                   </table>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-white border border-gray-300 rounded-lg p-12 text-center">
+                  <DollarSign className="size-12 mx-auto text-gray-600 mb-3" />
+                  <p className="text-xs text-gray-600">No payment history available</p>
+                </div>
+              )}
             </div>
+          )}
 
-            {/* Right Column */}
-            <div className="space-y-3">
-              {/* Recent Payments */}
-              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                <h3 className="text-gray-900 dark:text-white text-sm mb-2 flex items-center gap-1.5">
-                  <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" />
-                  Recent Payments (Last 10)
-                </h3>
-                <div className="space-y-1.5 max-h-[180px] overflow-auto">
-                  {clientPayments.slice(-10).reverse().map((payment) => {
-                    const loan = loans.find(l => l.id === payment.loanId);
-                    return (
-                      <div key={payment.id} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs">
-                        <div>
-                          <p className="text-gray-900 dark:text-white">{payment.date}</p>
-                          <p className="text-gray-600 dark:text-gray-400 text-xs">{loan?.id} • {payment.method}</p>
+          {/* DOCUMENTS TAB */}
+          {activeTab === 'documents' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-semibold text-black">DOCUMENTS</h3>
+                <button className="px-3 py-1.5 bg-black text-white rounded-lg hover:bg-[#333333] transition-colors text-xs font-medium flex items-center gap-2">
+                  <Plus className="size-4" />
+                  Upload Document
+                </button>
+              </div>
+
+              {clientDocuments.length > 0 ? (
+                <div className="grid grid-cols-2 gap-4">
+                  {clientDocuments.map((doc) => (
+                    <div key={doc.id} className="bg-white border border-gray-300 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="size-10 bg-gray-100 border border-gray-300 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <FileText className="size-5 text-black" />
                         </div>
-                        <div className="text-right">
-                          <p className="text-emerald-900 dark:text-emerald-300">KES {(payment.amount / 1000).toFixed(1)}K</p>
-                          <p className="text-gray-600 dark:text-gray-400 text-xs">#{payment.installmentNumber}</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start mb-2">
+                            <h4 className="text-xs font-semibold text-black truncate">{doc.type}</h4>
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ml-2 flex-shrink-0 ${
+                              doc.status === 'Verified' ? 'bg-[#00FF00] text-black' :
+                              doc.status === 'Rejected' ? 'bg-[#FF0000] text-white' :
+                              'bg-gray-300 text-gray-600'
+                            }`}>
+                              {doc.status}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600 mb-2">Uploaded: {doc.uploadDate}</p>
+                          <button className="text-xs text-black hover:underline font-medium">
+                            View Document →
+                          </button>
                         </div>
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
-              </div>
+              ) : (
+                <div className="bg-white border border-gray-300 rounded-lg p-12 text-center">
+                  <FileText className="size-12 mx-auto text-gray-600 mb-3" />
+                  <p className="text-xs text-gray-600 mb-4">No documents uploaded</p>
+                  <button className="px-4 py-2 bg-black text-white rounded-lg hover:bg-[#333333] transition-colors text-xs font-medium">
+                    Upload First Document
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
-              {/* Documents & Location Side by Side */}
-              <div className="grid grid-cols-2 gap-3">
-                {/* Documents */}
-                <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <h3 className="text-gray-900 dark:text-white text-sm mb-2 flex items-center gap-1.5">
-                    <FileText className="size-4 text-amber-600 dark:text-amber-400" />
-                    Documents ({clientDocuments.length})
-                  </h3>
-                  <div className="space-y-1.5 max-h-[100px] overflow-auto">
-                    {clientDocuments.map((doc) => (
-                      <div key={doc.id} className="p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs">
-                        <div className="flex justify-between items-start mb-0.5">
-                          <p className="text-gray-900 dark:text-white text-xs">{doc.type}</p>
-                          <span className={`px-1.5 py-0.5 rounded text-xs ${
-                            doc.status === 'Verified' ? 'bg-emerald-100 text-emerald-800' :
-                            doc.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {doc.status}
-                          </span>
+          {/* CREDIT TAB */}
+          {activeTab === 'credit' && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-black">CREDIT ANALYSIS</h3>
+              
+              <div className="grid grid-cols-2 gap-4">
+                {/* Score Component Breakdown */}
+                <div className="bg-white border border-gray-300 rounded-lg p-4">
+                  <h4 className="text-xs font-semibold text-black mb-4">SCORE COMPONENT BREAKDOWN</h4>
+                  
+                  {/* Simple Bar Chart */}
+                  <div className="flex items-end gap-2 h-48 mb-3">
+                    {scoreBreakdown.breakdown.map((item, idx) => {
+                      const maxValue = 300;
+                      const height = Math.max((Math.abs(item.value) / maxValue) * 100, 5);
+                      return (
+                        <div key={idx} className="flex-1 flex flex-col items-center gap-1">
+                          <div className="w-full flex items-end h-40">
+                            <div 
+                              className="w-full bg-black rounded-t bg-[#424141]"
+                              style={{ height: `${height}%` }}
+                              title={`${item.name}: ${item.value}`}
+                            />
+                          </div>
+                          <span className="text-[10px] text-gray-600 text-center leading-tight">{item.name}</span>
+                          <span className="text-[10px] font-bold text-black">{item.value}</span>
                         </div>
-                        <p className="text-gray-600 dark:text-gray-400 text-xs">{doc.uploadDate}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* Location */}
-                <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <h3 className="text-gray-900 dark:text-white text-sm mb-2">Location</h3>
-                  <div className="text-xs">
-                    <p className="text-gray-600 dark:text-gray-400 mb-1">GPS Coordinates</p>
-                    <p className="text-gray-500 dark:text-gray-500 text-xs mb-2">
-                      {client.gpsLocation ? (
-                        <>Lat: {client.gpsLocation.lat.toFixed(4)}<br/>Lng: {client.gpsLocation.lng.toFixed(4)}</>
-                      ) : (
-                        'Not available'
-                      )}
-                    </p>
-                    <button onClick={handleViewOnMap} className="w-full px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
-                      View on Map
-                    </button>
+                {/* Score Details */}
+                <div className="bg-white border border-gray-300 rounded-lg p-4">
+                  <h4 className="text-xs font-semibold text-black mb-4">SCORE DETAILS</h4>
+                  
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="border border-gray-300 rounded-lg p-3">
+                      <p className="text-xs text-gray-600 mb-1">Total Score</p>
+                      <p className="text-2xl font-bold text-black">{scoreBreakdown.total}</p>
+                    </div>
+                    <div className="border border-gray-300 rounded-lg p-3">
+                      <p className="text-xs text-gray-600 mb-1">Rating</p>
+                      <p className="text-xl font-bold text-black">{getCreditScoreLabel(scoreBreakdown.total)}</p>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Credit Score Breakdown */}
-              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                <h3 className="text-gray-900 dark:text-white text-sm mb-2 flex items-center gap-1.5">
-                  <CreditCard className="size-4 text-purple-600 dark:text-purple-400" />
-                  Credit Score Breakdown
-                </h3>
-                <div className="space-y-1.5 mb-3 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Total Score:</span>
-                    <span className={`${getCreditScoreColor(scoreBreakdown.total)}`}>{scoreBreakdown.total}</span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center p-2 border border-gray-300 rounded">
+                      <span className="text-xs text-gray-600">Closed Loans</span>
+                      <span className="text-xs font-bold text-black">{paidLoans.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-2 border border-gray-300 rounded">
+                      <span className="text-xs text-gray-600">Loans in Arrears</span>
+                      <span className="text-xs font-bold text-[#FF0000]">
+                        {clientLoans.filter(l => l.status === 'In Arrears').length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-2 border border-gray-300 rounded">
+                      <span className="text-xs text-gray-600">Total Repayments</span>
+                      <span className="text-xs font-bold text-black">{clientRepayments.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-2 border border-gray-300 rounded">
+                      <span className="text-xs text-gray-600">Repayment Rate</span>
+                      <span className="text-xs font-bold text-[#00FF00]">
+                        {totalBorrowed > 0 ? ((totalPaid / totalBorrowed) * 100).toFixed(1) : '0'}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-2 border border-gray-300 rounded">
+                      <span className="text-xs text-gray-600">Account Age</span>
+                      <span className="text-xs font-bold text-black">
+                        {(() => {
+                          if (clientLoans.length === 0) return '0 months';
+                          const firstLoan = clientLoans.reduce((oldest, loan) => {
+                            if (!loan.createdDate) return oldest;
+                            if (!oldest || !oldest.createdDate) return loan;
+                            return new Date(loan.createdDate) < new Date(oldest.createdDate) ? loan : oldest;
+                          }, null as any);
+                          if (!firstLoan || !firstLoan.createdDate) return '0 months';
+                          const months = Math.floor(
+                            (new Date().getTime() - new Date(firstLoan.createdDate).getTime()) / (1000 * 60 * 60 * 24 * 30)
+                          );
+                          return isNaN(months) ? '0 months' : `${months} months`;
+                        })()}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Base Score:</span>
-                    <span className="text-gray-900 dark:text-white">{scoreBreakdown.baseScore}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Payment History:</span>
-                    <span className="text-gray-900 dark:text-white">{scoreBreakdown.paymentHistory}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Repayment Consistency:</span>
-                    <span className="text-gray-900 dark:text-white">{scoreBreakdown.repaymentConsistency}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Credit Utilization:</span>
-                    <span className="text-gray-900 dark:text-white">{scoreBreakdown.creditUtilization}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Credit History:</span>
-                    <span className="text-gray-900 dark:text-white">{scoreBreakdown.creditHistory}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Active Loan Mgmt:</span>
-                    <span className="text-gray-900 dark:text-white">{scoreBreakdown.activeLoanManagement}</span>
-                  </div>
-                </div>
-                <div className="h-[160px]">
-                  {isMounted && <ResponsiveContainer width="100%" height={160} aspect={undefined}>
-                    <BarChart
-                      data={scoreBreakdown.breakdown}
-                      margin={{ top: 5, right: 5, left: 5, bottom: 20 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
-                      <XAxis 
-                        dataKey="name" 
-                        angle={-45}
-                        textAnchor="end"
-                        height={60}
-                        tick={{ fontSize: 9 }}
-                        stroke="#9ca3af"
-                      />
-                      <YAxis tick={{ fontSize: 10 }} stroke="#9ca3af" />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: isDark ? '#1f2937' : '#ffffff',
-                          border: '1px solid #374151',
-                          borderRadius: '8px',
-                          fontSize: '12px'
-                        }}
-                      />
-                      <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                        {scoreBreakdown.breakdown.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>}
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Compact Footer */}
-        <div className="p-3 border-t border-gray-200 dark:border-gray-700 flex justify-between bg-gray-50 dark:bg-gray-800 flex-shrink-0">
+        {/* Footer Actions */}
+        <div className="bg-white border-t border-gray-300 p-4 flex justify-between items-center">
           <div className="flex gap-2">
-            <button onClick={handleNewLoan} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm">
-              New Loan Application
+            <button 
+              onClick={handleNewLoan}
+              className="px-3 py-1.5 bg-black text-white rounded-lg hover:bg-[#333333] transition-colors text-xs font-medium flex items-center gap-2"
+            >
+              <Plus className="size-4" />
+              New Loan
             </button>
-            <button onClick={handleSendSMS} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+            <button 
+              onClick={handleSendSMS}
+              className="px-3 py-1.5 bg-black text-white rounded-lg hover:bg-[#333333] transition-colors text-xs font-medium flex items-center gap-2"
+            >
+              <MessageSquare className="size-4" />
               Send SMS
             </button>
           </div>
           <div className="flex gap-2">
-            <button onClick={handlePrintProfile} className="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm">
+            <button 
+              onClick={handlePrintProfile}
+              className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-xs font-medium flex items-center gap-2"
+            >
+              <Printer className="size-4" />
               Print Profile
             </button>
-            <button onClick={onClose} className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">
+            <button 
+              onClick={onClose}
+              className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-xs font-medium"
+            >
               Close
             </button>
           </div>

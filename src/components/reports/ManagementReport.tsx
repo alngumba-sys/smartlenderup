@@ -163,7 +163,7 @@ export function ManagementReport({ dateRange }: ReportProps) {
   // Portfolio summary - using filtered data
   // Only include loans that have been DISBURSED (completed all 5 approval steps) and are in Active/Disbursed status
   const activeLoans = filteredLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed');
-  const fullyPaidLoans = filteredLoans.filter(l => l.status === 'Fully Paid' || l.status === 'Closed');
+  const fullyPaidLoans = filteredLoans.filter(l => l.status === 'Paid' || l.status === 'Closed');
   const defaultLoans = filteredLoans.filter(l => l.status === 'Written Off');
   const totalDisbursed = filteredLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed').reduce((sum, l) => sum + l.principalAmount, 0);
   const totalOutstanding = activeLoans.reduce((sum, l) => sum + l.outstandingBalance, 0);

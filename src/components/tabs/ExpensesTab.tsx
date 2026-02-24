@@ -233,6 +233,7 @@ export function ExpensesTab() {
                 <th className="px-4 py-3 text-left text-xs text-gray-700 dark:text-gray-300 uppercase tracking-wider">Category</th>
                 <th className="px-4 py-3 text-left text-xs text-gray-700 dark:text-gray-300 uppercase tracking-wider">Description</th>
                 <th className="px-4 py-3 text-left text-xs text-gray-700 dark:text-gray-300 uppercase tracking-wider">Amount</th>
+                <th className="px-4 py-3 text-center text-xs text-gray-700 dark:text-gray-300 uppercase tracking-wider">✓</th>
                 <th className="px-4 py-3 text-left text-xs text-gray-700 dark:text-gray-300 uppercase tracking-wider">Payment Method</th>
                 <th className="px-4 py-3 text-left text-xs text-gray-700 dark:text-gray-300 uppercase tracking-wider">Created by</th>
               </tr>
@@ -256,6 +257,13 @@ export function ExpensesTab() {
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{expense.subcategory}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate">{expense.description}</td>
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{currencyCode} {expense.amount.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-center">
+                      <input 
+                        type="checkbox" 
+                        className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{expense.paymentMethod}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{expense.createdBy}</td>
                   </tr>

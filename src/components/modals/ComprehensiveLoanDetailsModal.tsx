@@ -4,7 +4,7 @@ import {
   FileText, Shield, Users, CheckCircle, XCircle, Clock, ChevronDown, 
   ChevronUp, Printer, CreditCard, TrendingUp, Wallet, MapPin, Mail, 
   Phone, MessageSquare, Upload, Download, Banknote, Activity, 
-  TrendingDown, Info, CircleDollarSign, Star, AlertTriangle, History, Bug
+  TrendingDown, Info, CircleDollarSign, Star, AlertTriangle, History, Bug, RefreshCw
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useData } from '../../contexts/DataContext';
@@ -13,6 +13,7 @@ import { generateInstallments } from '../../data/dummyData';
 import { getCurrencyCode, formatCurrency } from '../../utils/currencyUtils';
 import { RecordPaymentModal } from './RecordPaymentModal';
 import { DebugLoanDataModal } from './DebugLoanDataModal';
+import { LoanRolloverModal } from './LoanRolloverModal';
 
 interface ComprehensiveLoanDetailsModalProps {
   loanId: string;
@@ -36,7 +37,68 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
   const loan = loans.find(l => l.id === loanId);
   const client = loan ? clients.find(c => c.id === loan.clientId || c.id === loan.clientUuid) : null;
   const product = loan ? loanProducts.find(p => p.id === loan.productId) : null;
-  const installments = loan ? generateInstallments(loanId) : [];
+  
+  // Generate installments directly from loan data
+  const generateLoanInstallments = (loanData: any) => {
+    if (!loanData) return [];
+    
+    // Only generate installments for approved or active loans
+    if (loanData.status === 'Pending' || loanData.status === 'Rejected') {
+      return [];
+    }
+    
+    // Use loan's numberOfInstallments if available, otherwise calculate from term
+    const numInstallments = loanData.numberOfInstallments || loanData.term || 12;
+    const installmentAmount = loanData.installmentAmount || 0;
+    const principalPerInstallment = Math.round(loanData.principalAmount / numInstallments);
+    const totalInterest = (loanData.totalRepayable || loanData.totalRepayment || 0) - loanData.principalAmount;
+    const interestPerInstallment = Math.round(totalInterest / numInstallments);
+    
+    const installments: any[] = [];
+    const loanPayments = payments.filter((p: any) => p.loanId === loanId);
+    
+    for (let i = 0; i < numInstallments; i++) {
+      // Calculate due date based on firstRepaymentDate and repayment frequency
+      const dueDate = new Date(loanData.firstRepaymentDate || loanData.disbursementDate || new Date());
+      
+      const frequency = (loanData.repaymentFrequency || 'Monthly').toLowerCase();
+      if (frequency === 'monthly') {
+        dueDate.setMonth(dueDate.getMonth() + i);
+      } else if (frequency === 'weekly') {
+        dueDate.setDate(dueDate.getDate() + (i * 7));
+      } else if (frequency === 'bi-weekly') {
+        dueDate.setDate(dueDate.getDate() + (i * 14));
+      } else if (frequency === 'daily') {
+        dueDate.setDate(dueDate.getDate() + i);
+      } else if (frequency === 'quarterly') {
+        dueDate.setMonth(dueDate.getMonth() + (i * 3));
+      } else {
+        // Default to monthly
+        dueDate.setMonth(dueDate.getMonth() + i);
+      }
+      
+      const payment = loanPayments.find((p: any) => p.installmentNumber === i + 1);
+      const today = new Date();
+      const isPaid = !!payment;
+      const isOverdue = !isPaid && dueDate < today;
+      const isPending = !isPaid && dueDate >= today;
+      const isLatePaid = isPaid && payment && new Date(payment.date) > dueDate;
+      
+      installments.push({
+        loanId: loanData.id,
+        installmentNo: i + 1,
+        dueDate: dueDate.toISOString().split('T')[0],
+        plannedAmount: Math.round(installmentAmount),
+        principalComponent: principalPerInstallment,
+        interestComponent: interestPerInstallment,
+        status: isPaid ? (isLatePaid ? 'Late Paid' : 'Paid') : (isOverdue ? 'Overdue' : 'Pending')
+      });
+    }
+    
+    return installments;
+  };
+  
+  const installments = loan ? generateLoanInstallments(loan) : [];
   
   // Filter data from context arrays
   const loanCollaterals = collaterals.filter((c: any) => c.loanId === loanId);
@@ -50,6 +112,7 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [showScheduleDetails, setShowScheduleDetails] = useState(false);
   const [showDebugModal, setShowDebugModal] = useState(false);
+  const [showRolloverModal, setShowRolloverModal] = useState(false);
 
   if (!loan || !client || !product) {
     return null;
@@ -70,7 +133,7 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
   // Calculate next payment due date by adding the appropriate period to first repayment date
   const calculateNextPaymentDate = () => {
     if (!loan.firstRepaymentDate) return loan.disbursementDate || '';
-    if (loan.status === 'Paid' || loan.status === 'Settled') return ''; // No next payment if loan is paid
+    if (loan.status === 'Paid') return ''; // No next payment if loan is paid
     
     const firstDate = new Date(loan.firstRepaymentDate);
     const frequency = (loan.repaymentFrequency || 'Monthly').toLowerCase();
@@ -106,7 +169,7 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
 
   // Calculate risk rating
   const getRiskRating = () => {
-    if (loan.status === 'Paid' || loan.status === 'Settled') return { label: 'Low', color: 'emerald', score: 95 };
+    if (loan.status === 'Paid') return { label: 'Low', color: 'emerald', score: 95 };
     if (loan.status === 'Written Off' || loan.status === 'Defaulted') return { label: 'Critical', color: 'red', score: 15 };
     if (daysOverdue > 90) return { label: 'High', color: 'red', score: 35 };
     if (daysOverdue > 30) return { label: 'Medium', color: 'amber', score: 60 };
@@ -180,98 +243,57 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className={`w-full max-w-7xl max-h-[95vh] rounded-lg shadow-xl overflow-hidden flex flex-col ${
-          isDark ? 'bg-gray-800' : 'bg-white'
-        }`}>
+        <div className="w-full max-w-7xl h-[95vh] max-h-[900px] bg-[#FFF5E1] rounded-lg overflow-hidden flex flex-col">
           {/* Header */}
-          <div className={`px-6 py-4 border-b flex items-center justify-between ${
-            isDark ? 'bg-gray-900 border-gray-700' : 'bg-gradient-to-r from-[#020838] to-[#041056] border-gray-200'
-          }`}>
-            <div className="flex items-center gap-4">
-              <div className={`p-2 rounded-lg ${isDark ? 'bg-emerald-900/30' : 'bg-emerald-500/20'}`}>
-                <Banknote className={`size-6 ${isDark ? 'text-emerald-400' : 'text-white'}`} />
+          <div className="bg-white border-b border-gray-300 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="size-12 bg-gray-100 border border-gray-300 rounded-lg flex items-center justify-center">
+                  <Banknote className="size-6 text-black" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-black">
+                    Loan {loan.loanNumber || loan.loanId || loan.loan_id || loan.id}
+                  </h2>
+                  <p className="text-xs text-gray-600">
+                    {client.name} • {product.name}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className={`text-xl ${isDark ? 'text-white' : 'text-white'}`}>
-                  Loan {loan.loanNumber || loan.loanId || loan.loan_id || loan.id}
-                </h2>
-                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-200'}`}>
-                  {client.name} • {product.name}
-                </p>
-              </div>
+              <button
+                onClick={onClose}
+                className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+              >
+                <X className="size-5 text-gray-600" />
+              </button>
             </div>
-            <button
-              onClick={onClose}
-              className={`p-2 rounded-lg transition-colors ${
-                isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-white/10 text-white'
-              }`}
-            >
-              <X className="size-5" />
-            </button>
           </div>
 
           {/* Tabs */}
-          <div className={`px-6 border-b flex gap-1 ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'overview'
-                  ? isDark ? 'border-emerald-500 text-emerald-400' : 'border-emerald-600 text-emerald-700'
-                  : isDark ? 'border-transparent text-gray-400 hover:text-gray-300' : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setActiveTab('schedule')}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'schedule'
-                  ? isDark ? 'border-emerald-500 text-emerald-400' : 'border-emerald-600 text-emerald-700'
-                  : isDark ? 'border-transparent text-gray-400 hover:text-gray-300' : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Amortization Schedule
-            </button>
-            <button
-              onClick={() => setActiveTab('payments')}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'payments'
-                  ? isDark ? 'border-emerald-500 text-emerald-400' : 'border-emerald-600 text-emerald-700'
-                  : isDark ? 'border-transparent text-gray-400 hover:text-gray-300' : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Transaction History
-            </button>
-            <button
-              onClick={() => setActiveTab('borrower')}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'borrower'
-                  ? isDark ? 'border-emerald-500 text-emerald-400' : 'border-emerald-600 text-emerald-700'
-                  : isDark ? 'border-transparent text-gray-400 hover:text-gray-300' : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Borrower Profile
-            </button>
-            <button
-              onClick={() => setActiveTab('documents')}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'documents'
-                  ? isDark ? 'border-emerald-500 text-emerald-400' : 'border-emerald-600 text-emerald-700'
-                  : isDark ? 'border-transparent text-gray-400 hover:text-gray-300' : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Documents
-            </button>
-            <button
-              onClick={() => setActiveTab('risk')}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'risk'
-                  ? isDark ? 'border-emerald-500 text-emerald-400' : 'border-emerald-600 text-emerald-700'
-                  : isDark ? 'border-transparent text-gray-400 hover:text-gray-300' : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Risk & Monitoring
-            </button>
+          <div className="bg-white border-b border-gray-300 flex gap-1 px-6">
+            {[
+              { id: 'overview', label: 'Overview' },
+              { id: 'schedule', label: 'Amortization Schedule' },
+              { id: 'payments', label: 'Transaction History' },
+              { id: 'borrower', label: 'Borrower Profile' },
+              { id: 'documents', label: 'Documents' },
+              { id: 'risk', label: 'Risk & Monitoring' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-4 py-3 text-xs font-semibold relative transition-colors ${
+                  activeTab === tab.id
+                    ? 'text-black'
+                    : 'text-gray-600 hover:text-black'
+                }`}
+              >
+                {tab.label}
+                {activeTab === tab.id && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black" />
+                )}
+              </button>
+            ))}
           </div>
 
           {/* Content */}
@@ -280,20 +302,22 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
             {activeTab === 'overview' && (
               <div className="space-y-6">
                 {/* 1. High-Level Summary (Snapshot) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                   {/* Loan Status */}
-                  <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
+                  <div className="bg-white border border-gray-300 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Loan Status</span>
-                      <Activity className={`size-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
+                      <div className="flex items-center gap-2">
+                        <Activity className="size-4 text-black" />
+                        <span className="text-xs text-gray-600">Loan Status</span>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                        loan.status === 'Active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                        loan.status === 'Paid' || loan.status === 'Settled' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
-                        loan.status === 'Pending' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' :
-                        loan.status === 'In Arrears' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
-                        'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'
+                      <span className={`px-2 py-0.5 rounded text-xs font-semibold uppercase ${
+                        loan.status === 'Active' || loan.status === 'Disbursed' ? 'bg-[#00FF00] text-black' :
+                        loan.status === 'Paid' ? 'bg-[#00A676] text-white' :
+                        loan.status === 'Pending' || loan.status === 'Pending Review' ? 'bg-[#FFC107] bg-opacity-20 text-black' :
+                        loan.status === 'In Arrears' || loan.status === 'Overdue' ? 'bg-[#FF0000] text-white' :
+                        'bg-gray-300 text-gray-600'
                       }`}>
                         {loan.status}
                       </span>
@@ -301,43 +325,49 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
                   </div>
 
                   {/* Outstanding Balance */}
-                  <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
+                  <div className="bg-white border border-gray-300 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Outstanding Balance</span>
-                      <DollarSign className={`size-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="size-4 text-black" />
+                        <span className="text-xs text-gray-600">Outstanding Balance</span>
+                      </div>
                     </div>
-                    <p className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    <p className="text-2xl font-bold text-black">
                       {formatCurrency(outstandingBalance)}
                     </p>
                   </div>
 
                   {/* Next Payment Due */}
-                  <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
+                  <div className="bg-white border border-gray-300 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Next Payment Due</span>
-                      <Calendar className={`size-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
+                      <div className="flex items-center gap-2">
+                        <Calendar className="size-4 text-black" />
+                        <span className="text-xs text-gray-600">Next Payment Due</span>
+                      </div>
                     </div>
-                    <p className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    <p className="text-sm font-semibold text-black">
                       {nextPaymentDue || 'N/A'}
                     </p>
-                    <p className={`text-lg font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                    <p className="text-lg font-bold text-[#00FF00]">
                       {formatCurrency(nextPaymentAmount)}
                     </p>
                   </div>
 
                   {/* Credit Score Impact */}
-                  <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
+                  <div className="bg-white border border-gray-300 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Credit Score</span>
-                      <Star className={`size-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
+                      <div className="flex items-center gap-2">
+                        <Star className="size-4 text-black" />
+                        <span className="text-xs text-gray-600">Credit Score</span>
+                      </div>
                     </div>
                     <div className="flex items-baseline gap-2">
-                      <p className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <p className="text-2xl font-bold text-black">
                         {creditScore}
                       </p>
-                      <span className={`text-xs ${
-                        creditScore >= 750 ? 'text-emerald-600' :
-                        creditScore >= 650 ? 'text-amber-600' : 'text-red-600'
+                      <span className={`text-xs font-semibold ${
+                        creditScore >= 750 ? 'text-[#00FF00]' :
+                        creditScore >= 650 ? 'text-[#FFC107]' : 'text-[#FF0000]'
                       }`}>
                         {creditScore >= 750 ? 'Excellent' :
                          creditScore >= 650 ? 'Good' : 'Fair'}
@@ -347,93 +377,93 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
                 </div>
 
                 {/* 2. Core Loan Terms */}
-                <div className={`p-5 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
-                  <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    <FileText className="size-5 text-emerald-600" />
-                    Core Loan Terms
+                <div className="bg-white border border-gray-300 rounded-lg p-4">
+                  <h3 className="text-xs font-semibold text-black mb-4 flex items-center gap-2">
+                    <FileText className="size-4" />
+                    CORE LOAN TERMS
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Amount Borrowed</label>
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Amount Borrowed</label>
+                      <p className="text-xs font-semibold text-black">
                         {formatCurrency(loan.principalAmount || 0)}
                       </p>
                     </div>
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Arrangement Fees</label>
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Arrangement Fees</label>
+                      <p className="text-xs font-semibold text-black">
                         {formatCurrency(loan.arrangementFee || loan.processingFee || 0)}
                       </p>
                     </div>
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Interest Rate (APR)</label>
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Interest Rate (APR)</label>
+                      <p className="text-xs font-semibold text-black">
                         {loan.interestRate}% per annum
                       </p>
                     </div>
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Repayment Period</label>
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Repayment Period</label>
+                      <p className="text-xs font-semibold text-black">
                         {loan.term} {loan.termUnit}
                       </p>
                     </div>
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Due Date</label>
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Due Date</label>
+                      <p className="text-xs font-semibold text-black">
                         {loan.firstRepaymentDate || loan.dueDate || 'N/A'}
                       </p>
                     </div>
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Repayment Duration</label>
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Total Repayment Duration</label>
+                      <p className="text-xs font-semibold text-black">
                         {loan.termUnit === 'Months' ? loan.term : loan.termUnit === 'Weeks' ? Math.ceil(loan.term / 4) : Math.ceil(loan.term / 30)} months
                       </p>
                     </div>
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Potential Interest Payable</label>
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Total Potential Interest Payable</label>
+                      <p className="text-xs font-semibold text-black">
                         {formatCurrency(loan.totalInterest || 0)}
                       </p>
                     </div>
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Amt Payable (Principal + Interest)</label>
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Total Amt Payable (Principal + Interest)</label>
+                      <p className="text-xs font-semibold text-black">
                         {formatCurrency(loan.totalRepayable || loan.totalRepayment || 0)}
                       </p>
                     </div>
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Repayment Frequency</label>
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Repayment Frequency</label>
+                      <p className="text-xs font-semibold text-black">
                         {loan.repaymentFrequency || 'Monthly'}
                       </p>
                     </div>
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Principal Paid Back</label>
-                      <p className={`text-sm font-medium ${isDark ? 'text-emerald-600' : 'text-emerald-600'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Principal Paid Back</label>
+                      <p className="text-xs font-semibold text-[#00FF00]">
                         {formatCurrency(principalPaid)}
                       </p>
                     </div>
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Interest Paid Back</label>
-                      <p className={`text-sm font-medium ${isDark ? 'text-emerald-600' : 'text-emerald-600'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Interest Paid Back</label>
+                      <p className="text-xs font-semibold text-[#00FF00]">
                         {formatCurrency(interestPaid)}
                       </p>
                     </div>
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Amount Repaid Back (P + I)</label>
-                      <p className={`text-sm font-medium ${isDark ? 'text-emerald-600' : 'text-emerald-600'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Total Amount Repaid Back (P + I)</label>
+                      <p className="text-xs font-semibold text-[#00FF00]">
                         {formatCurrency(totalPaid)}
                       </p>
                     </div>
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Application Date</label>
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Application Date</label>
+                      <p className="text-xs font-semibold text-black">
                         {loan.applicationDate || 'N/A'}
                       </p>
                     </div>
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Disbursement Date</label>
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Disbursement Date</label>
+                      <p className="text-xs font-semibold text-black">
                         {loan.disbursementDate || 'Not disbursed'}
                       </p>
                     </div>
@@ -441,22 +471,22 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
 
                   {/* Collateral Details */}
                   {loanCollaterals.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-                      <h4 className={`text-sm font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        Collateral Details
+                    <div className="mt-4 pt-4 border-t border-gray-300">
+                      <h4 className="text-xs font-semibold text-black mb-2">
+                        COLLATERAL DETAILS
                       </h4>
                       <div className="space-y-2">
                         {loanCollaterals.map((collateral: any) => (
-                          <div key={collateral.id} className={`p-3 rounded-lg ${isDark ? 'bg-gray-600' : 'bg-gray-50'}`}>
+                          <div key={collateral.id} className="p-3 border border-gray-300 rounded-lg bg-white">
                             <div className="flex justify-between">
-                              <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              <span className="text-xs font-semibold text-black">
                                 {collateral.type}
                               </span>
-                              <span className={`text-sm ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                              <span className="text-xs font-semibold text-[#00FF00]">
                                 {formatCurrency(collateral.value || 0)}
                               </span>
                             </div>
-                            <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                            <p className="text-xs mt-1 text-gray-600">
                               {collateral.description}
                             </p>
                           </div>
@@ -467,36 +497,36 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
                 </div>
 
                 {/* 3. Servicing & Financial Progress */}
-                <div className={`p-5 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
-                  <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    <TrendingUp className="size-5 text-blue-600" />
-                    Servicing & Financial Progress
+                <div className="bg-white border border-gray-300 rounded-lg p-4">
+                  <h3 className="text-xs font-semibold text-black mb-4 flex items-center gap-2">
+                    <TrendingUp className="size-4" />
+                    SERVICING & FINANCIAL PROGRESS
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-4 gap-4">
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Repayable</label>
-                      <p className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Total Repayable</label>
+                      <p className="text-lg font-bold text-black">
                         {formatCurrency(loan.totalRepayable || loan.totalRepayment || 0)}
                       </p>
                     </div>
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Interest</label>
-                      <p className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Total Interest</label>
+                      <p className="text-lg font-bold text-black">
                         {formatCurrency(loan.totalInterest || 0)}
                       </p>
                     </div>
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Paid</label>
-                      <p className={`text-lg font-semibold ${isDark ? 'text-emerald-600' : 'text-emerald-600'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Total Paid</label>
+                      <p className="text-lg font-bold text-[#00FF00]">
                         {formatCurrency(totalPaid)}
                       </p>
                     </div>
                     <div>
-                      <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Payoff Quote</label>
-                      <p className={`text-lg font-semibold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                      <label className="text-xs text-gray-600 mb-1">Payoff Quote</label>
+                      <p className="text-lg font-bold text-[#FFC107]">
                         {formatCurrency(payoffQuote)}
                       </p>
-                      <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                      <p className="text-xs text-gray-600">
                         (as of today)
                       </p>
                     </div>
@@ -505,14 +535,14 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
                   {/* Payment Progress Bar */}
                   <div className="mt-4">
                     <div className="flex justify-between text-xs mb-1">
-                      <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>Payment Progress</span>
-                      <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+                      <span className="text-gray-600">Payment Progress</span>
+                      <span className="text-black font-semibold">
                         {((totalPaid / (loan.totalRepayable || 1)) * 100).toFixed(1)}%
                       </span>
                     </div>
-                    <div className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-gray-600' : 'bg-gray-200'}`}>
+                    <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all duration-500"
+                        className="h-full bg-[#00FF00] transition-all duration-500"
                         style={{ width: `${Math.min((totalPaid / (loan.totalRepayable || 1)) * 100, 100)}%` }}
                       />
                     </div>
@@ -520,36 +550,32 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
                 </div>
 
                 {/* Quick Actions */}
-                <div className={`p-5 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
-                  <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    <CreditCard className="size-5 text-purple-600" />
-                    Quick Actions
+                <div className="bg-white border border-gray-300 rounded-lg p-4">
+                  <h3 className="text-xs font-semibold text-black mb-4 flex items-center gap-2">
+                    <CreditCard className="size-4" />
+                    QUICK ACTIONS
                   </h3>
                   <div className="flex flex-wrap gap-3">
                     <button
-                      onClick={() => setShowRecordPayment(true)}
-                      className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2"
-                    >
-                      <DollarSign className="size-4" />
-                      Make a Payment
-                    </button>
-                    <button
                       onClick={() => setActiveTab('schedule')}
-                      className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-                        isDark ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                      }`}
+                      className="px-3 py-1.5 bg-black text-white rounded-lg hover:bg-[#333333] transition-colors flex items-center gap-2 text-xs font-medium"
                     >
                       <Calendar className="size-4" />
                       View Schedule
                     </button>
                     <button
                       onClick={() => window.print()}
-                      className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-                        isDark ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                      }`}
+                      className="px-3 py-1.5 bg-black text-white rounded-lg hover:bg-[#333333] transition-colors flex items-center gap-2 text-xs font-medium"
                     >
                       <Printer className="size-4" />
                       Print Statement
+                    </button>
+                    <button
+                      onClick={() => setShowRolloverModal(true)}
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-xs font-medium"
+                    >
+                      <RefreshCw className="size-4" />
+                      Roll over / Renew
                     </button>
                   </div>
                 </div>
@@ -578,6 +604,9 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
                           <th className={`px-4 py-3 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                             Payment
                           </th>
+                          <th className={`px-4 py-3 text-center text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                            ✓
+                          </th>
                           <th className={`px-4 py-3 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                             Principal
                           </th>
@@ -593,40 +622,55 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
                         </tr>
                       </thead>
                       <tbody>
-                        {installments.map((inst, index) => (
-                          <tr 
-                            key={inst.id}
-                            className={`border-b ${isDark ? 'border-gray-600' : 'border-gray-100'}`}
-                          >
-                            <td className={`px-4 py-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
-                              {index + 1}
-                            </td>
-                            <td className={`px-4 py-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
-                              {inst.dueDate}
-                            </td>
-                            <td className={`px-4 py-3 text-sm text-right ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
-                              {formatCurrency(inst.installmentAmount)}
-                            </td>
-                            <td className={`px-4 py-3 text-sm text-right ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
-                              {formatCurrency(inst.principalDue)}
-                            </td>
-                            <td className={`px-4 py-3 text-sm text-right ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
-                              {formatCurrency(inst.interestDue)}
-                            </td>
-                            <td className={`px-4 py-3 text-sm text-right ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
-                              {formatCurrency(inst.balance)}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                inst.status === 'Paid' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                                inst.status === 'Overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
-                                'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'
-                              }`}>
-                                {inst.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
+                        {installments.map((inst, index) => {
+                          // Calculate remaining balance after this payment
+                          const remainingBalance = loan.principalAmount - ((inst.principalComponent || 0) * (index + 1));
+                          
+                          return (
+                            <tr 
+                              key={`${inst.loanId}-${inst.installmentNo}`}
+                              className={`border-b ${isDark ? 'border-gray-600' : 'border-gray-100'}`}
+                            >
+                              <td className={`px-4 py-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
+                                {inst.installmentNo}
+                              </td>
+                              <td className={`px-4 py-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
+                                {inst.dueDate}
+                              </td>
+                              <td className={`px-4 py-3 text-sm text-right ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
+                                {formatCurrency(inst.plannedAmount || 0)}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={inst.status === 'Paid' || inst.status === 'Late Paid'}
+                                  readOnly
+                                  className="size-4 rounded border-gray-300 text-blue-600 cursor-not-allowed"
+                                  title={inst.status === 'Paid' || inst.status === 'Late Paid' ? 'Reviewed' : 'Not reviewed'}
+                                />
+                              </td>
+                              <td className={`px-4 py-3 text-sm text-right ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
+                                {formatCurrency(inst.principalComponent || 0)}
+                              </td>
+                              <td className={`px-4 py-3 text-sm text-right ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
+                                {formatCurrency(inst.interestComponent || 0)}
+                              </td>
+                              <td className={`px-4 py-3 text-sm text-right ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
+                                {formatCurrency(Math.max(0, remainingBalance))}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  inst.status === 'Paid' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                  inst.status === 'Late Paid' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' :
+                                  inst.status === 'Overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
+                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'
+                                }`}>
+                                  {inst.status}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -660,7 +704,7 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
                           <div className="flex justify-between items-start mb-2">
                             <div>
                               <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                                Payment #{payment.receiptNumber || payment.transactionId || payment.id}
+                                Loan {loan.loanNumber || loan.id}
                               </p>
                               <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                                 {payment.date}
@@ -1033,6 +1077,15 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
           onClose={() => setShowRecordPayment(false)}
           onSubmit={handleRecordPayment}
           preselectedLoanId={loanId}
+        />
+      )}
+
+      {/* Loan Rollover Modal */}
+      {showRolloverModal && (
+        <LoanRolloverModal
+          isOpen={showRolloverModal}
+          onClose={() => setShowRolloverModal(false)}
+          loanId={loanId}
         />
       )}
     </>

@@ -125,7 +125,7 @@ export function LoanDetailsModal({ loanId, onClose }: LoanDetailsModalProps) {
       return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400';
     } else if (normalizedStatus === 'in arrears') {
       return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
-    } else if (normalizedStatus === 'fully paid') {
+    } else if (normalizedStatus === 'paid') {
       return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
     } else if (normalizedStatus === 'written off') {
       return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';

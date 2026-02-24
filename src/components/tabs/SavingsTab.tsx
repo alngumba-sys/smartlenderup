@@ -589,6 +589,7 @@ export function SavingsTab() {
                     <th className={`px-6 py-3 text-left ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Client Name</th>
                     <th className={`px-6 py-3 text-left ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Fee Type</th>
                     <th className={`px-6 py-3 text-right ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Amount</th>
+                    <th className={`px-6 py-3 text-center ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>✓</th>
                     <th className={`px-6 py-3 text-center ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Date</th>
                   </tr>
                 </thead>
@@ -601,6 +602,12 @@ export function SavingsTab() {
                       <td className={`px-6 py-4 ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>{fee.feeType}</td>
                       <td className={`px-6 py-4 text-right ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
                         KES {fee.amount.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          className="size-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                        />
                       </td>
                       <td className={`px-6 py-4 text-center ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{fee.date}</td>
                     </tr>
@@ -696,6 +703,7 @@ export function SavingsTab() {
                     <th className={`px-6 py-3 text-left ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Account ID</th>
                     <th className={`px-6 py-3 text-left ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Client Name</th>
                     <th className={`px-6 py-3 text-right ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Amount</th>
+                    <th className={`px-6 py-3 text-center ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>✓</th>
                     <th className={`px-6 py-3 text-left ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Officer</th>
                   </tr>
                 </thead>
@@ -705,22 +713,20 @@ export function SavingsTab() {
                       <td className={`px-6 py-4 ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>{transaction.id}</td>
                       <td className={`px-6 py-4 text-center ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{transaction.date}</td>
                       <td className="px-6 py-4 text-center">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          transaction.type === 'Deposit'
-                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                        }`}>
+                        <span className={`px-2 py-1 rounded-full text-xs ${\n                          transaction.type === 'Deposit'\n                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'\n                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'\n                        }`}>
                           {transaction.type}
                         </span>
                       </td>
                       <td className={`px-6 py-4 ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>{transaction.accountId}</td>
                       <td className={`px-6 py-4 ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>{transaction.clientName}</td>
-                      <td className={`px-6 py-4 text-right ${
-                        transaction.type === 'Deposit' 
-                          ? 'text-emerald-600 dark:text-emerald-400' 
-                          : 'text-red-600 dark:text-red-400'
-                      }`}>
+                      <td className={`px-6 py-4 text-right ${\n                        transaction.type === 'Deposit' \n                          ? 'text-emerald-600 dark:text-emerald-400' \n                          : 'text-red-600 dark:text-red-400'\n                      }`}>
                         {transaction.type === 'Deposit' ? '+' : '-'}KES {transaction.amount.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          className="size-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                        />
                       </td>
                       <td className={`px-6 py-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{transaction.officer}</td>
                     </tr>

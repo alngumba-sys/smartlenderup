@@ -350,7 +350,7 @@ export function BankAccountsTab() {
   // This matches the Cash Flow Analysis calculation
   const totalBankOpeningBalance = activeBankAccounts.reduce((sum, acc) => sum + (acc.openingBalance || 0), 0);
   const totalFundingReceived = fundingTransactions
-    .filter(t => t.transactionType === 'Credit')
+    .filter(t => t.transactionType === 'Credit' && t.source !== 'Loan Repayment') // ✅ Exclude loan repayments
     .reduce((sum, t) => sum + t.amount, 0);
   const totalLoansDisbursed = loans
     .filter(l => l.status === 'Active' || l.status === 'Disbursed')

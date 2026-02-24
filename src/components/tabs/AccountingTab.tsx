@@ -140,9 +140,9 @@ export function AccountingTab() {
   console.log('   Total Share Capital:', totalShareCapital);
 
   // Calculate dynamic values from real data
-  // Include ALL loans that have been disbursed (Active, Disbursed, Default, Fully Paid, Settled)
+  // Include ALL loans that have been disbursed (Active, Disbursed, Default, Paid)
   // Exclude only Pending, Rejected, Draft statuses
-  const disbursedLoanStatuses = ['Active', 'Disbursed', 'Default', 'Fully Paid', 'Settled', 'Closed'];
+  const disbursedLoanStatuses = ['Active', 'Disbursed', 'Default', 'Paid', 'Closed'];
   const totalLoansDisbursed = loans
     .filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate)
     .reduce((sum, l) => sum + (l.principalAmount || 0), 0);
@@ -162,13 +162,13 @@ export function AccountingTab() {
     .reduce((sum, l) => sum + (l.principalAmount || 0), 0);
 
   // 💰 CASH FLOW CALCULATION
-  // Initial Funding = Bank Account Opening Balances + All Funding Transactions (Credits)
+  // Initial Funding = Bank Account Opening Balances + All Funding Transactions (Credits) EXCLUDING Loan Repayments
   // Formula: Initial Funding - Total Disbursed Loans + Total Repayments = Available Cash
   const totalBankOpeningBalance = bankAccounts.reduce((sum, acc) => sum + (acc.openingBalance || 0), 0);
   const totalFundingReceived = fundingTransactions
-    .filter(t => t.transactionType === 'Credit')
+    .filter(t => t.transactionType === 'Credit' && t.source !== 'Loan Repayment') // ✅ Exclude loan repayments
     .reduce((sum, t) => sum + t.amount, 0);
-  const INITIAL_FUNDING = totalBankOpeningBalance + totalFundingReceived; // Bank opening balances + all funding received
+  const INITIAL_FUNDING = totalBankOpeningBalance + totalFundingReceived; // Bank opening balances + actual funding only
   const totalRepayments = repayments.reduce((sum, r) => sum + Number(r.amount || 0), 0);
   const availableCash = INITIAL_FUNDING - totalLoansDisbursed + totalRepayments;
   const cashUtilizationRate = totalLoansDisbursed > 0 ? ((totalLoansDisbursed / (INITIAL_FUNDING + totalRepayments)) * 100) : 0;
@@ -1901,6 +1901,7 @@ export function AccountingTab() {
                     <th className="text-left py-3 px-4 text-gray-600 text-sm">Description</th>
                     <th className="text-left py-3 px-4 text-gray-600 text-sm">Vendor</th>
                     <th className="text-right py-3 px-4 text-gray-600 text-sm">Amount</th>
+                    <th className="text-center py-3 px-4 text-gray-600 text-sm">✓</th>
                     <th className="text-left py-3 px-4 text-gray-600 text-sm">Payment</th>
                     <th className="text-left py-3 px-4 text-gray-600 text-sm">Status</th>
                     <th className="text-left py-3 px-4 text-gray-600 text-sm">Actions</th>
@@ -1939,6 +1940,12 @@ export function AccountingTab() {
                         </td>
                         <td className="py-3 px-4 text-gray-900 text-right">
                           {formatCurrency(expense.amount, { showCode: true })}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <input 
+                            type="checkbox" 
+                            className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
                         </td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs ${
@@ -2196,6 +2203,7 @@ export function AccountingTab() {
                     <th className="text-left py-3 px-4 text-gray-600 text-sm">Shareholder</th>
                     <th className="text-left py-3 px-4 text-gray-600 text-sm">Description</th>
                     <th className="text-right py-3 px-4 text-gray-600 text-sm">Amount</th>
+                    <th className="text-center py-3 px-4 text-gray-600 text-sm">✓</th>
                     <th className="text-left py-3 px-4 text-gray-600 text-sm">Payment Method</th>
                     <th className="text-left py-3 px-4 text-gray-600 text-sm">Reference</th>
                     <th className="text-left py-3 px-4 text-gray-600 text-sm">Recorded By</th>
@@ -2227,6 +2235,12 @@ export function AccountingTab() {
                         </td>
                         <td className="py-3 px-4 text-gray-900 text-right">
                           {formatCurrency(deposit.amount, { showCode: true })}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <input 
+                            type="checkbox" 
+                            className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
                         </td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs ${
@@ -2412,6 +2426,7 @@ export function AccountingTab() {
                     <th className="text-left py-3 px-4 text-gray-600 text-sm">Period</th>
                     <th className="text-left py-3 px-4 text-gray-600 text-sm">Description</th>
                     <th className="text-right py-3 px-4 text-gray-600 text-sm">Amount</th>
+                    <th className="text-center py-3 px-4 text-gray-600 text-sm">✓</th>
                     <th className="text-left py-3 px-4 text-gray-600 text-sm">Payment Method</th>
                     <th className="text-left py-3 px-4 text-gray-600 text-sm">Reference</th>
                     <th className="text-left py-3 px-4 text-gray-600 text-sm">Status</th>
@@ -2447,6 +2462,12 @@ export function AccountingTab() {
                         </td>
                         <td className="py-3 px-4 text-gray-900 text-right">
                           {formatCurrency(distribution.amount, { showCode: true })}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <input 
+                            type="checkbox" 
+                            className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
                         </td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs ${
@@ -3625,6 +3646,7 @@ export function AccountingTab() {
                           <th className="text-left py-3 px-4 text-gray-700 font-semibold">Source</th>
                           <th className="text-left py-3 px-4 text-gray-700 font-semibold">Description</th>
                           <th className="text-right py-3 px-4 text-gray-700 font-semibold">Amount</th>
+                          <th className="text-center py-3 px-4 text-gray-700 font-semibold">✓</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -3637,6 +3659,12 @@ export function AccountingTab() {
                               <td className="py-3 px-4 text-right text-blue-700 font-semibold">
                                 {currencyCode} {account.openingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
+                              <td className="py-3 px-4 text-center">
+                                <input 
+                                  type="checkbox" 
+                                  className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                />
+                              </td>
                             </tr>
                           ))
                         ) : (
@@ -3645,6 +3673,7 @@ export function AccountingTab() {
                             <td className="py-3 px-4 text-right text-gray-500 font-semibold">
                               {currencyCode} 0.00
                             </td>
+                            <td className="py-3 px-4 text-center"></td>
                           </tr>
                         )}
 
@@ -3657,6 +3686,12 @@ export function AccountingTab() {
                               <td className="py-3 px-4 text-right text-blue-700 font-semibold">
                                 {currencyCode} {transaction.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
+                              <td className="py-3 px-4 text-center">
+                                <input 
+                                  type="checkbox" 
+                                  className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                />
+                              </td>
                             </tr>
                           ))
                         ) : null}
@@ -3667,6 +3702,7 @@ export function AccountingTab() {
                           <td className="py-3 px-4 text-right text-blue-700 font-bold text-lg">
                             {currencyCode} {INITIAL_FUNDING.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
+                          <td className="py-3 px-4 text-center"></td>
                         </tr>
                       </tbody>
                     </table>
@@ -3691,6 +3727,7 @@ export function AccountingTab() {
                             <th className="text-left py-3 px-4 text-gray-700 font-semibold">Status</th>
                             <th className="text-left py-3 px-4 text-gray-700 font-semibold">Disbursement Date</th>
                             <th className="text-right py-3 px-4 text-gray-700 font-semibold">Principal Amount</th>
+                            <th className="text-center py-3 px-4 text-gray-700 font-semibold">✓</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -3701,7 +3738,7 @@ export function AccountingTab() {
                               <td className="py-3 px-4">
                                 <span className={`px-2 py-1 text-xs rounded-full ${
                                   loan.status === 'Active' ? 'bg-green-100 text-green-700' :
-                                  loan.status === 'Fully Paid' ? 'bg-blue-100 text-blue-700' :
+                                  loan.status === 'Paid' ? 'bg-blue-100 text-blue-700' :
                                   loan.status === 'Default' ? 'bg-red-100 text-red-700' :
                                   'bg-gray-100 text-gray-700'
                                 }`}>
@@ -3718,6 +3755,12 @@ export function AccountingTab() {
                               <td className="py-3 px-4 text-right text-red-700 font-semibold">
                                 {currencyCode} {(loan.principalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
+                              <td className="py-3 px-4 text-center">
+                                <input 
+                                  type="checkbox" 
+                                  className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                />
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -3727,6 +3770,7 @@ export function AccountingTab() {
                             <td className="py-3 px-4 text-right text-red-700 font-bold text-lg">
                               {currencyCode} {totalLoansDisbursed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
+                            <td className="py-3 px-4 text-center"></td>
                           </tr>
                         </tfoot>
                       </table>
@@ -3752,6 +3796,7 @@ export function AccountingTab() {
                             <th className="text-left py-3 px-4 text-gray-700 font-semibold">Payment Date</th>
                             <th className="text-left py-3 px-4 text-gray-700 font-semibold">Method</th>
                             <th className="text-right py-3 px-4 text-gray-700 font-semibold">Amount</th>
+                            <th className="text-center py-3 px-4 text-gray-700 font-semibold">✓</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -3775,6 +3820,12 @@ export function AccountingTab() {
                                 <td className="py-3 px-4 text-right text-emerald-700 font-semibold">
                                   {currencyCode} {Number(payment.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </td>
+                                <td className="py-3 px-4 text-center">
+                                  <input 
+                                    type="checkbox" 
+                                    className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                  />
+                                </td>
                               </tr>
                             );
                           })}
@@ -3785,6 +3836,7 @@ export function AccountingTab() {
                             <td className="py-3 px-4 text-right text-emerald-700 font-bold text-lg">
                               {currencyCode} {totalRepayments.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
+                            <td className="py-3 px-4 text-center"></td>
                           </tr>
                         </tfoot>
                       </table>

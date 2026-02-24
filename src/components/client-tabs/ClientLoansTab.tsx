@@ -13,8 +13,8 @@ export function ClientLoansTab({ clientId }: ClientLoansTabProps) {
   
   const client = clients.find(c => c.id === clientId);
   const clientLoans = loans.filter(l => l.clientId === clientId);
-  const activeLoans = clientLoans.filter(l => l.status !== 'Fully Paid');
-  const pastLoans = clientLoans.filter(l => l.status === 'Fully Paid');
+  const activeLoans = clientLoans.filter(l => l.status !== 'Paid');
+  const pastLoans = clientLoans.filter(l => l.status === 'Paid');
 
   const selectedLoan = clientLoans.find(l => l.id === (selectedLoanId || activeLoans[0]?.id));
   const selectedProduct = selectedLoan ? loanProducts.find(p => p.id === selectedLoan.productId) : null;
@@ -139,7 +139,7 @@ export function ClientLoansTab({ clientId }: ClientLoansTabProps) {
               <div className={`px-3 py-1 rounded ${
                 selectedLoan.status.toLowerCase().trim() === 'active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
                 selectedLoan.status.toLowerCase().trim() === 'in arrears' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
-                selectedLoan.status.toLowerCase().trim() === 'fully paid' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                selectedLoan.status.toLowerCase().trim() === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                 selectedLoan.status.toLowerCase().trim() === 'pending' ? 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200' :
                 'bg-blue-100 text-blue-800'
               }`}>
@@ -252,7 +252,7 @@ export function ClientLoansTab({ clientId }: ClientLoansTabProps) {
       {pastLoans.length > 0 && (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="p-4 md:p-6 border-b border-gray-200 bg-gray-50">
-            <h3 className="text-gray-900">Fully Paid Loans</h3>
+            <h3 className="text-gray-900">Paid Loans</h3>
           </div>
           <div className="p-4 md:p-6 space-y-3">
             {pastLoans.map((loan) => {

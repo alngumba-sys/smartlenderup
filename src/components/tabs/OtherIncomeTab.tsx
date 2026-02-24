@@ -200,6 +200,7 @@ export function OtherIncomeTab() {
                 <th className={`px-6 py-3 text-left text-xs uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Source</th>
                 <th className={`px-6 py-3 text-left text-xs uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Category</th>
                 <th className={`px-6 py-3 text-left text-xs uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Amount</th>
+                <th className={`px-6 py-3 text-center text-xs uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>✓</th>
                 <th className={`px-6 py-3 text-left text-xs uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Reference</th>
                 <th className={`px-6 py-3 text-left text-xs uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Status</th>
                 <th className={`px-6 py-3 text-left text-xs uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Actions</th>
@@ -225,6 +226,13 @@ export function OtherIncomeTab() {
                   </td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
                     KES {income.amount.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <input 
+                      type="checkbox" 
+                      className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      onClick={(e) => e.stopPropagation()}
+                    />
                   </td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                     {income.reference}

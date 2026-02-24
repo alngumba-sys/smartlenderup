@@ -9,7 +9,7 @@ interface ClientHomeTabProps {
 export function ClientHomeTab({ clientId }: ClientHomeTabProps) {
   const { clients, loans, payments } = useData();
   const client = clients.find(c => c.id === clientId);
-  const clientLoans = loans.filter(l => l.clientId === clientId && l.status !== 'Fully Paid');
+  const clientLoans = loans.filter(l => l.clientId === clientId && l.status !== 'Paid');
   const activeLoan = clientLoans[0];
   const product = activeLoan ? loanProducts.find(p => p.id === activeLoan.productId) : null;
 
