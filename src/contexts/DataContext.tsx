@@ -1818,18 +1818,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 const principalPaidFromDB = parseFloat(l.principal_paid) || 0;
                 const interestPaidFromDB = parseFloat(l.interest_paid) || 0;
                 const balanceFromDB = parseFloat(l.balance) || 0;
+                const totalAmountFromDB = parseFloat(l.total_amount) || 0;
                 const interestRate = parseFloat(l.interest_rate) || 0;
                 const termPeriod = parseInt(l.term_period) || 0;
                 
                 // ✅ CALCULATE interest from FORMULA: amount × (interest_rate / 100) × term_period
-                // This ensures we use the correct calculation regardless of what total_amount says
                 const calculatedInterest = principalAmount * (interestRate / 100) * termPeriod;
                 
-                // ✅ Calculate total repayable
-                const totalRepayable = principalAmount + calculatedInterest;
+                // ✅ Use total_amount from DB if available (handles discounts), otherwise calculate
+                const totalRepayable = totalAmountFromDB > 0 ? totalAmountFromDB : (principalAmount + calculatedInterest);
                 
                 // ✅ Use balance from DB if available, otherwise calculate
-                const calculatedOutstanding = balanceFromDB > 0 ? balanceFromDB : (totalRepayable - paidAmount);
+                const calculatedOutstanding = balanceFromDB !== null && balanceFromDB !== undefined 
+                  ? balanceFromDB 
+                  : Math.max(0, totalRepayable - paidAmount);
                 
                 // 🔍 Debug logging to verify database values
                 if (l.loan_number && (l.loan_number.includes('5021') || l.loan_number.includes('5035') || l.loan_number.includes('LN001') || l.loan_number.includes('LN002'))) {
@@ -1841,10 +1843,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
                     'DB principal_paid': l.principal_paid,
                     'DB interest_paid': l.interest_paid,
                     'DB balance': l.balance,
-                    'DB total_amount (ignored)': l.total_amount,
-                    '✅ Calculated Interest (formula)': calculatedInterest,
-                    '✅ Calculated Total': totalRepayable,
-                    '✅ Calculated Outstanding': calculatedOutstanding
+                    'DB total_amount': l.total_amount,
+                    '✅ Total Repayable (DB or calculated)': totalRepayable,
+                    '✅ Total Interest (derived)': totalRepayable - principalAmount,
+                    '✅ Outstanding Balance (DB or calculated)': calculatedOutstanding
                   });
                 }
                 
@@ -1939,7 +1941,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                     
                     return numberOfInstallments > 0 ? totalRepayable / numberOfInstallments : 0;
                   })(),
-                  totalInterest: calculatedInterest, // ✅ FIXED: Calculate from total_amount - amount
+                  totalInterest: totalRepayable - principalAmount, // ✅ Derive from totalRepayable (handles discounts)
                   totalRepayable: totalRepayable,
                   totalRepayment: totalRepayable,
                   numberOfInstallments: 0,
@@ -2532,15 +2534,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
           const principalPaidFromDB = parseFloat(l.principal_paid) || 0;
           const interestPaidFromDB = parseFloat(l.interest_paid) || 0;
           const balanceFromDB = parseFloat(l.balance) || 0;
+          const totalAmountFromDB = parseFloat(l.total_amount) || 0;
           const interestRate = parseFloat(l.interest_rate) || 0;
           const termPeriod = parseInt(l.term_period) || 0;
           
           // ✅ CALCULATE interest from FORMULA: amount × (interest_rate / 100) × term_period
           const calculatedInterest = principalAmount * (interestRate / 100) * termPeriod;
-          const totalRepayable = principalAmount + calculatedInterest;
-          const calculatedOutstanding = balanceFromDB > 0 ? balanceFromDB : (totalRepayable - paidAmount);
           
-          console.log(`📊 [REFRESH] ${l.loan_number} - Interest: ${calculatedInterest}, Outstanding: ${calculatedOutstanding}`);
+          // ✅ Use total_amount from DB if available (handles discounts), otherwise calculate
+          const totalRepayable = totalAmountFromDB > 0 ? totalAmountFromDB : (principalAmount + calculatedInterest);
+          const calculatedOutstanding = balanceFromDB !== null && balanceFromDB !== undefined 
+            ? balanceFromDB 
+            : Math.max(0, totalRepayable - paidAmount);
+          
+          console.log(`📊 [REFRESH] ${l.loan_number} - Total Repayable: ${totalRepayable}, Outstanding: ${calculatedOutstanding}`);
           
           return {
             id: l.id,
@@ -2628,7 +2635,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               
               return numberOfInstallments > 0 ? totalRepayable / numberOfInstallments : 0;
             })(),
-            totalInterest: calculatedInterest,
+            totalInterest: totalRepayable - principalAmount, // ✅ Derive from totalRepayable (handles discounts)
             totalRepayable: totalRepayable,
             totalRepayment: totalRepayable,
             numberOfInstallments: 0,

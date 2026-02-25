@@ -169,7 +169,14 @@ export function AccountingTab() {
     .filter(t => t.transactionType === 'Credit' && t.source !== 'Loan Repayment') // ✅ Exclude loan repayments
     .reduce((sum, t) => sum + t.amount, 0);
   const INITIAL_FUNDING = totalBankOpeningBalance + totalFundingReceived; // Bank opening balances + actual funding only
-  const totalRepayments = repayments.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  
+  // ✅ Use total paid from loans table (matches "Paid" column in All Loans)
+  const totalRepaymentsFromLoans = loans
+    .filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate)
+    .reduce((sum, l) => sum + (l.paidAmount || l.amountPaid || 0), 0);
+  
+  // Use loans table as source of truth for total repayments
+  const totalRepayments = totalRepaymentsFromLoans;
   const availableCash = INITIAL_FUNDING - totalLoansDisbursed + totalRepayments;
   const cashUtilizationRate = totalLoansDisbursed > 0 ? ((totalLoansDisbursed / (INITIAL_FUNDING + totalRepayments)) * 100) : 0;
 
@@ -1173,7 +1180,7 @@ export function AccountingTab() {
             <p className="text-2xl font-bold text-emerald-700">
               +{currencyCode} {totalRepayments.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-gray-500 mt-1">{repayments.length} total payments</p>
+            <p className="text-xs text-gray-500 mt-1">{loans.filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate).filter(l => (l.paidAmount || l.amountPaid || 0) > 0).length} loans with payments</p>
           </div>
 
           {/* Available Cash */}
@@ -3783,7 +3790,7 @@ export function AccountingTab() {
                   <div className="bg-emerald-50 px-6 py-4 border-b border-emerald-200">
                     <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                       <TrendingUp className="size-5 text-emerald-600" />
-                      Repayments Received ({repayments.length} payments)
+                      Repayments Received ({loans.filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate).filter(l => (l.paidAmount || l.amountPaid || 0) > 0).length} loans with payments)
                     </h4>
                   </div>
                   <div className="p-6">
@@ -3791,44 +3798,45 @@ export function AccountingTab() {
                       <table className="w-full">
                         <thead className="sticky top-0 bg-white">
                           <tr className="border-b border-gray-200">
-                            <th className="text-left py-3 px-4 text-gray-700 font-semibold">Receipt #</th>
+                            <th className="text-left py-3 px-4 text-gray-700 font-semibold">Loan ID</th>
                             <th className="text-left py-3 px-4 text-gray-700 font-semibold">Client</th>
-                            <th className="text-left py-3 px-4 text-gray-700 font-semibold">Payment Date</th>
-                            <th className="text-left py-3 px-4 text-gray-700 font-semibold">Method</th>
-                            <th className="text-right py-3 px-4 text-gray-700 font-semibold">Amount</th>
+                            <th className="text-left py-3 px-4 text-gray-700 font-semibold">Disbursement Date</th>
+                            <th className="text-left py-3 px-4 text-gray-700 font-semibold">Status</th>
+                            <th className="text-right py-3 px-4 text-gray-700 font-semibold">Paid Amount</th>
                             <th className="text-center py-3 px-4 text-gray-700 font-semibold">✓</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {repayments.map(payment => {
-                            // Get client name from loan data
-                            const loan = loans.find(l => l.id === payment.loanId || l.id === payment.loan_id);
-                            const clientName = payment.clientName || loan?.clientName || loan?.borrowerName || 'Unknown Client';
-                            
-                            return (
-                              <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
-                                <td className="py-3 px-4 text-gray-900 font-mono text-sm">{payment.receiptNumber}</td>
-                                <td className="py-3 px-4 text-gray-900">{clientName}</td>
-                                <td className="py-3 px-4 text-gray-600">
-                                  {new Date(payment.paymentDate).toLocaleDateString('en-GB', {
-                                    day: '2-digit',
-                                    month: 'short',
-                                    year: 'numeric'
-                                  })}
-                                </td>
-                                <td className="py-3 px-4 text-gray-600">{payment.paymentMethod}</td>
-                                <td className="py-3 px-4 text-right text-emerald-700 font-semibold">
-                                  {currencyCode} {Number(payment.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                  <input 
-                                    type="checkbox" 
-                                    className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                                  />
-                                </td>
-                              </tr>
-                            );
-                          })}
+                          {loans
+                            .filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate)
+                            .filter(l => (l.paidAmount || l.amountPaid || 0) > 0)
+                            .map(loan => {
+                              const paidAmount = loan.paidAmount || loan.amountPaid || 0;
+                              
+                              return (
+                                <tr key={loan.id} className="border-b border-gray-100 hover:bg-gray-50">
+                                  <td className="py-3 px-4 text-gray-900 font-mono text-sm">{loan.loanNumber || loan.loanId}</td>
+                                  <td className="py-3 px-4 text-gray-900">{loan.clientName || loan.borrowerName || 'Unknown Client'}</td>
+                                  <td className="py-3 px-4 text-gray-600">
+                                    {loan.disbursementDate ? new Date(loan.disbursementDate).toLocaleDateString('en-GB', {
+                                      day: '2-digit',
+                                      month: 'short',
+                                      year: 'numeric'
+                                    }) : 'N/A'}
+                                  </td>
+                                  <td className="py-3 px-4 text-gray-600">{loan.status}</td>
+                                  <td className="py-3 px-4 text-right text-emerald-700 font-semibold">
+                                    {currencyCode} {Number(paidAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="py-3 px-4 text-center">
+                                    <input 
+                                      type="checkbox" 
+                                      className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                    />
+                                  </td>
+                                </tr>
+                              );
+                            })}
                         </tbody>
                         <tfoot className="bg-emerald-50 border-t-2 border-emerald-300 sticky bottom-0">
                           <tr>

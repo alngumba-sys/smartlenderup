@@ -348,23 +348,36 @@ export function BankAccountsTab() {
 
   // Available to lend = Initial Funding - Loans Disbursed + Repayments
   // This matches the Cash Flow Analysis calculation
+  const disbursedLoanStatuses = ['Active', 'Disbursed', 'Default', 'Paid', 'Closed'];
   const totalBankOpeningBalance = activeBankAccounts.reduce((sum, acc) => sum + (acc.openingBalance || 0), 0);
   const totalFundingReceived = fundingTransactions
     .filter(t => t.transactionType === 'Credit' && t.source !== 'Loan Repayment') // ✅ Exclude loan repayments
     .reduce((sum, t) => sum + t.amount, 0);
   const totalLoansDisbursed = loans
-    .filter(l => l.status === 'Active' || l.status === 'Disbursed')
+    .filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate)
     .reduce((sum, l) => sum + (l.principalAmount || 0), 0);
-  const totalRepayments = repayments.reduce((sum, r) => sum + Number(r.amount || 0), 0);
   
-  const availableToLend = activeBank === 'all'
-    ? (totalBankOpeningBalance + totalFundingReceived - totalLoansDisbursed + totalRepayments)
-    : currentTabTotal; // For individual accounts, show the account balance
-
-  // Get current account details for single account view
+  // ✅ Use total paid from loans table (matches "Paid" column in All Loans)
+  const totalRepaymentsFromLoans = loans
+    .filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate)
+    .reduce((sum, l) => sum + (l.paidAmount || l.amountPaid || 0), 0);
+  const totalRepayments = totalRepaymentsFromLoans;
+  
+  // Get current account details BEFORE calculating availableToLend
   const currentAccount = activeBank === 'all' 
     ? null
     : activeBankAccounts.find(acc => acc.id === activeBank);
+  
+  const availableToLend = activeBank === 'all'
+    ? (totalBankOpeningBalance + totalFundingReceived - totalLoansDisbursed + totalRepayments)
+    : (() => {
+        // For individual account, calculate its specific available to lend
+        const accountOpeningBalance = currentAccount?.openingBalance || 0;
+        const accountFunding = fundingTransactions
+          .filter(t => t.bankAccountId === activeBank && t.transactionType === 'Credit' && t.source !== 'Loan Repayment')
+          .reduce((sum, t) => sum + t.amount, 0);
+        return accountOpeningBalance + accountFunding - totalLoansDisbursed + totalRepayments;
+      })();
   
   const currentAccountFunding = currentAccount
     ? fundingTransactions

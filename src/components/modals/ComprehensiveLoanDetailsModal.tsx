@@ -181,7 +181,10 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
 
   // Calculate outstanding balance and payoff quote
   const totalRepayable = loan.totalRepayable || loan.totalRepayment || 0;
-  const outstandingBalance = totalRepayable - totalPaid;
+  // ✅ Use outstanding balance from loan data (already calculated in DataContext with DB balance)
+  const outstandingBalance = loan.outstandingBalance !== undefined 
+    ? loan.outstandingBalance 
+    : Math.max(0, totalRepayable - totalPaid);
   const earlyPaymentDiscount = 0; // You can add logic for early payment discounts
   const payoffQuote = outstandingBalance - earlyPaymentDiscount;
 
