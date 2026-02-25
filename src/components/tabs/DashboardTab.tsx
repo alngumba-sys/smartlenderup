@@ -201,6 +201,19 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     const normalized = status?.toLowerCase();
     return normalized === 'active' || normalized === 'in arrears' || normalized === 'overdue';
   };
+  
+  // ✅ Helper to calculate CORRECT interest for FLAT RATE per period
+  const calculateCorrectInterest = (loan: any) => {
+    const principal = loan.principalAmount || loan.amount || 0;
+    const rate = loan.interestRate || 0;
+    const term = loan.term || loan.termPeriod || loan.loanTerm || loan.termMonths || 1;
+    
+    // FLAT RATE: Interest = Principal × Rate × Term / 100
+    // Example: 100,000 × 7.5% × 1 month = 7,500
+    const correctInterest = (principal * rate * term) / 100;
+    return Math.round(correctInterest);
+  };
+  
   const filteredLoansForPortfolio = contextLoans.filter((l: any) => isActiveStatus(l.status));
   const filteredLoansForPrincipal = contextLoans.filter((l: any) => isActiveStatus(l.status));
   const filteredLoansForInterest = contextLoans.filter((l: any) => isActiveStatus(l.status));
@@ -427,7 +440,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           const paymentFrequency = (loan.paymentFrequency || 'Monthly').toLowerCase();
           const loanTermMonths = loan.loanTerm || 12;
           const principalAmount = loan.principalAmount || 0;
-          const totalInterest = loan.totalInterest || 0;
+          const totalInterest = calculateCorrectInterest(loan);
           const totalRepayable = loan.totalRepayable || (principalAmount + totalInterest);
           
           // Calculate installment amount
@@ -546,7 +559,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   // ALWAYS calculate - don't use stored principalOutstanding from imports (may be wrong)
   const filteredPrincipalTotal = filteredLoansForPrincipal.reduce((sum: number, l: any) => {
     const principalAmount = l.principalAmount || 0;
-    const totalInterest = l.totalInterest || 0;
+    const totalInterest = calculateCorrectInterest(l);
     const totalRepayable = l.totalRepayable || (principalAmount + totalInterest);
     const outstandingBalance = calculateOutstanding(l);
     
@@ -570,7 +583,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     return sum + outstandingBalance;
   }, 0);
   
-  const filteredInterestTotal = filteredLoansForInterest.reduce((sum: number, l: any) => sum + Math.abs(l.interestOutstanding || ((l.totalInterest || 0) - (l.interestPaid || 0))), 0);
+  const filteredInterestTotal = filteredLoansForInterest.reduce((sum: number, l: any) => sum + Math.abs(l.interestOutstanding || ((calculateCorrectInterest(l)) - (l.interestPaid || 0))), 0);
   
   // Calculate collected interest based on duration filter
   const filteredRepaymentsForInterest = filterByDuration(
@@ -628,7 +641,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const par30Loans = contextLoans
     .map((l: any) => {
       // Calculate actual outstanding: Principal + Interest - Paid
-      const actualOutstanding = (l.principalAmount || 0) + (l.totalInterest || 0) - (l.paidAmount || 0);
+      const actualOutstanding = (l.principalAmount || 0) + calculateCorrectInterest(l) - (l.paidAmount || 0);
       return {
         ...l,
         daysInArrears: calculateDaysInArrears(l), // Override with calculated value
@@ -671,7 +684,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       return sum + (l.principalOutstanding || 0);
     }
     // Fallback: estimate based on totalInterest
-    const totalInterest = l.totalInterest || 0;
+    const totalInterest = calculateCorrectInterest(l);
     const outstandingBalance = calculateOutstanding(l);
     const principalPart = outstandingBalance > totalInterest ? outstandingBalance - totalInterest : outstandingBalance * 0.9;
     return sum + principalPart;

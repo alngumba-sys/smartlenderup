@@ -62,6 +62,18 @@ export function LoansTab() {
     return normalized === 'active' || normalized === 'in arrears' || normalized === 'overdue';
   };
   
+  // ✅ Helper to calculate CORRECT interest for FLAT RATE per period
+  const calculateCorrectInterest = (loan: any) => {
+    const principal = loan.principalAmount || loan.amount || 0;
+    const rate = loan.interestRate || 0;
+    const term = loan.term || loan.termPeriod || loan.loanTerm || loan.termMonths || 1;
+    
+    // FLAT RATE: Interest = Principal × Rate × Term / 100
+    // Example: 100,000 × 7.5% × 1 month = 7,500
+    const correctInterest = (principal * rate * term) / 100;
+    return Math.round(correctInterest);
+  };
+  
   // Upcoming payments timeframe
   const [upcomingPaymentsTimeframe, setUpcomingPaymentsTimeframe] = useState<'today' | 'this-week' | 'next-7-days' | 'this-month'>('next-7-days');
   
@@ -525,7 +537,8 @@ export function LoansTab() {
     }
     
     // Calculate expected amount to have been paid
-    const totalDue = (loan.principalAmount || 0) + (loan.totalInterest || 0);
+    const correctInterest = calculateCorrectInterest(loan);
+    const totalDue = (loan.principalAmount || 0) + correctInterest;
     const totalInstallments = loan.numberOfInstallments || loan.termMonths || 12;
     const installmentAmount = totalDue / totalInstallments;
     const expectedPaid = installmentAmount * expectedPayments;
@@ -903,12 +916,12 @@ export function LoansTab() {
       // Calculate installment amount if missing
       if (!installmentAmount && numInstallments > 0) {
         const principal = loan.principalAmount || 0;
-        const interest = loan.totalInterest || 0;
+        const interest = calculateCorrectInterest(loan);
         installmentAmount = (principal + interest) / numInstallments;
       }
       
       const totalPrincipal = loan.principalAmount || 0;
-      const totalInterest = loan.totalInterest || 0;
+      const totalInterest = calculateCorrectInterest(loan);
       
       const principalPerInstallment = totalPrincipal / numInstallments;
       const interestPerInstallment = totalInterest / numInstallments;
@@ -1528,7 +1541,11 @@ export function LoansTab() {
                 const client = clients.find(c => c.id === loan.clientId);
                 const principalAmt = loan.principalAmount || 0;
                 const paidAmt = loan.paidAmount || 0;
-                const progress = principalAmt > 0 ? (paidAmt / principalAmt) * 100 : 0;
+                const totalRepayable = loan.totalRepayable || loan.totalRepayment || 0;
+                const outstandingAmt = loan.outstandingBalance !== undefined 
+                  ? loan.outstandingBalance 
+                  : Math.max(0, totalRepayable - paidAmt);
+                const progress = totalRepayable > 0 ? (paidAmt / totalRepayable) * 100 : 0;
                 
                 // Convert "Settled" to "Paid" for display
                 const displayStatus = loan.status?.toLowerCase() === 'settled' ? 'Paid' : loan.status;
@@ -1563,7 +1580,7 @@ export function LoansTab() {
                       <div className="flex justify-between text-sm">
                         <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>Outstanding</span>
                         <span className="text-orange-600 dark:text-orange-400">
-                          KES {(principalAmt - paidAmt).toLocaleString()}
+                          KES {outstandingAmt.toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -1724,7 +1741,12 @@ export function LoansTab() {
                       const client = clients.find(c => c.id === loan.clientId);
                       const principalAmt = loan.principalAmount || 0;
                       const paidAmt = loan.paidAmount || 0;
-                      const outstandingAmt = principalAmt + (loan.totalInterest || 0) - paidAmt;
+                      // ✅ Use values from database (handles discounts), calculate only if missing
+                      const totalRepayable = loan.totalRepayable || loan.totalRepayment || 0;
+                      const interestFromTotal = totalRepayable - principalAmt;
+                      const outstandingAmt = loan.outstandingBalance !== undefined 
+                        ? loan.outstandingBalance 
+                        : Math.max(0, totalRepayable - paidAmt);
                       // Determine actual display status: if outstanding is 0 or less, show "Paid"
                       // Also convert "Settled" to "Paid"
                       let displayStatus = loan.status;
@@ -1753,7 +1775,7 @@ export function LoansTab() {
                             KES {(loan.processing_fee || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
                           <td className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                            KES {(loan.totalInterest || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            KES {interestFromTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
                           <td className={`px-4 py-2 text-right text-xs text-emerald-700 dark:text-emerald-400`}>
                             KES {paidAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
@@ -1825,7 +1847,7 @@ export function LoansTab() {
                         KES {sortedLoans.reduce((sum, loan) => sum + (loan.processing_fee || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                       </td>
                       <td className={`px-4 py-3 text-right text-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
-                        KES {sortedLoans.reduce((sum, loan) => sum + (loan.totalInterest || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        KES {sortedLoans.reduce((sum, loan) => sum + calculateCorrectInterest(loan), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                       </td>
                       <td className={`px-4 py-3 text-right text-xs text-emerald-700 dark:text-emerald-400 font-semibold`}>
                         KES {sortedLoans.reduce((sum, loan) => sum + (loan.paidAmount || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
@@ -1834,7 +1856,8 @@ export function LoansTab() {
                         KES {sortedLoans.reduce((sum, loan) => {
                           const principalAmt = loan.principalAmount || 0;
                           const paidAmt = loan.paidAmount || 0;
-                          const outstandingAmt = principalAmt + (loan.totalInterest || 0) - paidAmt;
+                          const correctInterest = calculateCorrectInterest(loan);
+                          const outstandingAmt = principalAmt + correctInterest - paidAmt;
                           return sum + outstandingAmt;
                         }, 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                       </td>

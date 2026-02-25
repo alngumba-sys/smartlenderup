@@ -38,6 +38,25 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
   const client = loan ? clients.find(c => c.id === loan.clientId || c.id === loan.clientUuid) : null;
   const product = loan ? loanProducts.find(p => p.id === loan.productId) : null;
   
+  // ✅ Calculate correct interest for FLAT RATE per period
+  const calculateCorrectInterest = (loanData: any) => {
+    if (!loanData) return 0;
+    
+    const principal = loanData.principalAmount || loanData.amount || 0;
+    const rate = loanData.interestRate || 0;
+    const term = loanData.term || loanData.termPeriod || loanData.loanTerm || 1;
+    
+    // FLAT RATE: Interest = Principal × Rate × Term / 100
+    // Example: 100,000 × 7.5% × 1 month = 7,500
+    const correctInterest = (principal * rate * term) / 100;
+    return Math.round(correctInterest);
+  };
+  
+  // ✅ Use values from database (handles discounts), calculate only if missing
+  // loan.totalRepayable comes from DataContext which reads total_amount from DB
+  const correctTotalRepayable = loan?.totalRepayable || loan?.totalRepayment || 0;
+  const correctInterest = loan ? (correctTotalRepayable - (loan.principalAmount || 0)) : 0;
+  
   // Generate installments directly from loan data
   const generateLoanInstallments = (loanData: any) => {
     if (!loanData) return [];
@@ -49,10 +68,13 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
     
     // Use loan's numberOfInstallments if available, otherwise calculate from term
     const numInstallments = loanData.numberOfInstallments || loanData.term || 12;
-    const installmentAmount = loanData.installmentAmount || 0;
     const principalPerInstallment = Math.round(loanData.principalAmount / numInstallments);
-    const totalInterest = (loanData.totalRepayable || loanData.totalRepayment || 0) - loanData.principalAmount;
-    const interestPerInstallment = Math.round(totalInterest / numInstallments);
+    
+    // ✅ Use total from database (handles discounts), calculate only if missing
+    const totalRepayableForInstallments = loanData.totalRepayable || loanData.totalRepayment || (loanData.principalAmount + calculateCorrectInterest(loanData));
+    const totalInterestForInstallments = totalRepayableForInstallments - loanData.principalAmount;
+    const interestPerInstallment = Math.round(totalInterestForInstallments / numInstallments);
+    const installmentAmount = Math.round(totalRepayableForInstallments / numInstallments);
     
     const installments: any[] = [];
     const loanPayments = payments.filter((p: any) => p.loanId === loanId);
@@ -399,9 +421,9 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
                       </p>
                     </div>
                     <div>
-                      <label className="text-xs text-gray-600 mb-1">Interest Rate (APR)</label>
+                      <label className="text-xs text-gray-600 mb-1">Interest Rate (Flat Rate)</label>
                       <p className="text-xs font-semibold text-black">
-                        {loan.interestRate}% per annum
+                        {loan.interestRate}% per {(loan.termUnit || 'Months').toLowerCase().replace(/s$/, '')}
                       </p>
                     </div>
                     <div>
@@ -419,19 +441,19 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
                     <div>
                       <label className="text-xs text-gray-600 mb-1">Total Repayment Duration</label>
                       <p className="text-xs font-semibold text-black">
-                        {loan.termUnit === 'Months' ? loan.term : loan.termUnit === 'Weeks' ? Math.ceil(loan.term / 4) : Math.ceil(loan.term / 30)} months
+                        {loan.term} {loan.term === 1 ? (loan.termUnit || 'Month').toLowerCase().replace(/s$/, '') : (loan.termUnit || 'Months').toLowerCase()}
                       </p>
                     </div>
                     <div>
                       <label className="text-xs text-gray-600 mb-1">Total Potential Interest Payable</label>
                       <p className="text-xs font-semibold text-black">
-                        {formatCurrency(loan.totalInterest || 0)}
+                        {formatCurrency(correctInterest)}
                       </p>
                     </div>
                     <div>
                       <label className="text-xs text-gray-600 mb-1">Total Amt Payable (Principal + Interest)</label>
                       <p className="text-xs font-semibold text-black">
-                        {formatCurrency(loan.totalRepayable || loan.totalRepayment || 0)}
+                        {formatCurrency(correctTotalRepayable)}
                       </p>
                     </div>
                     <div>
@@ -509,13 +531,13 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
                     <div>
                       <label className="text-xs text-gray-600 mb-1">Total Repayable</label>
                       <p className="text-lg font-bold text-black">
-                        {formatCurrency(loan.totalRepayable || loan.totalRepayment || 0)}
+                        {formatCurrency(correctTotalRepayable)}
                       </p>
                     </div>
                     <div>
                       <label className="text-xs text-gray-600 mb-1">Total Interest</label>
                       <p className="text-lg font-bold text-black">
-                        {formatCurrency(loan.totalInterest || 0)}
+                        {formatCurrency(correctInterest)}
                       </p>
                     </div>
                     <div>

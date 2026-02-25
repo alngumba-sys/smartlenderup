@@ -695,8 +695,19 @@ export const loanService = {
     const interestRate = parseNumber(loanData.interestRate || loanData.interest_rate);
     const term = parseInt(loanData.term || loanData.loanTerm || loanData.term_period || loanData.termPeriod, 10);
     
-    // Calculate total amount and monthly installment
-    // Interest per period × number of periods (e.g., 7.5% × 2 months = 15% total)
+    // ✅ FIXED: Calculate interest correctly for FLAT RATE per period
+    // In microfinance, interest rates are typically FLAT RATE per period (e.g., 7.5% per month)
+    // NOT APR (Annual Percentage Rate)
+    // 
+    // Example: 7.5% per month on KSh 100,000 for 1 month:
+    //   - Interest = 100,000 × 7.5% × 1 = KSh 7,500
+    // 
+    // For 2 months:
+    //   - Interest = 100,000 × 7.5% × 2 = KSh 15,000
+    //
+    // This is FLAT RATE (simple interest), not reducing balance
+    
+    // Calculate interest: (Principal × Rate × Term) / 100
     const totalInterest = (principalAmount * interestRate * term) / 100;
     const totalAmount = principalAmount + totalInterest;
     const monthlyInstallment = totalAmount / term;
