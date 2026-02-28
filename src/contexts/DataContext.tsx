@@ -28,7 +28,8 @@ import {
 } from '../utils/simpleAutoMigration';
 import { generateUniqueJournalEntryNumber } from '../utils/journalEntryNumberGenerator';
 import { getCorrectPrincipal } from '../utils/knownLoanPrincipals';
-import { loadDisbursementPrincipals, getPrincipalFromDisbursements } from '../utils/getPrincipalFromDisbursements';
+import { loadDisbursementPrincipals, getPrincipalFromDisbursements, clearDisbursementPrincipalsCache } from '../utils/getPrincipalFromDisbursements';
+import { fixPrincipalAmounts } from '../utils/fixPrincipalAmounts';
 
 // ============= TYPE DEFINITIONS =============
 
@@ -964,6 +965,7 @@ interface DataContextType {
   generateReceiptNumber: () => string;
   generateAccountNumber: () => string;
   refreshData: () => void;
+  fixLoanPrincipals: () => Promise<void>;
   clearAllData: () => void;
   clearShareholdersAndBanks: () => void;
   syncAllToSupabase: () => Promise<SyncResult>;
@@ -1909,21 +1911,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   disbursementPrincipal
                 );
                 
-                // Debug logging to verify calculation
-                if (l.loan_number === '5224' || l.loan_number === '5276' || l.loan_number === '5344' || 
-                    l.loan_number === '5328' || l.loan_number === '5220' || l.loan_number === '5110') {
-                  const source = disbursementPrincipal ? '📒 Journal Entry' : 
-                                (Math.abs(dbPrincipalAmount - totalAmountFromDB) < 1 ? '🧮 Reverse Calc' : '💾 Database');
-                  console.log(`🔍 LOAN ${l.loan_number} PRINCIPAL:`, {
-                    'Source': source,
-                    'DB principal_amount': dbPrincipalAmount.toLocaleString(),
-                    'DB total_amount': totalAmountFromDB.toLocaleString(),
-                    'Journal entry amount': disbursementPrincipal ? disbursementPrincipal.toLocaleString() : 'N/A',
-                    'interest_rate': interestRate + '%',
-                    'term_period': termPeriod + ' months',
-                    '✅ FINAL principal': principalAmount.toLocaleString()
-                  });
-                }
+                // 🔍 Debug logging for ALL loans to see what's being used
+                console.log(`🔍 LOAN ${l.loan_number} PRINCIPAL CALCULATION:`, {
+                  'DB principal_amount': dbPrincipalAmount.toLocaleString(),
+                  'DB total_amount': totalAmountFromDB.toLocaleString(),
+                  'Journal entry principal': disbursementPrincipal ? disbursementPrincipal.toLocaleString() : 'N/A',
+                  'Principal diff': Math.abs(dbPrincipalAmount - totalAmountFromDB),
+                  '✅ FINAL principal used': principalAmount.toLocaleString(),
+                  'Source': disbursementPrincipal && disbursementPrincipal > 0 ? 
+                    (Math.abs(dbPrincipalAmount - totalAmountFromDB) >= 1 ? '💾 Database (journal ignored)' : '📒 Journal Entry') :
+                    (Math.abs(dbPrincipalAmount - totalAmountFromDB) >= 1 ? '💾 Database' : '🧮 Reverse Calc')
+                });
                 
                 const paidAmount = parseFloat(l.amount_paid) || 0;
                 const principalPaidFromDB = parseFloat(l.principal_paid) || 0;
@@ -2398,7 +2396,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             
             const supabaseInstitutions = await supabaseDataService.institutions.getAll(currentUser.organizationId);
             
-            console.log('   ✅ Query complete!');
+            console.log('   �� Query complete!');
             console.log('   Raw response:', supabaseInstitutions);
             console.log('   Type:', typeof supabaseInstitutions);
             console.log('   Is Array:', Array.isArray(supabaseInstitutions));
@@ -2711,6 +2709,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🔄 Refreshing data from Supabase...');
       
+      // Clear the cache first to force reload
+      clearDisbursementPrincipalsCache();
+      
       // Reload journal entries first to get correct principals
       const disbursementPrincipals = await loadDisbursementPrincipals(currentUser.organizationId);
       
@@ -2896,6 +2897,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('❌ Error refreshing data:', error);
       toast.error('Failed to refresh data from database');
+    }
+  };
+
+  const fixLoanPrincipals = async () => {
+    if (!currentUser?.organizationId) {
+      toast.error('No organization selected');
+      return;
+    }
+    
+    try {
+      console.log('🔧 Fixing principal amounts...');
+      toast.info('Fixing principal amounts in database...');
+      
+      const result = await fixPrincipalAmounts(currentUser.organizationId);
+      
+      if (result.errors.length > 0) {
+        toast.warning(`Fixed ${result.fixed} loans with ${result.errors.length} errors`);
+      } else {
+        toast.success(`Successfully fixed ${result.fixed} loan principals!`);
+      }
+      
+      // Refresh data to show updated values
+      await refreshData();
+      
+    } catch (error: any) {
+      console.error('❌ Error fixing principals:', error);
+      toast.error(`Failed to fix principals: ${error.message}`);
     }
   };
 
@@ -6865,6 +6893,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     generateReceiptNumber,
     generateAccountNumber,
     refreshData,
+    fixLoanPrincipals,
     clearAllData,
     clearShareholdersAndBanks,
     syncAllToSupabase,

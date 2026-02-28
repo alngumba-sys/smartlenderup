@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, TrendingUp, Users, Calculator, Save, Edit2, FileText, UserPlus, Settings, Trash2 } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, Calculator, Save, Edit2, FileText, UserPlus, Settings, Trash2, Search, Filter, Calendar, Plus } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { getCurrencyCode } from '../../utils/currencyUtils';
 import { toast } from 'sonner@2.0.3';
 import { supabase } from '../../lib/supabase';
 import { AddPayeeModal } from '../modals/AddPayeeModal';
 import { StaffAssignmentsModal } from '../modals/StaffAssignmentsModal';
+import { SaveCommissionPopup } from '../modals/SaveCommissionPopup';
 
 export function PayrollCommissionsTab() {
   const { loans, payees, updatePayee, deletePayee, clients } = useData();
@@ -14,6 +15,30 @@ export function PayrollCommissionsTab() {
   const [tempRate, setTempRate] = useState<string>('');
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [selectedStaffForAssignment, setSelectedStaffForAssignment] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('All');
+  const [selectedMonth, setSelectedMonth] = useState('All Time');
+  const [showCommissionPopup, setShowCommissionPopup] = useState(false);
+  const [selectedStaffForCommission, setSelectedStaffForCommission] = useState<any>(null);
+  const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | undefined>(undefined);
+
+  // Generate months for 2026 (Jan to Dec)
+  const generate2026Months = () => {
+    const months = ['All Time'];
+    const year = 2026;
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    for (let i = 0; i < 12; i++) {
+      months.push(`${monthNames[i]} ${year}`);
+    }
+    
+    return months;
+  };
+
+  const monthOptions = generate2026Months();
 
   // Get employee payees (staff members)
   const staff = payees.filter(p => (p.type === 'Employee' || p.category === 'Employee') && p.status === 'Active');
@@ -140,6 +165,31 @@ export function PayrollCommissionsTab() {
   const totalDeals = staffWithDeals.reduce((sum, s) => sum + s.loansCount, 0);
   const totalPrincipal = staffWithDeals.reduce((sum, s) => sum + s.totalPrincipal, 0);
 
+  // Apply search and filters
+  const filteredStaffData = allStaffData.filter(staffData => {
+    const matchesSearch = staffData.staffMember.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         staffData.staffMember.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         staffData.staffMember.phone?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesType = filterType === 'All' || staffData.staffMember.type === filterType;
+    
+    // Month filter - check if loans are in selected month
+    let matchesMonth = true;
+    if (selectedMonth !== 'All Time') {
+      const [monthName, year] = selectedMonth.split(' ');
+      const monthIndex = new Date(Date.parse(monthName + ' 1, ' + year)).getMonth();
+      const yearNum = parseInt(year);
+      
+      matchesMonth = staffData.loans.some(loan => {
+        const disbursementDate = loan.disbursementDate ? new Date(loan.disbursementDate) : null;
+        if (!disbursementDate) return false;
+        return disbursementDate.getMonth() === monthIndex && disbursementDate.getFullYear() === yearNum;
+      });
+    }
+    
+    return matchesSearch && matchesType && matchesMonth;
+  });
+
   return (
     <div className="p-6 space-y-6">
       {/* Header with Add Staff Button */}
@@ -218,6 +268,52 @@ export function PayrollCommissionsTab() {
         </div>
       </div>
 
+      {/* Search and Filter Bar */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search staff members..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Type Filter */}
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent appearance-none bg-white"
+            >
+              <option value="All">All Types</option>
+              <option value="Employee">Employee</option>
+              <option value="Contractor">Contractor</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          {/* Month Filter */}
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent appearance-none bg-white"
+            >
+              {monthOptions.map(month => (
+                <option key={month} value={month}>{month}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
       {/* Staff Commissions Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
@@ -248,7 +344,7 @@ export function PayrollCommissionsTab() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {allStaffData.map((staffData) => (
+              {filteredStaffData.map((staffData) => (
                 <tr key={staffData.staffMember.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -340,20 +436,33 @@ export function PayrollCommissionsTab() {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => setSelectedStaffForAssignment(staffData.staffMember.id)}
-                      className="p-1 text-gray-400 hover:text-gray-600"
-                      title="Assign loans to this staff member"
-                    >
-                      <Settings className="size-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteStaff(staffData.staffMember.id, staffData.staffMember.name)}
-                      className="p-1 text-red-500 hover:text-red-700"
-                      title="Delete staff member"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          setSelectedStaffForCommission(staffData);
+                          setShowCommissionPopup(true);
+                          setPopupPosition({ x: e.clientX, y: e.clientY });
+                        }}
+                        className="p-1 text-blue-500 hover:text-blue-700"
+                        title="Save commission for this staff member"
+                      >
+                        <Save className="size-4" />
+                      </button>
+                      <button
+                        onClick={() => setSelectedStaffForAssignment(staffData.staffMember.id)}
+                        className="p-1 text-gray-400 hover:text-gray-600"
+                        title="Assign loans to this staff member"
+                      >
+                        <Settings className="size-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteStaff(staffData.staffMember.id, staffData.staffMember.name)}
+                        className="p-1 text-red-500 hover:text-red-700"
+                        title="Delete staff member"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -404,6 +513,22 @@ export function PayrollCommissionsTab() {
         isOpen={selectedStaffForAssignment !== null}
         onClose={() => setSelectedStaffForAssignment(null)}
         staffId={selectedStaffForAssignment}
+      />
+
+      {/* Add Commission Entry Modal */}
+      <SaveCommissionPopup
+        isOpen={showCommissionPopup}
+        onClose={() => {
+          setShowCommissionPopup(false);
+          setSelectedStaffForCommission(null);
+        }}
+        onSuccess={() => {
+          // Refresh data or show success message
+          toast.success('Commission entry saved successfully');
+        }}
+        staffMember={selectedStaffForCommission}
+        month={selectedMonth}
+        position={popupPosition}
       />
     </div>
   );

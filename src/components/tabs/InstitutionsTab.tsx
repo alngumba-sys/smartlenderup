@@ -296,8 +296,8 @@ export function InstitutionsTab() {
         </div>
 
         {/* Key Metrics Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-6">
+          <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-white border-gray-200'}`}>
             <div className="flex items-center gap-2 mb-1">
               <Users className={`size-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
               <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Clients</span>
@@ -307,7 +307,7 @@ export function InstitutionsTab() {
             </p>
           </div>
 
-          <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+          <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-white border-gray-200'}`}>
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className={`size-4 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
               <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Active Loans</span>
@@ -317,7 +317,7 @@ export function InstitutionsTab() {
             </p>
           </div>
 
-          <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+          <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-white border-gray-200'}`}>
             <div className="flex items-center gap-2 mb-1">
               <DollarSign className={`size-4 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
               <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Disbursed</span>
@@ -327,7 +327,7 @@ export function InstitutionsTab() {
             </p>
           </div>
 
-          <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+          <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-white border-gray-200'}`}>
             <div className="flex items-center gap-2 mb-1">
               <AlertTriangle className={`size-4 ${selectedInst.parRate > 5 ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-cyan-400' : 'text-cyan-600')}`} />
               <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>PAR Rate</span>
@@ -336,25 +336,22 @@ export function InstitutionsTab() {
               {selectedInst.parRate.toFixed(1)}%
             </p>
           </div>
-        </div>
 
-        {/* Additional Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+          <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-white border-gray-200'}`}>
             <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Outstanding Balance</p>
             <p className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
               {formatCurrency(selectedInst.totalOutstanding)}
             </p>
           </div>
 
-          <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+          <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-white border-gray-200'}`}>
             <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Avg Credit Score</p>
             <p className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {selectedInst.avgCreditScore.toFixed(0)}
+              {selectedInst.avgCreditScore > 0 ? selectedInst.avgCreditScore.toFixed(0) : '0'}
             </p>
           </div>
 
-          <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+          <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-white border-gray-200'}`}>
             <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Total Loans</p>
             <p className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
               {selectedInst.loanCount} <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-600'}`}>({selectedInst.paidLoans} paid)</span>

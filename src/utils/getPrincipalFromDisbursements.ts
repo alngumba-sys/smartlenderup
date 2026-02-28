@@ -14,6 +14,7 @@ export async function loadDisbursementPrincipals(organizationId: string): Promis
   }
   
   console.log('💰 Loading disbursement principals from journal entries...');
+  console.log('🔍 Organization ID:', organizationId);
   
   try {
     // First, get all loans to map loan ID to loan number
@@ -27,6 +28,9 @@ export async function loadDisbursementPrincipals(organizationId: string): Promis
       return new Map();
     }
     
+    console.log(`📋 Found ${loans?.length || 0} loans in database`);
+    console.log('📋 Sample loans:', loans?.slice(0, 3));
+    
     // Create a map of loan ID to loan number
     const loanIdToNumber = new Map<string, string>();
     if (loans) {
@@ -37,11 +41,13 @@ export async function loadDisbursementPrincipals(organizationId: string): Promis
       });
     }
     
+    console.log(`📋 Created loan ID map with ${loanIdToNumber.size} entries`);
+    
     // Query journal entries for loan disbursements
     // These entries have source_type = 'Loan Disbursement' and contain the loan ID in source_id
     const { data: journalEntries, error } = await supabase
       .from('journal_entries')
-      .select('id, source_id')
+      .select('id, source_id, source_type, description, entry_date')
       .eq('organization_id', organizationId)
       .eq('source_type', 'Loan Disbursement');
     
@@ -49,6 +55,9 @@ export async function loadDisbursementPrincipals(organizationId: string): Promis
       console.error('❌ Error loading journal entries:', error);
       return new Map();
     }
+    
+    console.log(`📒 Found ${journalEntries?.length || 0} journal entries with source_type='Loan Disbursement'`);
+    console.log('📒 Sample journal entries:', journalEntries?.slice(0, 3));
     
     const principalMap = new Map<string, number>();
     
@@ -59,7 +68,7 @@ export async function loadDisbursementPrincipals(organizationId: string): Promis
       // Fetch all journal entry lines for these entries
       const { data: lines, error: linesError } = await supabase
         .from('journal_entry_lines')
-        .select('journal_entry_id, credit, account_code')
+        .select('journal_entry_id, debit, credit, account_code, account_name, description')
         .in('journal_entry_id', journalEntryIds);
       
       if (linesError) {
@@ -67,31 +76,45 @@ export async function loadDisbursementPrincipals(organizationId: string): Promis
         return new Map();
       }
       
-      // Create a map of journal entry ID to credit amount
-      const journalEntryToCredit = new Map<string, number>();
-      if (lines) {
-        lines.forEach((line: any) => {
-          if (line.credit && parseFloat(line.credit) > 0) {
-            const credit = parseFloat(line.credit);
-            const currentCredit = journalEntryToCredit.get(line.journal_entry_id) || 0;
-            // Sum all credits (in case there are multiple credit lines)
-            journalEntryToCredit.set(line.journal_entry_id, currentCredit + credit);
+      console.log(`📊 Found ${lines?.length || 0} journal entry lines total`);
+      console.log('📊 Sample lines (all):', lines?.slice(0, 10));
+      
+      // Filter for account 1200 only
+      const account1200Lines = lines?.filter((line: any) => line.account_code === '1200');
+      console.log(`📊 Found ${account1200Lines?.length || 0} lines with account_code='1200'`);
+      console.log('📊 Account 1200 lines:', account1200Lines?.slice(0, 10));
+      
+      // Create a map of journal entry ID to debit amount (principal)
+      const journalEntryToPrincipal = new Map<string, number>();
+      if (account1200Lines) {
+        account1200Lines.forEach((line: any) => {
+          // The principal is the DEBIT to Loans Receivable (account 1200)
+          if (line.debit && parseFloat(line.debit) > 0) {
+            const debit = parseFloat(line.debit);
+            const currentDebit = journalEntryToPrincipal.get(line.journal_entry_id) || 0;
+            console.log(`  💵 Journal Entry ${line.journal_entry_id}: Adding debit ${debit} to account 1200`);
+            // Sum all debits to account 1200 (in case there are multiple lines)
+            journalEntryToPrincipal.set(line.journal_entry_id, currentDebit + debit);
           }
         });
       }
       
+      console.log(`📊 Journal Entry to Principal map has ${journalEntryToPrincipal.size} entries`);
+      
       // Now map journal entries to loan numbers and extract principals
       journalEntries.forEach((entry: any) => {
         if (entry.source_id && entry.id) {
-          const creditAmount = journalEntryToCredit.get(entry.id);
+          const principal = journalEntryToPrincipal.get(entry.id);
           const loanNumber = loanIdToNumber.get(entry.source_id);
           
-          if (creditAmount && loanNumber) {
+          console.log(`  🔗 Journal Entry ${entry.id} -> Loan ID ${entry.source_id} -> Loan Number ${loanNumber} -> Principal ${principal}`);
+          
+          if (principal && loanNumber) {
             // If multiple disbursements for same loan, sum them
             if (principalMap.has(loanNumber)) {
-              principalMap.set(loanNumber, principalMap.get(loanNumber)! + creditAmount);
+              principalMap.set(loanNumber, principalMap.get(loanNumber)! + principal);
             } else {
-              principalMap.set(loanNumber, creditAmount);
+              principalMap.set(loanNumber, principal);
             }
           }
         }

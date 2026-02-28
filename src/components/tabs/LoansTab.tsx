@@ -31,6 +31,7 @@ export function LoansTab() {
     collaterals,
     addCollateral,
     refreshData,
+    fixLoanPrincipals,
     payees
   } = useData();
   const [activeSubTab, setActiveSubTab] = useState<'all' | 'pending-review' | 'pending-disbursement' | 'active' | 'settled' | 'defaulted' | 'due' | 'no-repayments' | 'principal' | '1-month-late' | '3-months-late' | 'guarantors' | 'comments' | 'repayment-schedule'>('all');
@@ -1040,6 +1041,27 @@ export function LoansTab() {
           <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Manage all loan applications and disbursements</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => {
+              toast.info('Refreshing loan data...');
+              refreshData();
+            }}
+            className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm"
+          >
+            <RefreshCw className="size-4" />
+            Refresh Data
+          </button>
+          <button
+            onClick={() => {
+              if (confirm('This will recalculate all principal amounts using the reverse formula from total amounts. Continue?')) {
+                fixLoanPrincipals();
+              }
+            }}
+            className="px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-2 text-sm"
+          >
+            <AlertCircle className="size-4" />
+            Fix Principals
+          </button>
           <button
             onClick={() => setShowCalculator(true)}
             className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm"
