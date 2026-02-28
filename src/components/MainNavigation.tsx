@@ -48,6 +48,7 @@ const navItems: NavItem[] = [
     hasDropdown: true,
     dropdownItems: [
       { label: 'Clients', icon: <Users className="size-4" />, value: 'clients', tabKey: 'operations_clients' },
+      { label: 'Institutions', icon: <Building2 className="size-4" />, value: 'institutions', tabKey: 'operations_clients' },
       { label: 'Loans', icon: <DollarSign className="size-4" />, value: 'loans', tabKey: 'operations_loans' },
       { label: 'Loan Calculator', icon: <Calculator className="size-4" />, value: 'loan-calculator', tabKey: 'operations_loans' },
       { label: 'Approval', icon: <GitBranch className="size-4" />, value: 'approval1', tabKey: 'operations_loans' },

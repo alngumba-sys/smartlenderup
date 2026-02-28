@@ -9,7 +9,7 @@ interface ClientApplyTabProps {
 }
 
 export function ClientApplyTab({ clientId }: ClientApplyTabProps) {
-  const { addLoan, clients } = useData();
+  const { addLoan, clients, addNotification } = useData();
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [requestedAmount, setRequestedAmount] = useState('');
   const [loanPurpose, setLoanPurpose] = useState('');
@@ -184,7 +184,20 @@ export function ClientApplyTab({ clientId }: ClientApplyTabProps) {
       };
       
       // Save the loan
-      await addLoan(completeLoan);
+      const loanId = await addLoan(completeLoan);
+      
+      // Create notification for admin
+      await addNotification({
+        type: 'info',
+        category: 'client_application',
+        title: 'New Loan Application',
+        message: `${client.name} has applied for a ${product.name} loan of KES ${principalAmount.toLocaleString()}`,
+        read: false,
+        actionRequired: true,
+        relatedId: loanId,
+        relatedType: 'loan',
+        createdBy: client.id
+      });
       
       // Show success message
       toast.success('Loan Application Submitted Successfully!', {

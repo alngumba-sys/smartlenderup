@@ -358,11 +358,11 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
                     </span>
                   </div>
                   <p className="text-2xl font-bold text-black mb-1">
-                    {scoreBreakdown.total}
+                    {client.creditScore || 300}
                   </p>
-                  <p className="text-xs text-gray-600">{getCreditScoreLabel(scoreBreakdown.total)}</p>
+                  <p className="text-xs text-gray-600">{getCreditScoreLabel(client.creditScore || 300)}</p>
                   <div className="mt-3 pt-3 border-t border-gray-300">
-                    <p className="text-xs text-gray-600">Previous: {Math.floor(scoreBreakdown.total * 0.95)}</p>
+                    <p className="text-xs text-gray-600">Previous: {Math.floor((client.creditScore || 300) * 0.95)}</p>
                   </div>
                 </div>
               </div>
@@ -850,11 +850,11 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <div className="border border-gray-300 rounded-lg p-3">
                       <p className="text-xs text-gray-600 mb-1">Total Score</p>
-                      <p className="text-2xl font-bold text-black">{scoreBreakdown.total}</p>
+                      <p className="text-2xl font-bold text-black">{client.creditScore || 300}</p>
                     </div>
                     <div className="border border-gray-300 rounded-lg p-3">
                       <p className="text-xs text-gray-600 mb-1">Rating</p>
-                      <p className="text-xl font-bold text-black">{getCreditScoreLabel(scoreBreakdown.total)}</p>
+                      <p className="text-xl font-bold text-black">{getCreditScoreLabel(client.creditScore || 300)}</p>
                     </div>
                   </div>
 

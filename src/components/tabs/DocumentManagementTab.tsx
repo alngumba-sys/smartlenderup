@@ -22,7 +22,7 @@ interface Document {
 
 export function DocumentManagementTab() {
   const { isDark } = useTheme();
-  const { clients, loanDocuments, loans, deleteLoanDocument } = useData();
+  const { clients, loanDocuments, loans, deleteLoanDocument, addLoanDocument } = useData();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<DocumentCategory | 'All'>('All');
   const [selectedClient, setSelectedClient] = useState<string>('all');
@@ -32,6 +32,17 @@ export function DocumentManagementTab() {
   const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   
+  // Upload form state
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadClientId, setUploadClientId] = useState<string>('');
+  const [uploadLoanId, setUploadLoanId] = useState<string>('');
+  const [uploadDocType, setUploadDocType] = useState<string>('');
+  const [uploadCategory, setUploadCategory] = useState<DocumentCategory>('Client Documents');
+  
+  // Client picture state
+  const [clientPicture, setClientPicture] = useState<string | null>(null);
+  const [showPictureUpload, setShowPictureUpload] = useState(false);
+  
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -40,7 +51,7 @@ export function DocumentManagementTab() {
   const documents: Document[] = useMemo(() => {
     return loanDocuments.map(doc => {
       const loan = loans.find(l => l.id === doc.loanId);
-      const client = clients.find(c => c.id === loan?.clientId);
+      const client = clients.find(c => c.id === loan?.clientId || c.id === loan?.clientUuid);
       
       let category: DocumentCategory = 'Other';
       if (['National ID', 'ID Copy', 'KRA PIN', 'KRA Pin', 'Passport Photo', 'Payslip', 'Bank Statement'].includes(doc.type)) {
@@ -59,8 +70,8 @@ export function DocumentManagementTab() {
         uploadDate: doc.uploadDate,
         uploadedBy: doc.uploadedBy || 'System',
         size: doc.fileSize,
-        clientName: client?.name || 'Unknown',
-        clientId: loan?.clientId,
+        clientName: client?.name || 'Unknown Client',
+        clientId: loan?.clientId || loan?.clientUuid,
         loanId: doc.loanId,
         status: 'Active' as const
       };
@@ -181,168 +192,236 @@ This is a placeholder download. In production, this would download the actual ${
   const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage);
 
   return (
-    <div className={`p-6 space-y-6 ${isDark ? 'bg-[#111120]' : 'bg-gray-50'} min-h-screen`}>
+    <div className="p-6 space-y-6 min-h-screen bg-gray-50">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className={isDark ? 'text-white' : 'text-gray-900'}>Document Management</h2>
-          <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>
-            {filteredDocuments.length} document{filteredDocuments.length !== 1 ? 's' : ''} 
-            {selectedClient !== 'all' && ` from ${clients.find(c => c.id === selectedClient)?.name}`}
+          <h2 className="text-2xl font-semibold text-gray-900">Document Management</h2>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {filteredDocuments.length} document{filteredDocuments.length !== 1 ? 's' : ''}
           </p>
         </div>
         <button
           onClick={() => setShowUploadModal(true)}
-          className="px-[16px] py-[7px] bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 text-sm"
+          className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 flex items-center gap-2 text-sm font-medium transition-colors"
         >
           <Upload className="size-4" />
           Upload Document
         </button>
       </div>
 
-      {/* Stats Cards - Compact */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <div className="flex items-center justify-between">
+      {/* Stats Cards - Subtle borders with colored icons */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        {/* Total Documents */}
+        <div className="bg-white rounded-xl border border-red-100 p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-start justify-between">
             <div>
-              <p className="text-blue-900 dark:text-blue-100 text-xl">{documents.length}</p>
-              <p className="text-blue-600 dark:text-blue-400 text-xs">Total Docs</p>
+              <p className="text-3xl font-semibold text-gray-900">{documents.length}</p>
+              <p className="text-sm text-gray-500 mt-1">Total Documents</p>
             </div>
-            <FileText className="size-5 text-blue-600 dark:text-blue-400" />
+            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+              <FileText className="size-5 text-blue-600" />
+            </div>
           </div>
         </div>
-        <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-          <div className="flex items-center justify-between">
+
+        {/* Client Documents */}
+        <div className="bg-white rounded-xl border border-red-100 p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-start justify-between">
             <div>
-              <p className="text-emerald-900 dark:text-emerald-100 text-xl">
+              <p className="text-3xl font-semibold text-gray-900">
                 {documents.filter(d => d.category === 'Client Documents').length}
               </p>
-              <p className="text-emerald-600 dark:text-emerald-400 text-xs">Client Docs</p>
+              <p className="text-sm text-gray-500 mt-1">Client Documents</p>
             </div>
-            <User className="size-5 text-emerald-600 dark:text-emerald-400" />
+            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+              <User className="size-5 text-green-600" />
+            </div>
           </div>
         </div>
-        <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-          <div className="flex items-center justify-between">
+
+        {/* Loan Agreements */}
+        <div className="bg-white rounded-xl border border-red-100 p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-start justify-between">
             <div>
-              <p className="text-purple-900 dark:text-purple-100 text-xl">
+              <p className="text-3xl font-semibold text-gray-900">
                 {documents.filter(d => d.category === 'Loan Agreements').length}
               </p>
-              <p className="text-purple-600 dark:text-purple-400 text-xs">Agreements</p>
+              <p className="text-sm text-gray-500 mt-1">Loan Agreements</p>
             </div>
-            <FileText className="size-5 text-purple-600 dark:text-purple-400" />
+            <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center">
+              <FileText className="size-5 text-orange-600" />
+            </div>
           </div>
         </div>
-        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-          <div className="flex items-center justify-between">
+
+        {/* Active Clients */}
+        <div className="bg-white rounded-xl border border-red-100 p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-start justify-between">
             <div>
-              <p className="text-amber-900 dark:text-amber-100 text-xl">{clientStats.length}</p>
-              <p className="text-amber-600 dark:text-amber-400 text-xs">Clients</p>
+              <p className="text-3xl font-semibold text-gray-900">{clientStats.length}</p>
+              <p className="text-sm text-gray-500 mt-1">Active Clients</p>
             </div>
-            <Users className="size-5 text-amber-600 dark:text-amber-400" />
+            <div className="w-10 h-10 rounded-lg bg-yellow-50 flex items-center justify-center">
+              <Users className="size-5 text-yellow-600" />
+            </div>
+          </div>
+        </div>
+        
+        {/* Client Picture Upload Card */}
+        <div className="bg-white rounded-xl border border-red-100 p-5 hover:shadow-sm transition-shadow">
+          <div className="flex flex-col items-center justify-center h-full">
+            {clientPicture ? (
+              <div className="relative group w-full">
+                <img
+                  src={clientPicture}
+                  alt="Client"
+                  className="w-full h-20 object-cover rounded-lg mb-2"
+                />
+                <button
+                  onClick={() => {
+                    setClientPicture(null);
+                    toast.success('Picture removed');
+                  }}
+                  className="absolute top-0 right-0 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="size-3" />
+                </button>
+                <p className="text-xs text-gray-500 text-center">Client Picture</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center w-full h-full">
+                <input
+                  type="file"
+                  accept="image/*"
+                  id="client-picture-upload"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        setClientPicture(event.target?.result as string);
+                        toast.success('Picture uploaded successfully');
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+                <label
+                  htmlFor="client-picture-upload"
+                  className="cursor-pointer flex flex-col items-center justify-center w-full"
+                >
+                  <div className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center mb-2">
+                    <Upload className="size-6 text-purple-600" />
+                  </div>
+                  <p className="text-sm text-gray-900 font-medium text-center">Upload Client Picture</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Click to browse</p>
+                </label>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Filters & Actions Bar */}
-      <div className="bg-white dark:bg-[#1a1a2e] rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex flex-col lg:flex-row gap-4">
+      <div className="bg-white rounded-xl border border-red-100 p-4">
+        <div className="flex flex-col lg:flex-row gap-3 items-center">
           {/* Search */}
-          <div className="flex-1 relative">
+          <div className="flex-1 relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search by document name or client..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
             />
           </div>
 
-          {/* Filters */}
-          <div className="flex gap-2 flex-wrap">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value as DocumentCategory | 'All')}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-            >
-              {categories.map(cat => (
-                <option key={cat} value={cat}>
-                  {cat} ({documents.filter(d => cat === 'All' || d.category === cat).length})
-                </option>
-              ))}
-            </select>
+          {/* Category Filter */}
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value as DocumentCategory | 'All')}
+            className="px-4 py-2 bg-white border border-gray-200 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 text-sm font-medium min-w-[140px]"
+          >
+            {categories.map(cat => (
+              <option key={cat} value={cat}>
+                {cat} ({documents.filter(d => cat === 'All' || d.category === cat).length})
+              </option>
+            ))}
+          </select>
 
-            <select
-              value={selectedClient}
-              onChange={(e) => setSelectedClient(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm min-w-[180px]"
-            >
-              <option value="all">All Clients ({documents.length})</option>
-              {clientStats.map(client => (
-                <option key={client.id} value={client.id}>
-                  {client.name} ({client.count})
-                </option>
-              ))}
-            </select>
+          {/* Client Filter */}
+          <select
+            value={selectedClient}
+            onChange={(e) => setSelectedClient(e.target.value)}
+            className="px-4 py-2 bg-white border border-gray-200 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 text-sm font-medium min-w-[160px]"
+          >
+            <option value="all">All Clients ({documents.length})</option>
+            {clientStats.map(client => (
+              <option key={client.id} value={client.id}>
+                {client.name} ({client.count})
+              </option>
+            ))}
+          </select>
 
-            {/* View Mode Toggle */}
-            <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('table')}
-                className={`px-3 py-1.5 rounded text-sm flex items-center gap-1 ${
-                  viewMode === 'table'
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow'
-                    : 'text-gray-600 dark:text-gray-400'
-                }`}
-              >
-                <List className="size-4" />
-                Table
-              </button>
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`px-3 py-1.5 rounded text-sm flex items-center gap-1 ${
-                  viewMode === 'grid'
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow'
-                    : 'text-gray-600 dark:text-gray-400'
-                }`}
-              >
-                <Grid className="size-4" />
-                Grid
-              </button>
-              <button
-                onClick={() => setViewMode('grouped')}
-                className={`px-3 py-1.5 rounded text-sm flex items-center gap-1 ${
-                  viewMode === 'grouped'
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow'
-                    : 'text-gray-600 dark:text-gray-400'
-                }`}
-              >
-                <Users className="size-4" />
-                By Client
-              </button>
-            </div>
+          {/* View Mode Toggle */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                viewMode === 'table'
+                  ? 'bg-black text-white'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <List className="size-4" />
+              Table
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                viewMode === 'grid'
+                  ? 'bg-black text-white'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <Grid className="size-4" />
+              Grid
+            </button>
+            <button
+              onClick={() => setViewMode('grouped')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                viewMode === 'grouped'
+                  ? 'bg-black text-white'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <Users className="size-4" />
+              By Client
+            </button>
           </div>
         </div>
 
         {/* Bulk Actions */}
         {selectedDocs.size > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="mt-3 pt-3 border-t border-gray-200 flex items-center justify-between">
+            <p className="text-sm text-gray-600 font-medium">
               {selectedDocs.size} document{selectedDocs.size !== 1 ? 's' : ''} selected
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setSelectedDocs(new Set())}
-                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="px-3 py-1.5 text-sm border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
               >
                 Clear Selection
               </button>
               <button
                 onClick={handleDeleteSelected}
-                className="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 flex items-center gap-1"
+                className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 font-medium"
               >
-                <Trash2 className="size-3" />
+                <Trash2 className="size-4" />
                 Delete Selected
               </button>
             </div>
@@ -352,73 +431,75 @@ This is a placeholder download. In production, this would download the actual ${
 
       {/* Table View */}
       {viewMode === 'table' && (
-        <div className="bg-white dark:bg-[#1a1a2e] rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white rounded-xl border border-red-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+              <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-4 py-3 text-left w-10">
                     <input
                       type="checkbox"
                       checked={selectedDocs.size === paginatedDocuments.length && paginatedDocuments.length > 0}
                       onChange={handleSelectAll}
-                      className="rounded border-gray-300 dark:border-gray-600"
+                      className="rounded border-gray-300"
                     />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs text-gray-700 dark:text-gray-300 uppercase tracking-wider">Document</th>
-                  <th className="px-4 py-3 text-left text-xs text-gray-700 dark:text-gray-300 uppercase tracking-wider">Type</th>
+                  <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider font-medium">Document</th>
+                  <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider font-medium">Type</th>
                   {selectedClient === 'all' && (
-                    <th className="px-4 py-3 text-left text-xs text-gray-700 dark:text-gray-300 uppercase tracking-wider">Client</th>
+                    <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider font-medium">Client</th>
                   )}
-                  <th className="px-4 py-3 text-left text-xs text-gray-700 dark:text-gray-300 uppercase tracking-wider">Loan ID</th>
-                  <th className="px-4 py-3 text-left text-xs text-gray-700 dark:text-gray-300 uppercase tracking-wider">Upload Date</th>
-                  <th className="px-4 py-3 text-right text-xs text-gray-700 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider font-medium">Loan ID</th>
+                  <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider font-medium">Upload Date</th>
+                  <th className="px-4 py-3 text-right text-xs text-gray-500 uppercase tracking-wider font-medium">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="divide-y divide-gray-100">
                 {paginatedDocuments.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
                       <input
                         type="checkbox"
                         checked={selectedDocs.has(doc.id)}
                         onChange={() => handleSelectDoc(doc.id)}
-                        className="rounded border-gray-300 dark:border-gray-600"
+                        className="rounded border-gray-300"
                       />
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <FileText className="size-4 text-gray-400 flex-shrink-0" />
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                          <FileText className="size-4 text-blue-600" />
+                        </div>
                         <div className="min-w-0">
-                          <p className="text-sm text-gray-900 dark:text-white truncate">{doc.name}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Uploaded by {doc.uploadedBy}</p>
+                          <p className="text-sm text-gray-900 font-medium truncate">{doc.name}</p>
+                          <p className="text-xs text-gray-500">Uploaded by {doc.uploadedBy}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded text-xs whitespace-nowrap ${getCategoryColor(doc.category)}`}>
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getCategoryColor(doc.category)}`}>
                         {doc.type}
                       </span>
                     </td>
                     {selectedClient === 'all' && (
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{doc.clientName}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 font-medium">{doc.clientName}</td>
                     )}
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 font-mono">{doc.loanId}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                    <td className="px-4 py-3 text-sm text-gray-600 font-mono">{doc.loanId}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                       {new Date(doc.uploadDate).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => setViewingDocument(doc)}
-                          className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="View"
                         >
                           <Eye className="size-4" />
                         </button>
                         <button
                           onClick={() => handleDownloadDocument(doc)}
-                          className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded"
+                          className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                           title="Download"
                         >
                           <Download className="size-4" />
@@ -430,7 +511,7 @@ This is a placeholder download. In production, this would download the actual ${
                               toast.success('Document deleted');
                             }
                           }}
-                          className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Delete"
                         >
                           <Trash2 className="size-4" />
@@ -444,10 +525,10 @@ This is a placeholder download. In production, this would download the actual ${
           </div>
           
           {paginatedDocuments.length === 0 && (
-            <div className="text-center py-12">
-              <FileText className="size-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600 dark:text-gray-400">No documents found</p>
-              <p className="text-gray-500 text-xs mt-1">Try adjusting your filters</p>
+            <div className="text-center py-16">
+              <FileText className="size-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-900 font-medium mb-1">No documents found</p>
+              <p className="text-gray-500 text-sm">Try adjusting your filters</p>
             </div>
           )}
         </div>
@@ -459,8 +540,8 @@ This is a placeholder download. In production, this would download the actual ${
           {paginatedDocuments.map(doc => (
             <div
               key={doc.id}
-              className={`bg-white dark:bg-[#1a1a2e] rounded-lg border p-4 hover:shadow-lg transition-shadow ${
-                selectedDocs.has(doc.id) ? 'border-emerald-500 dark:border-emerald-600' : 'border-gray-200 dark:border-gray-700'
+              className={`bg-white rounded-xl border p-4 hover:shadow-sm transition-all ${
+                selectedDocs.has(doc.id) ? 'border-green-500' : 'border-red-100'
               }`}
             >
               <div className="flex items-start justify-between mb-3">
@@ -468,37 +549,39 @@ This is a placeholder download. In production, this would download the actual ${
                   type="checkbox"
                   checked={selectedDocs.has(doc.id)}
                   onChange={() => handleSelectDoc(doc.id)}
-                  className="mt-1 rounded border-gray-300 dark:border-gray-600"
+                  className="mt-1 rounded border-gray-300"
                 />
-                <FileText className="size-8 text-gray-400" />
+                <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <FileText className="size-5 text-blue-600" />
+                </div>
               </div>
               
-              <h4 className="text-sm text-gray-900 dark:text-white mb-2 line-clamp-2" title={doc.name}>{doc.name}</h4>
+              <h4 className="text-sm text-gray-900 font-semibold mb-3 line-clamp-2 min-h-[40px]" title={doc.name}>{doc.name}</h4>
               
-              <div className="space-y-1.5 mb-3">
-                <span className={`inline-block px-2 py-0.5 rounded text-xs ${getCategoryColor(doc.category)}`}>
-                  {doc.category}
+              <div className="space-y-2 mb-3">
+                <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${getCategoryColor(doc.category)}`}>
+                  {doc.type}
                 </span>
-                <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                  <User className="size-3" />
+                <p className="text-xs text-gray-600 flex items-center gap-1.5">
+                  <User className="size-3.5" />
                   {doc.clientName}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-500">{doc.size} • {new Date(doc.uploadDate).toLocaleDateString()}</p>
+                <p className="text-xs text-gray-500">{doc.size} • {new Date(doc.uploadDate).toLocaleDateString()}</p>
               </div>
 
-              <div className="flex gap-1 pt-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex gap-2 pt-3 border-t border-gray-100">
                 <button
                   onClick={() => setViewingDocument(doc)}
-                  className="flex-1 px-2 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 flex items-center justify-center gap-1 text-xs"
+                  className="flex-1 px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 flex items-center justify-center gap-1.5 text-xs font-medium transition-colors"
                 >
-                  <Eye className="size-3" />
+                  <Eye className="size-3.5" />
                   View
                 </button>
                 <button
                   onClick={() => handleDownloadDocument(doc)}
-                  className="px-2 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/30 flex items-center justify-center gap-1 text-xs"
+                  className="px-2.5 py-1.5 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 flex items-center justify-center gap-1.5 text-xs font-medium transition-colors"
                 >
-                  <Download className="size-3" />
+                  <Download className="size-3.5" />
                 </button>
                 <button
                   onClick={() => {
@@ -507,17 +590,17 @@ This is a placeholder download. In production, this would download the actual ${
                       toast.success('Document deleted');
                     }
                   }}
-                  className="px-2 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded hover:bg-red-100 dark:hover:bg-red-900/30 flex items-center justify-center gap-1 text-xs"
+                  className="px-2.5 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 flex items-center justify-center gap-1.5 text-xs font-medium transition-colors"
                 >
-                  <Trash2 className="size-3" />
+                  <Trash2 className="size-3.5" />
                 </button>
               </div>
             </div>
           ))}
           {paginatedDocuments.length === 0 && (
-            <div className="col-span-full text-center py-12 bg-white dark:bg-[#1a1a2e] rounded-lg border border-gray-200 dark:border-gray-700">
-              <FileText className="size-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600 dark:text-gray-400">No documents found</p>
+            <div className="col-span-full text-center py-16 bg-white rounded-xl border border-red-100">
+              <FileText className="size-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-900 font-medium">No documents found</p>
             </div>
           )}
         </div>
@@ -531,21 +614,23 @@ This is a placeholder download. In production, this would download the actual ${
             const isExpanded = expandedClients.has(clientId);
             
             return (
-              <div key={clientId} className="bg-white dark:bg-[#1a1a2e] rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div key={clientId} className="bg-white rounded-xl border border-red-100 overflow-hidden">
                 <button
                   onClick={() => handleToggleClient(clientId)}
-                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    {isExpanded ? <ChevronDown className="size-4 text-gray-600 dark:text-gray-400" /> : <ChevronRight className="size-4 text-gray-600 dark:text-gray-400" />}
-                    <User className="size-5 text-gray-600 dark:text-gray-400" />
+                    {isExpanded ? <ChevronDown className="size-4 text-gray-600" /> : <ChevronRight className="size-4 text-gray-600" />}
+                    <div className="w-9 h-9 rounded-lg bg-orange-50 flex items-center justify-center">
+                      <User className="size-4 text-orange-600" />
+                    </div>
                     <div className="text-left">
-                      <p className="text-sm text-gray-900 dark:text-white">{client?.name || 'Unknown Client'}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{clientDocs.length} document{clientDocs.length !== 1 ? 's' : ''}</p>
+                      <p className="text-sm text-gray-900 font-semibold">{client?.name || 'Unknown Client'}</p>
+                      <p className="text-xs text-gray-500">{clientDocs.length} document{clientDocs.length !== 1 ? 's' : ''}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-600 font-medium">
                       {clientDocs.reduce((acc, doc) => {
                         const size = parseFloat(doc.size);
                         return acc + (isNaN(size) ? 0 : size);
@@ -555,39 +640,41 @@ This is a placeholder download. In production, this would download the actual ${
                 </button>
 
                 {isExpanded && (
-                  <div className="border-t border-gray-200 dark:border-gray-700">
-                    <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                  <div className="border-t border-gray-100">
+                    <div className="divide-y divide-gray-100">
                       {clientDocs.map(doc => (
-                        <div key={doc.id} className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 flex items-center justify-between">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div key={doc.id} className="px-4 py-3 hover:bg-gray-50 flex items-center justify-between transition-colors">
+                          <div className="flex items-center gap-2.5 flex-1 min-w-0">
                             <input
                               type="checkbox"
                               checked={selectedDocs.has(doc.id)}
                               onChange={() => handleSelectDoc(doc.id)}
-                              className="rounded border-gray-300 dark:border-gray-600"
+                              className="rounded border-gray-300"
                             />
-                            <FileText className="size-4 text-gray-400 flex-shrink-0" />
+                            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                              <FileText className="size-4 text-blue-600" />
+                            </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm text-gray-900 dark:text-white truncate">{doc.name}</p>
+                              <p className="text-sm text-gray-900 font-medium truncate">{doc.name}</p>
                               <div className="flex items-center gap-2 mt-0.5">
-                                <span className={`px-2 py-0.5 rounded text-xs ${getCategoryColor(doc.category)}`}>
-                                  {doc.category}
+                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(doc.category)}`}>
+                                  {doc.type}
                                 </span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">{doc.size}</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">• {new Date(doc.uploadDate).toLocaleDateString()}</span>
+                                <span className="text-xs text-gray-500">{doc.size}</span>
+                                <span className="text-xs text-gray-400">• {new Date(doc.uploadDate).toLocaleDateString()}</span>
                               </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-1 ml-3">
                             <button
                               onClick={() => setViewingDocument(doc)}
-                              className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             >
                               <Eye className="size-4" />
                             </button>
                             <button
                               onClick={() => handleDownloadDocument(doc)}
-                              className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded"
+                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                             >
                               <Download className="size-4" />
                             </button>
@@ -598,7 +685,7 @@ This is a placeholder download. In production, this would download the actual ${
                                   toast.success('Document deleted');
                                 }
                               }}
-                              className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             >
                               <Trash2 className="size-4" />
                             </button>
@@ -612,9 +699,9 @@ This is a placeholder download. In production, this would download the actual ${
             );
           })}
           {Object.keys(groupedByClient).length === 0 && (
-            <div className="text-center py-12 bg-white dark:bg-[#1a1a2e] rounded-lg border border-gray-200 dark:border-gray-700">
-              <FileText className="size-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600 dark:text-gray-400">No documents found</p>
+            <div className="text-center py-16 bg-white rounded-xl border border-red-100">
+              <FileText className="size-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-900 font-medium">No documents found</p>
             </div>
           )}
         </div>
@@ -622,9 +709,9 @@ This is a placeholder download. In production, this would download the actual ${
 
       {/* Pagination */}
       {filteredDocuments.length > 0 && (
-        <div className="flex items-center justify-between bg-white dark:bg-[#1a1a2e] rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3">
+        <div className="flex items-center justify-between bg-white rounded-xl border border-red-100 px-4 py-3">
           <div className="flex items-center gap-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-gray-600">
               Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredDocuments.length)} of {filteredDocuments.length}
             </p>
             <select
@@ -633,7 +720,7 @@ This is a placeholder download. In production, this would download the actual ${
                 setItemsPerPage(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm"
+              className="px-3 py-1.5 border border-gray-200 bg-white text-gray-900 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-900"
             >
               <option value={10}>10 per page</option>
               <option value={25}>25 per page</option>
@@ -646,9 +733,9 @@ This is a placeholder download. In production, this would download the actual ${
             <button
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="p-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <ChevronLeft className="size-4" />
+              <ChevronLeft className="size-4 text-gray-600" />
             </button>
             
             <div className="flex items-center gap-1">
@@ -668,10 +755,10 @@ This is a placeholder download. In production, this would download the actual ${
                   <button
                     key={i}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`px-3 py-1 rounded text-sm ${
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                       currentPage === pageNum
-                        ? 'bg-emerald-600 text-white'
-                        : 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        ? 'bg-black text-white'
+                        : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
                     }`}
                   >
                     {pageNum}
@@ -683,9 +770,9 @@ This is a placeholder download. In production, this would download the actual ${
             <button
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="p-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <ChevronRightIcon className="size-4" />
+              <ChevronRightIcon className="size-4 text-gray-600" />
             </button>
           </div>
         </div>
@@ -761,23 +848,197 @@ This is a placeholder download. In production, this would download the actual ${
         </div>
       )}
 
-      {/* Upload Modal - Placeholder */}
+      {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-5">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-gray-900 dark:text-white text-lg">Upload Document</h3>
-              <button onClick={() => setShowUploadModal(false)} className="text-gray-400 hover:text-gray-600">
+              <h3 className="text-gray-900 text-lg font-semibold">Upload Document</h3>
+              <button onClick={() => {
+                setShowUploadModal(false);
+                setUploadFile(null);
+                setUploadClientId('');
+                setUploadLoanId('');
+                setUploadDocType('');
+                setUploadCategory('Client Documents');
+              }} className="text-gray-400 hover:text-gray-600">
                 <X className="size-5" />
               </button>
             </div>
-            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">Document upload feature coming soon. Documents are currently added when creating loans.</p>
-            <button
-              onClick={() => setShowUploadModal(false)}
-              className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                
+                if (!uploadFile || !uploadClientId || !uploadLoanId || !uploadDocType) {
+                  toast.error('Please fill in all required fields');
+                  return;
+                }
+                
+                // Create document object
+                const newDocument = {
+                  id: `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  fileName: uploadFile.name,
+                  type: uploadDocType,
+                  fileSize: `${(uploadFile.size / 1024).toFixed(1)} KB`,
+                  uploadDate: new Date().toISOString(),
+                  uploadedBy: 'Current User',
+                  status: 'Verified',
+                  loanId: uploadLoanId,
+                  verified: true
+                };
+                
+                addLoanDocument(newDocument);
+                toast.success('Document uploaded successfully');
+                
+                // Reset form
+                setShowUploadModal(false);
+                setUploadFile(null);
+                setUploadClientId('');
+                setUploadLoanId('');
+                setUploadDocType('');
+                setUploadCategory('Client Documents');
+              }}
+              className="space-y-4"
             >
-              Close
-            </button>
+              {/* File Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select File
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx"
+                    onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                    className="w-full px-3 py-2.5 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                    required
+                  />
+                </div>
+                {uploadFile && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {uploadFile.name} ({(uploadFile.size / 1024).toFixed(1)} KB)
+                  </p>
+                )}
+              </div>
+
+              {/* Client Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Client
+                </label>
+                <div className="flex items-center gap-2">
+                  <User className="size-4 text-gray-500" />
+                  <select
+                    value={uploadClientId}
+                    onChange={(e) => {
+                      setUploadClientId(e.target.value);
+                      setUploadLoanId(''); // Reset loan when client changes
+                    }}
+                    className="flex-1 px-3 py-2.5 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                    required
+                  >
+                    <option value="">Select Client</option>
+                    {clients.map(client => (
+                      <option key={client.id} value={client.id}>{client.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Loan Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Loan
+                </label>
+                <div className="flex items-center gap-2">
+                  <FileText className="size-4 text-gray-500" />
+                  <select
+                    value={uploadLoanId}
+                    onChange={(e) => setUploadLoanId(e.target.value)}
+                    className="flex-1 px-3 py-2.5 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    required
+                    disabled={!uploadClientId}
+                  >
+                    <option value="">Select Loan</option>
+                    {loans
+                      .filter(loan => loan.clientId === uploadClientId || loan.clientUuid === uploadClientId)
+                      .map(loan => (
+                        <option key={loan.id} value={loan.id}>
+                          {loan.loanNumber || loan.id} - {loan.productName} ({loan.status})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Document Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Document Type
+                </label>
+                <div className="flex items-center gap-2">
+                  <Tag className="size-4 text-gray-500" />
+                  <select
+                    value={uploadDocType}
+                    onChange={(e) => setUploadDocType(e.target.value)}
+                    className="flex-1 px-3 py-2.5 border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                    required
+                  >
+                    <option value="">Select Type</option>
+                    <optgroup label="Client Documents">
+                      <option value="National ID">National ID</option>
+                      <option value="ID Copy">ID Copy</option>
+                      <option value="KRA PIN">KRA PIN</option>
+                      <option value="Passport Photo">Passport Photo</option>
+                      <option value="Payslip">Payslip</option>
+                      <option value="Bank Statement">Bank Statement</option>
+                    </optgroup>
+                    <optgroup label="Loan Documents">
+                      <option value="Loan Agreement">Loan Agreement</option>
+                      <option value="Guarantor Form">Guarantor Form</option>
+                      <option value="Guarantor ID">Guarantor ID</option>
+                    </optgroup>
+                    <optgroup label="Collateral">
+                      <option value="Title Deed">Title Deed</option>
+                      <option value="Logbook">Logbook</option>
+                      <option value="Insurance Certificate">Insurance Certificate</option>
+                      <option value="Collateral Photo">Collateral Photo</option>
+                      <option value="Business Permit">Business Permit</option>
+                    </optgroup>
+                    <optgroup label="Other">
+                      <option value="Meeting Minutes">Meeting Minutes</option>
+                      <option value="Legal Document">Legal Document</option>
+                      <option value="Other">Other</option>
+                    </optgroup>
+                  </select>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setUploadFile(null);
+                    setUploadClientId('');
+                    setUploadLoanId('');
+                    setUploadDocType('');
+                    setUploadCategory('Client Documents');
+                  }}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Upload className="size-4" />
+                  Upload
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

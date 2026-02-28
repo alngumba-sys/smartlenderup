@@ -30,7 +30,8 @@ export function LoansTab() {
     addGuarantor,
     collaterals,
     addCollateral,
-    refreshData
+    refreshData,
+    payees
   } = useData();
   const [activeSubTab, setActiveSubTab] = useState<'all' | 'pending-review' | 'pending-disbursement' | 'active' | 'settled' | 'defaulted' | 'due' | 'no-repayments' | 'principal' | '1-month-late' | '3-months-late' | 'guarantors' | 'comments' | 'repayment-schedule'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -216,6 +217,8 @@ export function LoansTab() {
       maturityDate: maturityDate.toISOString().split('T')[0],
       status: 'Pending' as const,
       facilitationFee: facilitationFee,
+      staffMemberId: loanData.staffMemberId || null,
+      staffMemberName: loanData.staffMemberId ? payees.find(p => p.id === loanData.staffMemberId)?.name || null : null,
       collateral: loanData.collateralType && loanData.collateralValue ? [{
         type: loanData.collateralType,
         description: loanData.collateralType,
@@ -1038,17 +1041,6 @@ export function LoansTab() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => {
-              refreshData();
-              toast.success('Refreshing data from database...');
-            }}
-            className="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2 text-sm"
-            title="Refresh data from database"
-          >
-            <RefreshCw className="size-4" />
-            Refresh
-          </button>
-          <button
             onClick={() => setShowCalculator(true)}
             className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm"
           >
@@ -1541,10 +1533,15 @@ export function LoansTab() {
                 const client = clients.find(c => c.id === loan.clientId);
                 const principalAmt = loan.principalAmount || 0;
                 const paidAmt = loan.paidAmount || 0;
-                const totalRepayable = loan.totalRepayable || loan.totalRepayment || 0;
-                const outstandingAmt = loan.outstandingBalance !== undefined 
-                  ? loan.outstandingBalance 
-                  : Math.max(0, totalRepayable - paidAmt);
+                // ✅ Smart calculation: Use DB if it has a discount, otherwise use formula
+                const calculatedInterest = calculateCorrectInterest(loan);
+                const calculatedTotal = principalAmt + calculatedInterest;
+                const dbTotal = loan.totalRepayable || loan.totalRepayment || 0;
+                const tolerance = calculatedTotal * 0.01;
+                const hasDiscount = dbTotal > 0 && dbTotal < (calculatedTotal - tolerance);
+                const totalRepayable = hasDiscount ? dbTotal : calculatedTotal;
+                // ✅ ALWAYS recalculate outstanding based on corrected total (don't trust DB balance)
+                const outstandingAmt = Math.max(0, totalRepayable - paidAmt);
                 const progress = totalRepayable > 0 ? (paidAmt / totalRepayable) * 100 : 0;
                 
                 // Convert "Settled" to "Paid" for display
@@ -1741,12 +1738,16 @@ export function LoansTab() {
                       const client = clients.find(c => c.id === loan.clientId);
                       const principalAmt = loan.principalAmount || 0;
                       const paidAmt = loan.paidAmount || 0;
-                      // ✅ Use values from database (handles discounts), calculate only if missing
-                      const totalRepayable = loan.totalRepayable || loan.totalRepayment || 0;
+                      // ✅ Smart calculation: Use DB if it has a discount, otherwise use formula
+                      const calculatedInterest = calculateCorrectInterest(loan);
+                      const calculatedTotal = principalAmt + calculatedInterest;
+                      const dbTotal = loan.totalRepayable || loan.totalRepayment || 0;
+                      const tolerance = calculatedTotal * 0.01;
+                      const hasDiscount = dbTotal > 0 && dbTotal < (calculatedTotal - tolerance);
+                      const totalRepayable = hasDiscount ? dbTotal : calculatedTotal;
                       const interestFromTotal = totalRepayable - principalAmt;
-                      const outstandingAmt = loan.outstandingBalance !== undefined 
-                        ? loan.outstandingBalance 
-                        : Math.max(0, totalRepayable - paidAmt);
+                      // ✅ ALWAYS recalculate outstanding based on corrected total (don't trust DB balance)
+                      const outstandingAmt = Math.max(0, totalRepayable - paidAmt);
                       // Determine actual display status: if outstanding is 0 or less, show "Paid"
                       // Also convert "Settled" to "Paid"
                       let displayStatus = loan.status;

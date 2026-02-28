@@ -8,7 +8,8 @@ export function getCurrentUserPermissions(): TabPermission[] {
     const userData = localStorage.getItem('bvfunguo_user');
     if (userData) {
       const user = JSON.parse(userData);
-      return user.permissions || [];
+      const permissions = user.permissions || [];
+      return Array.isArray(permissions) ? permissions : [];
     }
   } catch (error) {
     console.error('Error getting user permissions:', error);
@@ -30,8 +31,38 @@ export function canViewTab(tabKey: TabKey): boolean {
       
       // Check staff permissions
       const permissions = user.permissions || [];
-      const tabPermission = permissions.find((p: TabPermission) => p.tab_name === tabKey);
-      return tabPermission ? tabPermission.can_view : false;
+      
+      // Handle object-based permissions (new format)
+      if (!Array.isArray(permissions) && typeof permissions === 'object') {
+        // Map tab keys to permission flags
+        const tabPermissionMap: Record<TabKey, boolean> = {
+          'dashboard': permissions.viewDashboard || false,
+          'operations_loans': permissions.viewLoans || permissions.canAccessOperations || false,
+          'operations_products': permissions.manageProducts || permissions.canAccessOperations || false,
+          'operations_clients': permissions.viewClients || permissions.canAccessOperations || false,
+          'operations_groups': permissions.canAccessOperations || false,
+          'accounting_chart': permissions.viewTransactions || permissions.canAccessTransactions || false,
+          'accounting_journal': permissions.viewTransactions || permissions.canAccessTransactions || false,
+          'accounting_trial': permissions.viewTransactions || permissions.canAccessTransactions || false,
+          'reports_par': permissions.viewPortfolioReport || permissions.viewLoanPerformanceReport || false,
+          'reports_collections': permissions.viewCollectionReport || false,
+          'reports_management': permissions.viewClientReport || permissions.viewFinancialReport || false,
+          'payroll': permissions.canAccessManagement || false,
+          'ai_tools': permissions.viewRiskInsights || permissions.canAccessRiskAI || false,
+          'settings': permissions.canAccessAdmin || false,
+        };
+        
+        return tabPermissionMap[tabKey] || false;
+      }
+      
+      // Handle array-based permissions (old format)
+      if (Array.isArray(permissions)) {
+        const tabPermission = permissions.find((p: TabPermission) => p.tab_name === tabKey);
+        return tabPermission ? tabPermission.can_view : false;
+      }
+      
+      // Unknown format
+      return false;
     }
   } catch (error) {
     console.error('Error checking view permission:', error);
@@ -52,8 +83,38 @@ export function canEditInTab(tabKey: TabKey): boolean {
       const user = JSON.parse(userData);
       
       const permissions = user.permissions || [];
-      const tabPermission = permissions.find((p: TabPermission) => p.tab_name === tabKey);
-      return tabPermission ? tabPermission.can_edit : false;
+      
+      // Handle object-based permissions (new format)
+      if (!Array.isArray(permissions) && typeof permissions === 'object') {
+        // Map tab keys to edit permission flags
+        const tabEditPermissionMap: Record<TabKey, boolean> = {
+          'dashboard': false, // Dashboard is view-only
+          'operations_loans': permissions.addLoans || permissions.approveLoans || false,
+          'operations_products': permissions.manageProducts || false,
+          'operations_clients': permissions.editClients || permissions.addClients || false,
+          'operations_groups': permissions.canAccessOperations || false,
+          'accounting_chart': permissions.canAccessTransactions || false,
+          'accounting_journal': permissions.canAccessTransactions || false,
+          'accounting_trial': false, // Trial balance is view-only
+          'reports_par': false, // Reports are view-only
+          'reports_collections': false,
+          'reports_management': false,
+          'payroll': permissions.canAccessManagement || false,
+          'ai_tools': false, // AI tools are view-only
+          'settings': permissions.canAccessAdmin || false,
+        };
+        
+        return tabEditPermissionMap[tabKey] || false;
+      }
+      
+      // Handle array-based permissions (old format)
+      if (Array.isArray(permissions)) {
+        const tabPermission = permissions.find((p: TabPermission) => p.tab_name === tabKey);
+        return tabPermission ? tabPermission.can_edit : false;
+      }
+      
+      // Unknown format
+      return false;
     }
   } catch (error) {
     console.error('Error checking edit permission:', error);
@@ -74,8 +135,38 @@ export function canDeleteInTab(tabKey: TabKey): boolean {
       const user = JSON.parse(userData);
       
       const permissions = user.permissions || [];
-      const tabPermission = permissions.find((p: TabPermission) => p.tab_name === tabKey);
-      return tabPermission ? tabPermission.can_delete : false;
+      
+      // Handle object-based permissions (new format)
+      if (!Array.isArray(permissions) && typeof permissions === 'object') {
+        // Map tab keys to delete permission flags
+        const tabDeletePermissionMap: Record<TabKey, boolean> = {
+          'dashboard': false, // Dashboard has no delete
+          'operations_loans': false, // Loans typically can't be deleted
+          'operations_products': permissions.manageProducts || false,
+          'operations_clients': permissions.deleteClients || false,
+          'operations_groups': permissions.canAccessOperations || false,
+          'accounting_chart': false, // Chart of accounts managed separately
+          'accounting_journal': false, // Transactions can't be deleted
+          'accounting_trial': false,
+          'reports_par': false,
+          'reports_collections': false,
+          'reports_management': false,
+          'payroll': permissions.canAccessManagement || false,
+          'ai_tools': false,
+          'settings': permissions.canAccessAdmin || false,
+        };
+        
+        return tabDeletePermissionMap[tabKey] || false;
+      }
+      
+      // Handle array-based permissions (old format)
+      if (Array.isArray(permissions)) {
+        const tabPermission = permissions.find((p: TabPermission) => p.tab_name === tabKey);
+        return tabPermission ? tabPermission.can_delete : false;
+      }
+      
+      // Unknown format
+      return false;
     }
   } catch (error) {
     console.error('Error checking delete permission:', error);
@@ -89,41 +180,49 @@ export function isManager(): boolean {
     const userData = localStorage.getItem('bvfunguo_user');
     if (userData) {
       const user = JSON.parse(userData);
-      console.log('🔍 isManager check:', { 
-        role: user.role, 
-        userType: user.userType, 
-        hasPermissions: !!user.permissions,
-        permissionsLength: user.permissions?.length || 0 
-      });
       
       // Check various role formats: Manager, manager, admin, organization_admin, etc.
       const role = (user.role || '').toLowerCase();
       const userType = (user.userType || '').toLowerCase();
       
-      // If user doesn't have a permissions array or userType is not 'staff', they're a manager
-      if (!user.permissions || user.permissions.length === 0) {
-        console.log('✅ isManager = true (no permissions defined)');
-        return true; // Default to manager if no permissions defined
+      // Check for client role
+      if (role === 'client' || userType === 'client') {
+        return false; // Clients are never managers
       }
       
+      // Check for manager/admin keywords in role
+      if (role.includes('manager') || 
+          role.includes('admin') || 
+          userType.includes('manager') || 
+          userType.includes('admin')) {
+        return true;
+      }
+      
+      // If userType is explicitly 'staff', they're not a manager
       if (userType === 'staff') {
-        console.log('❌ isManager = false (userType is staff)');
-        return false; // Explicitly staff user
+        return false;
       }
       
-      // Check for manager/admin keywords
-      const isManagerOrAdmin = role.includes('manager') || 
-             role.includes('admin') || 
-             userType.includes('manager') || 
-             userType.includes('admin');
+      // If user has object-based permissions (staff member), they're not a manager
+      // unless their permissions object is empty
+      if (user.permissions && typeof user.permissions === 'object' && !Array.isArray(user.permissions)) {
+        const hasAnyPermission = Object.keys(user.permissions).length > 0;
+        return !hasAnyPermission; // Empty permissions object = manager
+      }
       
-      console.log(`${isManagerOrAdmin ? '✅' : '❌'} isManager = ${isManagerOrAdmin} (keyword check)`);
-      return isManagerOrAdmin;
+      // If user has array-based permissions (staff member), they're not a manager
+      // unless the array is empty
+      if (Array.isArray(user.permissions)) {
+        return user.permissions.length === 0; // Empty array = manager
+      }
+      
+      // Default to manager if no permissions defined at all
+      return !user.permissions;
     }
   } catch (error) {
     console.error('Error checking manager status:', error);
   }
-  console.log('✅ isManager = true (default fallback)');
+  
   return true; // Default to true to avoid locking out users
 }
 
@@ -219,8 +318,8 @@ export function getVisibleTabs(): TabKey[] {
           .map((p: TabPermission) => p.tab_name as TabKey);
       }
       
-      console.warn('Permissions format not recognized:', permissions);
-      return ['dashboard']; // Default to dashboard only
+      // Unknown permissions format - return dashboard only
+      return ['dashboard'];
     }
   } catch (error) {
     console.error('Error getting visible tabs:', error);

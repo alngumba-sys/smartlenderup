@@ -1,199 +1,624 @@
-# 🔧 Troubleshooting Database Errors
+# 🔧 Troubleshooting Guide
 
-## ❌ Error: "column 'plan_name' does not exist"
+## Common Issues & Solutions
 
-### **What Happened:**
-The original SQL script assumed your `pricing_config` table had a column called `plan_name`, but your actual table has different column names.
+### 1. Database Migration Issues
 
-### **Why This Happened:**
-Your `pricing_config` table was created with a different schema than expected. This is common when:
-- The table was created manually
-- A different migration was run previously
-- The table structure was customized
-
----
-
-## ✅ Solution: Use the FIXED Script
-
-### **Step 1: Run Diagnostic (Optional)**
-First, see what's actually in your database:
-
-1. Open Supabase SQL Editor
-2. Copy code from: **`/supabase-diagnostic.sql`**
-3. Run it
-4. Look at the output - it will show you:
-   - All tables in your database
-   - Column names in `pricing_config`
-   - Current data in `pricing_config`
-   - Whether `contact_messages` exists
-
-### **Step 2: Run the Fixed Script**
-1. Open Supabase SQL Editor
-2. Copy code from: **`/supabase-setup-fixed.sql`**
-3. Run it
-4. Should complete successfully! ✅
-
----
-
-## 🔍 What the Fixed Script Does Differently:
-
-### **Original Script (had issues):**
+#### Error: "Column 'type' does not exist"
+**Cause:** Migration tried to add constraint before creating column  
+**Solution:** Run the latest migration file:
 ```sql
--- Assumed specific column names
-INSERT INTO pricing_config (plan_name, monthly_price, ...) 
-VALUES ('Growth', 199, ...);
+-- In Supabase SQL Editor:
+/supabase-migrations/add-client-portal-fixed-types.sql
 ```
 
-### **Fixed Script (works with any schema):**
+#### Error: "Type mismatch: text vs uuid"
+**Cause:** organization_id field type doesn't match organizations table  
+**Solution:** ✅ Already fixed in latest migration (uses UUID)
+
+#### Error: "Table already exists"
+**Cause:** Migration was run multiple times  
+**Solution:** Drop and recreate:
 ```sql
--- Just adds the missing column, doesn't assume structure
-ALTER TABLE pricing_config 
-ADD COLUMN IF NOT EXISTS trial_days INTEGER DEFAULT 14;
+DROP TABLE IF EXISTS notifications CASCADE;
+-- Then run the migration again
 ```
 
 ---
 
-## 📋 Differences Between Scripts:
+### 2. Client Login Issues
 
-| Feature | Original Script | Fixed Script |
-|---------|----------------|--------------|
-| Creates `contact_messages` | ✅ Yes | ✅ Yes |
-| Adds `trial_days` column | ✅ Yes | ✅ Yes |
-| Assumes table structure | ❌ Yes (causes errors) | ✅ No (safe) |
-| Inserts sample pricing data | ✅ Yes | ❌ No (safer) |
-| Works with existing tables | ⚠️ Maybe | ✅ Always |
+#### "Invalid credentials" error
+**Possible Causes:**
+1. Password not set for client
+2. Wrong last 4 digits of phone number
+3. Client from different organization
 
----
-
-## 🎯 What Each File Does:
-
-### **`/supabase-diagnostic.sql`** 🔍
-- **Purpose:** Check what's in your database
-- **Safe:** Yes, read-only queries
-- **When to use:** Before running setup, or if errors occur
-- **Output:** Shows all tables, columns, and data
-
-### **`/supabase-setup-fixed.sql`** ⭐
-- **Purpose:** Add missing tables and columns
-- **Safe:** Yes, uses IF NOT EXISTS
-- **When to use:** After getting "plan_name" error
-- **What it does:**
-  - Creates `contact_messages` table (if missing)
-  - Adds `trial_days` column to `pricing_config` (if missing)
-  - Sets up security policies
-  - Shows verification messages
-
-### **`/supabase-setup.sql`** 
-- **Purpose:** Complete setup with sample data
-- **Safe:** No, assumes table structure
-- **When to use:** Only if you have a fresh database
-- **Issues:** Assumes specific column names
-
----
-
-## 🚨 Common Errors & Fixes:
-
-### Error: "relation 'pricing_config' does not exist"
-**Problem:** Your database doesn't have a `pricing_config` table at all.
-
-**Fix:** You need to create it first. Check your codebase for the original table creation script, or contact your team to see how this table was set up.
-
-### Error: "column 'trial_days' already exists"
-**Problem:** You already ran the script successfully!
-
-**Fix:** Nothing to fix - refresh your app and it should work.
-
-### Error: "permission denied for table pricing_config"
-**Problem:** Your Supabase user doesn't have permission to modify tables.
-
-**Fix:** Make sure you're logged in as the project owner in Supabase.
-
-### Error: "duplicate key value violates unique constraint"
-**Problem:** Trying to insert data that already exists.
-
-**Fix:** Use the fixed script instead - it doesn't insert data, just adds columns.
-
----
-
-## ✅ Success Checklist:
-
-After running the fixed script, you should see:
-
-```
-✅ contact_messages table exists
-✅ pricing_config.trial_days column exists
+**Solution:**
+```typescript
+// Check in Admin → Clients:
+// 1. Find the client
+// 2. Scroll to "Client Portal" section
+// 3. Verify phone number (last 4 digits must match exactly)
+// 4. Set password again if needed
 ```
 
-Plus these verification outputs:
-- List of columns in `pricing_config`
-- Current data in `pricing_config` with `trial_days` column
-- No error messages
-
----
-
-## 🎊 After Success:
-
-1. **Refresh your app** (Ctrl+Shift+R)
-2. **Test Contact Form:**
-   - Go to landing page footer
-   - Click "Contact Us"
-   - Fill form and submit
-   - Should see success message
-3. **Check Super Admin:**
-   - Login as Super Admin
-   - Go to "Contact Messages" tab
-   - Should see your test message
-4. **Test Trial Management:**
-   - Go to "Subscriptions" tab
-   - Scroll to "Pricing Remote Control"
-   - Change trial days
-   - Click "Save Changes"
-   - Should save successfully
-
----
-
-## 📞 Still Having Issues?
-
-### Check Browser Console:
-1. Press F12 to open DevTools
-2. Go to Console tab
-3. Look for messages starting with:
-   - `✅` = Success
-   - `❌` = Error
-   - `🔍` = Diagnostic info
-
-### Check Supabase Logs:
-1. Go to Supabase Dashboard
-2. Click "Logs" in left sidebar
-3. Look for recent errors
-4. Check the exact error message
-
-### Verify Table Structure:
-Run this query in Supabase SQL Editor:
+**Debug Query:**
 ```sql
-SELECT column_name, data_type 
-FROM information_schema.columns
-WHERE table_name = 'pricing_config';
+-- Check client data
+SELECT id, name, phone, 
+  CASE WHEN client_password IS NOT NULL 
+    THEN 'Password Set' 
+    ELSE 'No Password' 
+  END as password_status,
+  has_changed_password
+FROM clients
+WHERE phone LIKE '%1234'; -- Replace 1234 with last 4 digits
 ```
 
-Should show `trial_days` with type `integer`.
+#### Client login button not visible
+**Solution:** Check that you're on the Staff Portal view (not already logged in as client)
 
 ---
 
-## 🎯 Quick Reference:
+### 3. Notification Issues
 
-**Got "plan_name" error?**  
-→ Use `/supabase-setup-fixed.sql` ⭐
+#### Notifications not showing up
+**Possible Causes:**
+1. Wrong organization_id filter
+2. Notifications table doesn't exist
+3. RLS policy blocking access
 
-**Want to see your database?**  
-→ Run `/supabase-diagnostic.sql` 🔍
+**Debug Steps:**
+```sql
+-- 1. Check if table exists
+SELECT COUNT(*) FROM notifications;
 
-**Fresh database setup?**  
-→ Use `/supabase-setup.sql` (but might have issues)
+-- 2. Check raw data (bypasses RLS)
+SELECT * FROM notifications LIMIT 10;
 
-**Need detailed help?**  
-→ Read `/DATABASE-SETUP-GUIDE.md` 📖
+-- 3. Check organization_id matches
+SELECT DISTINCT organization_id FROM notifications;
+SELECT organization_id FROM users WHERE id = auth.uid();
+```
+
+**Solution:**
+```typescript
+// In browser console:
+console.log('Current User Org:', currentUser?.organizationId);
+console.log('Notifications:', notifications);
+
+// Check if notifications are being filtered out
+const unfiltered = await supabase
+  .from('notifications')
+  .select('*')
+  .limit(10);
+console.log('All notifications:', unfiltered);
+```
+
+#### Notification created but not visible in UI
+**Cause:** Field mapping issue (snake_case vs camelCase)  
+**Solution:** ✅ Already fixed - check DataContext.tsx loads notifications correctly
+
+**Verify:**
+```typescript
+// Should map action_required → actionRequired
+// Should map related_id → relatedId
+// Should map created_by → createdBy
+```
+
+#### "Action Required" badge not showing
+**Check:**
+```sql
+SELECT id, title, action_required, read 
+FROM notifications 
+WHERE action_required = TRUE;
+```
 
 ---
 
-**The fixed script should work! Just copy and run it in Supabase SQL Editor.** 🚀
+### 4. Staff Assignment Issues
+
+#### Staff dropdown is empty
+**Possible Causes:**
+1. No staff members exist
+2. Staff members in different organization
+3. All staff are archived
+
+**Solution:**
+```typescript
+// Check in Settings → Staff Management
+// 1. Verify staff members exist
+// 2. Check they're active (not archived)
+// 3. Verify organization matches
+
+// Debug query:
+SELECT id, name, role, status, organization_id 
+FROM staff 
+WHERE status = 'active';
+```
+
+#### Staff assignment not saving
+**Debug:**
+```sql
+-- Check if fields exist in loans table
+SELECT column_name 
+FROM information_schema.columns 
+WHERE table_name = 'loans' 
+AND column_name IN ('staff_member_id', 'staff_member_name');
+
+-- Check saved data
+SELECT loan_number, client_name, staff_member_id, staff_member_name 
+FROM loans 
+WHERE staff_member_id IS NOT NULL;
+```
+
+---
+
+### 5. Commission Tracking Issues
+
+#### Commissions showing as 0
+**Possible Causes:**
+1. No loans assigned to staff member
+2. Commission rate is 0
+3. Loans are in wrong status
+
+**Debug:**
+```sql
+-- Check staff assignments
+SELECT 
+  staff_member_id,
+  staff_member_name,
+  COUNT(*) as loan_count,
+  SUM(amount) as total_amount
+FROM loans
+WHERE staff_member_id IS NOT NULL
+GROUP BY staff_member_id, staff_member_name;
+
+-- Check specific staff member
+SELECT loan_number, amount, approval_status, disbursement_status
+FROM loans
+WHERE staff_member_id = 'STF001'; -- Replace with actual ID
+```
+
+**Solution:**
+```typescript
+// In PayrollCommissionsTab:
+// 1. Verify staff member is selected
+// 2. Check commission rate (default should be 2)
+// 3. Verify loans exist for that staff member
+// 4. Check loan statuses (may be filtered)
+```
+
+#### Commission calculation seems wrong
+**Formula:** `Commission = Loan Amount × Commission Rate / 100`
+
+**Example:**
+- Loan Amount: 100,000
+- Commission Rate: 2%
+- Expected: 100,000 × 2 / 100 = 2,000
+
+**Debug in console:**
+```javascript
+const testCommission = (amount, rate) => {
+  const result = (amount * rate) / 100;
+  console.log(`Amount: ${amount}, Rate: ${rate}%, Commission: ${result}`);
+  return result;
+};
+
+testCommission(100000, 2); // Should output: 2000
+```
+
+---
+
+### 6. Client Loan Application Issues
+
+#### Submit button not working
+**Check browser console for errors:**
+```javascript
+// Common issues:
+// 1. Missing required fields
+// 2. Invalid amount (negative or 0)
+// 3. No loan product selected
+// 4. Supabase connection error
+```
+
+**Debug:**
+```typescript
+// In ClientApplyTab.tsx, check validation:
+if (!selectedProduct) {
+  console.error('No product selected');
+}
+if (!requestedAmount || parseFloat(requestedAmount) <= 0) {
+  console.error('Invalid amount');
+}
+```
+
+#### Loan created but status not "Pending"
+**Check:**
+```sql
+SELECT loan_number, approval_status, client_name 
+FROM loans 
+WHERE client_id = 'CL001' -- Replace with actual client ID
+ORDER BY created_at DESC;
+```
+
+**Expected:** `approval_status = 'Pending'`
+
+#### Admin notification not created
+**Debug:**
+```typescript
+// Check if addNotification was called
+console.log('Creating notification...');
+await addNotification({
+  type: 'info',
+  category: 'client_application',
+  title: 'New Loan Application',
+  message: `${clientName} applied for ${amount}`,
+  actionRequired: true,
+  relatedId: loanId,
+  relatedType: 'loan',
+  createdBy: clientId,
+  read: false
+});
+console.log('Notification created');
+
+// Check Supabase:
+SELECT * FROM notifications 
+WHERE category = 'client_application' 
+ORDER BY created_at DESC 
+LIMIT 5;
+```
+
+---
+
+### 7. Review/Decline Actions
+
+#### Review/Decline modal not opening
+**Check:**
+```typescript
+// In ClientLoanNotificationCard.tsx:
+// 1. Verify showModal state
+// 2. Check if action is set
+// 3. Look for console errors
+```
+
+#### Loan status not updating
+**Debug:**
+```sql
+-- Check if loan exists
+SELECT * FROM loans WHERE loan_number = 'LN001'; -- Replace
+
+-- Check update query
+UPDATE loans 
+SET approval_status = 'Under Review'
+WHERE loan_number = 'LN001'; -- Should affect 1 row
+
+-- Verify change
+SELECT loan_number, approval_status FROM loans 
+WHERE loan_number = 'LN001';
+```
+
+**Common Issue:** Using `id` instead of `loan_number`
+```typescript
+// ❌ WRONG (id expects UUID)
+await supabase
+  .from('loans')
+  .update({ approval_status: 'Under Review' })
+  .eq('id', loanId);
+
+// ✅ CORRECT (use loan_number)
+await supabase
+  .from('loans')
+  .update({ approval_status: 'Under Review' })
+  .eq('loan_number', loanNumber);
+```
+
+---
+
+### 8. Browser Console Errors
+
+#### "Cannot read property of undefined"
+**Likely Cause:** Data not loaded yet
+
+**Solution:**
+```typescript
+// Add null checks:
+if (!currentUser) return <div>Loading...</div>;
+if (!notifications) return <div>Loading notifications...</div>;
+
+// Use optional chaining:
+const orgId = currentUser?.organizationId;
+const count = notifications?.length ?? 0;
+```
+
+#### "Network request failed"
+**Possible Causes:**
+1. Supabase connection issue
+2. Internet offline
+3. Wrong Supabase URL/key
+
+**Debug:**
+```typescript
+// Test Supabase connection:
+const testConnection = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('organizations')
+      .select('count')
+      .limit(1);
+      
+    if (error) throw error;
+    console.log('✅ Supabase connected');
+  } catch (err) {
+    console.error('❌ Supabase error:', err);
+  }
+};
+
+testConnection();
+```
+
+#### "Permission denied" or RLS policy error
+**Solution:**
+```sql
+-- Temporarily disable RLS for testing (NOT in production!)
+ALTER TABLE notifications DISABLE ROW LEVEL SECURITY;
+
+-- Check if issue resolves
+-- If yes, RLS policy is the problem
+
+-- Re-enable RLS
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+-- Fix policy:
+DROP POLICY IF EXISTS "Users can view their organization's notifications" 
+  ON notifications;
+
+CREATE POLICY "Allow all reads for now" 
+  ON notifications FOR SELECT 
+  USING (true); -- Permissive for testing
+```
+
+---
+
+### 9. Data Not Syncing
+
+#### Changes in UI don't appear in Supabase
+**Check:**
+```typescript
+// 1. Verify Supabase write succeeds
+const { data, error } = await supabase
+  .from('notifications')
+  .insert([notification]);
+
+if (error) {
+  console.error('❌ Supabase error:', error);
+  // Check error.message for details
+}
+
+// 2. Verify data exists
+const { data: check } = await supabase
+  .from('notifications')
+  .select('*')
+  .eq('id', notificationId)
+  .single();
+
+console.log('Saved notification:', check);
+```
+
+#### Changes in Supabase don't appear in UI
+**Cause:** Local state not refreshed
+
+**Solution:**
+```typescript
+// Force refresh:
+const refreshData = async () => {
+  const { data } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('organization_id', orgId)
+    .order('created_at', { ascending: false });
+    
+  setNotifications(data);
+};
+
+// Call after major operations
+await refreshData();
+```
+
+---
+
+### 10. Performance Issues
+
+#### Slow notification loading
+**Check:**
+```sql
+-- Verify indexes exist
+SELECT indexname, indexdef 
+FROM pg_indexes 
+WHERE tablename = 'notifications';
+
+-- Should see:
+-- idx_notifications_org_id
+-- idx_notifications_read
+-- idx_notifications_category
+-- idx_notifications_created_at
+```
+
+**Optimize query:**
+```typescript
+// Load only recent notifications initially
+const { data } = await supabase
+  .from('notifications')
+  .select('*')
+  .eq('organization_id', orgId)
+  .order('created_at', { ascending: false })
+  .limit(50); // Don't load all at once
+```
+
+#### Large number of notifications slowing down app
+**Solution:** Implement pagination
+```typescript
+const [page, setPage] = useState(0);
+const pageSize = 20;
+
+const loadPage = async (pageNum: number) => {
+  const { data } = await supabase
+    .from('notifications')
+    .select('*')
+    .range(pageNum * pageSize, (pageNum + 1) * pageSize - 1);
+    
+  return data;
+};
+```
+
+---
+
+## Quick Diagnostic Commands
+
+### Check All Tables Exist
+```sql
+SELECT table_name 
+FROM information_schema.tables 
+WHERE table_schema = 'public' 
+AND table_name IN (
+  'users', 
+  'organizations', 
+  'clients', 
+  'loans', 
+  'notifications'
+);
+```
+
+### Check Notification System Health
+```sql
+-- Notifications exist?
+SELECT COUNT(*) as total_notifications FROM notifications;
+
+-- Recent notifications
+SELECT 
+  category,
+  COUNT(*) as count,
+  MAX(created_at) as most_recent
+FROM notifications
+GROUP BY category;
+
+-- Unread notifications
+SELECT COUNT(*) as unread_count 
+FROM notifications 
+WHERE read = FALSE;
+
+-- Action required notifications
+SELECT COUNT(*) as action_required_count 
+FROM notifications 
+WHERE action_required = TRUE AND read = FALSE;
+```
+
+### Check Staff Assignments
+```sql
+-- Total assignments
+SELECT 
+  COUNT(*) as assigned_loans,
+  COUNT(DISTINCT staff_member_id) as unique_staff
+FROM loans
+WHERE staff_member_id IS NOT NULL;
+
+-- Breakdown by staff
+SELECT 
+  staff_member_id,
+  staff_member_name,
+  COUNT(*) as loan_count,
+  SUM(amount) as total_amount
+FROM loans
+WHERE staff_member_id IS NOT NULL
+GROUP BY staff_member_id, staff_member_name
+ORDER BY loan_count DESC;
+```
+
+### Check Client Portal Setup
+```sql
+-- How many clients have passwords?
+SELECT 
+  COUNT(*) FILTER (WHERE client_password IS NOT NULL) as with_password,
+  COUNT(*) FILTER (WHERE client_password IS NULL) as without_password,
+  COUNT(*) as total
+FROM clients;
+
+-- Clients ready for portal
+SELECT id, name, phone, has_changed_password
+FROM clients
+WHERE client_password IS NOT NULL
+ORDER BY name;
+```
+
+---
+
+## Browser DevTools Tips
+
+### Check Local State
+```javascript
+// In browser console:
+
+// Current user
+window.currentUser
+
+// All notifications
+window.notifications
+
+// All loans
+window.loans
+
+// Supabase client
+window.supabase
+```
+
+### Monitor Network Requests
+1. Open DevTools (F12)
+2. Go to Network tab
+3. Filter by "supabase"
+4. Look for:
+   - Status codes (200 = success, 4xx = error)
+   - Request payload
+   - Response data
+
+### Check Console Logs
+Look for:
+- ✅ Success messages (green)
+- ⚠️ Warnings (yellow)
+- ❌ Errors (red)
+- 🔔 Notification-specific logs
+
+---
+
+## Getting Help
+
+If issues persist:
+
+1. **Check browser console** for error messages
+2. **Check Supabase logs** in dashboard
+3. **Run diagnostic SQL queries** above
+4. **Check the implementation files:**
+   - `/IMPLEMENTATION_SUMMARY.md`
+   - `/QUICK_START_GUIDE.md`
+   - `/SYSTEM_ARCHITECTURE.md`
+
+5. **Verify migration:**
+   ```sql
+   -- Check notification table structure
+   \d notifications
+   
+   -- Check if all columns exist
+   SELECT column_name, data_type 
+   FROM information_schema.columns 
+   WHERE table_name = 'notifications';
+   ```
+
+---
+
+**Most Common Issues:**
+1. ✅ UUID type mismatch - FIXED in latest migration
+2. ✅ Field mapping (snake_case vs camelCase) - FIXED in DataContext
+3. ⚠️ Client password not set - Set in Admin UI
+4. ⚠️ Wrong organization_id - Verify user's organization
+
+**System Status: Operational** 🟢

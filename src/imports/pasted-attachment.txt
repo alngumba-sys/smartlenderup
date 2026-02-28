@@ -1,0 +1,51 @@
+1. Core Loan Summary / Overview Dashboard (First screen they see)
+* Loan account number / reference ID (masked or partial for security)
+* Loan type / product name (e.g., Personal Loan, Auto Loan, Mortgage, Business Line of Credit)
+* Original loan amount
+* Current outstanding principal balance
+* Current total balance owed (principal + interest + fees)
+* Current interest rate (fixed or variable; show effective rate if variable)
+* Loan start/origination date
+* Loan maturity / final payment date
+* Loan status (e.g., Current, Delinquent, In Grace Period, In Forbearance, Paid Off, Defaulted)
+* Overall progress bar or percentage paid off (e.g., "65% complete")
+
+2. Payment & Repayment Details
+* Next due date and amount due (principal + interest + fees)
+* Payment frequency (monthly, bi-weekly, etc.)
+* Payment method on file (Mpesa or bank deposit) — with option to update
+* Last payment date, amount, and how it was applied (principal vs. interest vs. fees)
+* Payment history table (last 12–24 months or full history):
+    * Date paid
+    * Amount paid
+    * Status (On time, Late, Partial, Returned/NSF)
+    * Breakdown (principal, interest, fees)
+* Remaining payments / amortization schedule preview (e.g., next 6–12 months)
+* Early payoff / payoff quote (current exact amount to pay off today, including any prepayment penalties)
+* Late fee / penalty structure (if applicable)
+* Grace period details
+3. Interest & Fee Breakdown
+* Current accrued interest
+* Lifetime interest paid to date
+* Estimated total interest over life of loan (vs. actual if variable)
+* Any fees charged (origination, late, NSF, etc.) with dates and amounts
+4. Documents & Statements
+* Secure access to downloadable/viewable documents:
+    * Original loan agreement 
+    * Most recent monthly statement
+    * Payment receipts / confirmation
+    * Amortization schedule (full or printable)
+5. Account Management & Actions
+* Make a payment (one-time or scheduled) — with amount selector (minimum, full, custom)
+* Change payment due date (if allowed by product)
+* Request payment holiday / deferment / forbearance (with eligibility check)
+* Update personal/contact info (phone, email, address)
+* Upload documents (e.g., proof of income for modification request)
+* View/download transaction history (PDF/CSV export)
+6. Notifications & Alerts Section
+* In-portal message center or alert banner:
+    * Upcoming payment reminders
+    * Late payment warnings
+    * Rate change notices (for variable loans)
+    * Important account updates (e.g., escrow analysis)
+* Option to manage notification preferences (email, SMS)

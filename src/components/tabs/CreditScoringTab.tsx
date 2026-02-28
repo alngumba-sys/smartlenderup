@@ -86,15 +86,17 @@ export function CreditScoringTab() {
     const params = getCreditScoringParameters(clientType);
     
     if (params && params.length > 0) {
+      // Start with EMPTY weights - only use what's in database
       const weights = {
-        paymentHistory: 35,
-        creditUtilization: 30,
-        accountAge: 15,
-        loanCount: 10,
-        savingsBalance: 10
+        paymentHistory: 0,
+        creditUtilization: 0,
+        accountAge: 0,
+        loanCount: 0,
+        savingsBalance: 0
       };
       
       params.forEach(param => {
+        // Only include enabled parameters
         if (!param.enabled) return;
         
         const name = param.parameter_name.toLowerCase().replace(/\s+/g, '');
@@ -113,10 +115,31 @@ export function CreditScoringTab() {
       
       setScoringWeights(prev => ({ ...prev, [clientType]: weights }));
       setChartKey(prev => ({ ...prev, [clientType]: prev[clientType] + 1 }));
-      console.log(`✅ ${clientType} parameters loaded:`, weights);
+      console.log(`✅ ${clientType} parameters loaded from database:`, weights);
+      console.log(`   Enabled parameters: ${params.filter(p => p.enabled).length}/${params.length}`);
       return weights;
+    } else {
+      // No parameters in database - use hardcoded defaults
+      console.log(`⚠️ No ${clientType} parameters in database, using defaults`);
+      const defaultWeights = clientType === 'individual' 
+        ? {
+            paymentHistory: 35,
+            creditUtilization: 30,
+            accountAge: 15,
+            loanCount: 10,
+            savingsBalance: 10
+          }
+        : {
+            paymentHistory: 30,
+            creditUtilization: 25,
+            accountAge: 20,
+            loanCount: 15,
+            savingsBalance: 10
+          };
+      setScoringWeights(prev => ({ ...prev, [clientType]: defaultWeights }));
+      setChartKey(prev => ({ ...prev, [clientType]: prev[clientType] + 1 }));
+      return defaultWeights;
     }
-    return null;
   };
 
   // Load credit scoring parameters from database on mount
@@ -177,11 +200,11 @@ export function CreditScoringTab() {
     
     // Convert array of parameter objects to the weights object format
     const weights = {
-      paymentHistory: 35,
-      creditUtilization: 30,
-      accountAge: 15,
-      loanCount: 10,
-      savingsBalance: 10
+      paymentHistory: 0,
+      creditUtilization: 0,
+      accountAge: 0,
+      loanCount: 0,
+      savingsBalance: 0
     };
 
     // Map parameter names to weight keys
@@ -211,6 +234,53 @@ export function CreditScoringTab() {
       [modalClientType]: prev[modalClientType] + 1
     })); // Force chart re-render
     console.log('✅ Credit scoring parameters updated in local state:', weights);
+    
+    // 🔥 NEW: Recalculate all client credit scores after parameter change
+    console.log('🔄 Starting mass credit score recalculation...');
+    recalculateAllClientScores();
+  };
+
+  // 🔥 NEW: Function to recalculate all client credit scores
+  const recalculateAllClientScores = () => {
+    if (clients.length === 0) {
+      console.log('⚠️ No clients to recalculate');
+      return;
+    }
+    
+    console.log('');
+    console.log('🔄 ========================================');
+    console.log('🔄 RECALCULATING ALL CLIENT CREDIT SCORES');
+    console.log('🔄 ========================================');
+    console.log(`Total clients: ${clients.length}`);
+    
+    let updatedCount = 0;
+    let errorCount = 0;
+    
+    clients.forEach((client, index) => {
+      try {
+        const oldScore = client.creditScore || 300;
+        const newScore = calculateClientCreditScore(client.id);
+        
+        console.log(`[${index + 1}/${clients.length}] ${client.name}: ${oldScore} → ${newScore}`);
+        
+        if (newScore !== oldScore) {
+          updateClient(client.id, { creditScore: newScore }, { silent: true });
+          updatedCount++;
+        }
+      } catch (error) {
+        console.error(`❌ Error recalculating score for ${client.name}:`, error);
+        errorCount++;
+      }
+    });
+    
+    console.log('');
+    console.log('✅ ========================================');
+    console.log('✅ RECALCULATION COMPLETE');
+    console.log('✅ ========================================');
+    console.log(`Total processed: ${clients.length}`);
+    console.log(`Scores updated: ${updatedCount}`);
+    console.log(`Errors: ${errorCount}`);
+    console.log('');
   };
 
   // Generate credit scores from real client data
@@ -366,25 +436,29 @@ export function CreditScoringTab() {
   // Donut chart data for individual credit score calculation
   const individualChartData = useMemo(() => {
     console.log('🔄 Rebuilding individualChartData with weights:', scoringWeights.individual);
-    return [
+    const data = [
       { name: 'Payment History', value: scoringWeights.individual.paymentHistory, color: '#8b5cf6' },  // Purple
       { name: 'Credit Utilization', value: scoringWeights.individual.creditUtilization, color: '#06b6d4' },  // Cyan
       { name: 'Account Age', value: scoringWeights.individual.accountAge, color: '#10b981' },  // Emerald
       { name: 'Loan Count', value: scoringWeights.individual.loanCount, color: '#f59e0b' },  // Amber
       { name: 'Savings Balance', value: scoringWeights.individual.savingsBalance, color: '#6366f1' }  // Indigo
     ];
+    // Filter out disabled parameters (weight = 0)
+    return data.filter(item => item.value > 0);
   }, [scoringWeights.individual]);
 
   // Donut chart data for business credit score calculation
   const businessChartData = useMemo(() => {
     console.log('🔄 Rebuilding businessChartData with weights:', scoringWeights.business);
-    return [
+    const data = [
       { name: 'Payment History', value: scoringWeights.business.paymentHistory, color: '#8b5cf6' },  // Purple
       { name: 'Credit Utilization', value: scoringWeights.business.creditUtilization, color: '#06b6d4' },  // Cyan
       { name: 'Account Age', value: scoringWeights.business.accountAge, color: '#10b981' },  // Emerald
       { name: 'Loan Count', value: scoringWeights.business.loanCount, color: '#f59e0b' },  // Amber
       { name: 'Savings Balance', value: scoringWeights.business.savingsBalance, color: '#6366f1' }  // Indigo
     ];
+    // Filter out disabled parameters (weight = 0)
+    return data.filter(item => item.value > 0);
   }, [scoringWeights.business]);
 
   const getRiskBadge = (risk: string) => {

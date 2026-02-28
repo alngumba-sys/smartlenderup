@@ -190,7 +190,7 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
           <div className="p-4 space-y-3">
             {/* Loan & Client Info */}
             <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-3">
-              <h3 className="text-xs text-gray-500 dark:text-gray-400 mb-2">Loan & Client Details</h3>
+              <h3 className="text-xs dark:text-gray-400 mb-2 text-[#4f5152]">Loan & Client Details</h3>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <span className="text-xs text-gray-500 dark:text-gray-400">Client Name:</span>
@@ -271,7 +271,7 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
             {/* Warning Message */}
             <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg p-2 flex items-start gap-2">
               <AlertCircle className="size-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-800 dark:text-amber-300">
+              <p className="text-xs dark:text-amber-300 text-[#4e4520]">
                 Please verify all details are correct. This payment will be recorded and account balance updated.
               </p>
             </div>

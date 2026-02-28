@@ -10,62 +10,55 @@ interface ReportProps {
 }
 
 export function BalanceSheetReport({ dateRange }: ReportProps) {
-  const { loans, savingsAccounts } = useData();
+  const { loans, savingsAccounts, bankAccounts, repayments } = useData();
   const organizationName = getOrganizationName();
   const organizationLogo = getOrganizationLogo();
   
-  // Calculate REAL balances from actual loan data
-  // Only include loans that have been DISBURSED (completed all 5 approval steps) and are in Active/Disbursed status
-  const totalDisbursed = loans.filter(l => l.status === 'Active' || l.status === 'Disbursed').reduce((sum, l) => sum + l.principalAmount, 0); // 955,000
-  const totalRepaid = savingsAccounts ? savingsAccounts.reduce((sum: number, p: any) => sum + p.principalAmount, 0) : 0; // 755,000
-  const totalInterestReceived = savingsAccounts ? savingsAccounts.reduce((sum: number, p: any) => sum + p.interestAmount, 0) : 0; // 62,750
-  const totalOutstanding = loans.filter(l => l.status === 'Active' || l.status === 'Disbursed')
-    .reduce((sum, l) => sum + l.outstandingBalance, 0); // 200,000
+  // Calculate REAL balances from actual data
+  const activeLoans = loans.filter(l => l.status === 'Active' || l.status === 'Disbursed');
+  const fullyPaidLoans = loans.filter(l => l.status === 'Paid' || l.status === 'Closed' || l.status === 'Fully Paid');
   
-  // ASSETS - Based on actual business operations
-  // Assume we started with 1M capital and tracked all cash flows
-  const initialCapital = 1000000;
-  const processingFees = totalDisbursed * 0.02; // 19,100 in fees collected
-  const totalCashInflows = totalRepaid + totalInterestReceived + processingFees; // 755,000 + 62,750 + 19,100 = 836,850
-  const totalCashOutflows = totalDisbursed + 215000; // 955,000 disbursed + 215,000 expenses = 1,170,000
-  const netCashPosition = initialCapital + totalCashInflows - totalCashOutflows; // 1,000,000 + 836,850 - 1,170,000 = 666,850
+  // ASSETS - CURRENT ASSETS
+  // Cash from bank accounts (actual data)
+  const totalBankBalance = bankAccounts?.reduce((sum, account) => sum + (account.balance || 0), 0) || 0;
+  const cashOnHand = 50000; // Petty cash
+  const totalCurrentAssets = totalBankBalance + cashOnHand;
   
-  const adjustedCashOnHand = 50000; // Keep some cash on hand
-  const adjustedBankAccounts = netCashPosition - adjustedCashOnHand; // 616,850
+  // ASSETS - LOAN PORTFOLIO
+  const grossLoanPortfolio = activeLoans.reduce((sum, l) => sum + l.outstandingBalance, 0);
   
-  const totalCurrentAssets = adjustedCashOnHand + adjustedBankAccounts;
-  
-  // Loan Portfolio
-  const grossLoanPortfolio = totalOutstanding; // 200,000
-  const loanLossProvision = 0; // No defaults yet
+  // Calculate loan loss provision (PAR 90 loans)
+  const loansOverdue90 = activeLoans.filter(l => (l.daysInArrears || 0) >= 90);
+  const loanLossProvision = loansOverdue90.reduce((sum, l) => sum + l.outstandingBalance, 0) * 0.5; // 50% provision on PAR 90
   const netLoanPortfolio = grossLoanPortfolio - loanLossProvision;
   
-  // Fixed Assets - Realistic for small MFI
-  const officeEquipment = 80000; // Modest office setup
+  // ASSETS - FIXED ASSETS (mock data - not in database)
+  const officeEquipment = 80000;
   const furniture = 45000;
   const computers = 65000;
-  const accumulatedDepreciation = 5000; // Recent depreciation
+  const accumulatedDepreciation = 5000;
   const netFixedAssets = officeEquipment + furniture + computers - accumulatedDepreciation;
   
-  // Other Assets
+  // ASSETS - OTHER ASSETS
   const prepaidExpenses = 15000;
-  const deposits = 30000; // Office deposit
+  const deposits = 30000;
   const totalOtherAssets = prepaidExpenses + deposits;
   
   const totalAssets = totalCurrentAssets + netLoanPortfolio + netFixedAssets + totalOtherAssets;
   
-  // LIABILITIES - Based on operations
-  const accountsPayable = 25000; // Suppliers and vendors
-  const accruedExpenses = 18000; // Salaries and utilities payable
+  // LIABILITIES - CURRENT LIABILITIES
+  const accountsPayable = 25000;
+  const accruedExpenses = 18000;
   const totalCurrentLiabilities = accountsPayable + accruedExpenses;
   
-  const bankLoan = 150000; // Modest borrowing for operations
+  // LIABILITIES - LONG-TERM LIABILITIES
+  const bankLoan = 150000;
   const totalLongTermLiabilities = bankLoan;
   
   const totalLiabilities = totalCurrentLiabilities + totalLongTermLiabilities;
   
   // EQUITY
-  const shareCapital = initialCapital; // 1,000,000
+  const shareCapital = 1000000;
   const retainedEarnings = totalAssets - totalLiabilities - shareCapital;
   const totalEquity = shareCapital + retainedEarnings;
 
@@ -121,11 +114,11 @@ export function BalanceSheetReport({ dateRange }: ReportProps) {
               </tr>
               <tr className="border-b border-gray-200 dark:!border-gray-200">
                 <td className="p-2 text-gray-900 dark:!text-gray-900 pl-8">Cash on Hand</td>
-                <td className="p-2 text-right text-gray-900 dark:!text-gray-900">{adjustedCashOnHand.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                <td className="p-2 text-right text-gray-900 dark:!text-gray-900">{cashOnHand.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
               </tr>
               <tr className="border-b border-gray-200 dark:!border-gray-200">
                 <td className="p-2 text-gray-900 dark:!text-gray-900 pl-8">Bank Accounts</td>
-                <td className="p-2 text-right text-gray-900 dark:!text-gray-900">{adjustedBankAccounts.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                <td className="p-2 text-right text-gray-900 dark:!text-gray-900">{totalBankBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
               </tr>
               <tr className="bg-gray-50 dark:!bg-gray-50 border-b border-gray-200 dark:!border-gray-200">
                 <td className="p-2 text-gray-900 dark:!text-gray-900 pl-6">Total Current Assets</td>
@@ -256,7 +249,7 @@ export function BalanceSheetReport({ dateRange }: ReportProps) {
               </div>
               <div className="bg-gray-50 dark:!bg-gray-50 p-2 rounded border border-gray-200 dark:!border-gray-200">
                 <p className="text-gray-600 dark:!text-gray-600 text-xs mb-1">Current Ratio</p>
-                <p className="text-gray-900 dark:!text-gray-900 text-lg">{totalCurrentLiabilities > 0 ? ((adjustedCashOnHand + adjustedBankAccounts) / totalCurrentLiabilities).toFixed(2) : '0.00'}</p>
+                <p className="text-gray-900 dark:!text-gray-900 text-lg">{totalCurrentLiabilities > 0 ? ((totalBankBalance + cashOnHand) / totalCurrentLiabilities).toFixed(2) : '0.00'}</p>
               </div>
               <div className="bg-gray-50 dark:!bg-gray-50 p-2 rounded border border-gray-200 dark:!border-gray-200">
                 <p className="text-gray-600 dark:!text-gray-600 text-xs mb-1">Loan-to-Asset Ratio</p>

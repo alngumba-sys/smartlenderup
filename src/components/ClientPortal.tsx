@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Home, CreditCard, FileText, Wallet, User, ArrowLeft } from 'lucide-react';
-import { ClientHomeTab } from './client-tabs/ClientHomeTab';
-import { ClientLoansTab } from './client-tabs/ClientLoansTab';
+import { Home, CreditCard, FileText, User, ArrowLeft } from 'lucide-react';
+import { ClientDashboardTab } from './client-tabs/ClientDashboardTab';
+import { ClientMyLoansTab } from './client-tabs/ClientMyLoansTab';
 import { ClientApplyTab } from './client-tabs/ClientApplyTab';
-import { ClientSavingsTab } from './client-tabs/ClientSavingsTab';
 import { ClientProfileTab } from './client-tabs/ClientProfileTab';
 
 interface ClientPortalProps {
@@ -12,30 +11,27 @@ interface ClientPortalProps {
 }
 
 export function ClientPortal({ clientId, onBackToAdmin }: ClientPortalProps) {
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   const tabs = [
-    { id: 'home', label: 'Home', icon: Home },
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'loans', label: 'My Loans', icon: CreditCard },
     { id: 'apply', label: 'Apply for Loan', icon: FileText },
-    { id: 'savings', label: 'My Savings', icon: Wallet },
     { id: 'profile', label: 'Profile & Settings', icon: User },
   ];
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'home':
-        return <ClientHomeTab clientId={clientId} />;
+      case 'dashboard':
+        return <ClientDashboardTab clientId={clientId} />;
       case 'loans':
-        return <ClientLoansTab clientId={clientId} />;
+        return <ClientMyLoansTab clientId={clientId} />;
       case 'apply':
         return <ClientApplyTab clientId={clientId} />;
-      case 'savings':
-        return <ClientSavingsTab clientId={clientId} />;
       case 'profile':
         return <ClientProfileTab clientId={clientId} />;
       default:
-        return <ClientHomeTab clientId={clientId} />;
+        return <ClientDashboardTab clientId={clientId} />;
     }
   };
 

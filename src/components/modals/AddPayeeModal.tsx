@@ -6,17 +6,19 @@ import { toast } from 'sonner';
 import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
 
 interface AddPayeeModalProps {
+  isOpen: boolean;
   onClose: () => void;
+  type?: 'Employee' | 'Vendor';
   defaultCategory?: 'Employee' | 'Utilities' | 'Rent' | 'Services' | 'Suppliers' | 'Other';
 }
 
-export function AddPayeeModal({ onClose, defaultCategory }: AddPayeeModalProps) {
+export function AddPayeeModal({ isOpen, onClose, type, defaultCategory }: AddPayeeModalProps) {
   const { isDark } = useTheme();
   const { addPayee } = useData();
   const [formData, setFormData] = useState({
     name: '',
-    type: (defaultCategory === 'Employee' ? 'Employee' : 'Vendor') as 'Vendor' | 'Supplier' | 'Service Provider' | 'Employee' | 'Contractor' | 'Other',
-    category: (defaultCategory || 'Other') as 'Employee' | 'Utilities' | 'Rent' | 'Services' | 'Suppliers' | 'Other',
+    type: (type || (defaultCategory === 'Employee' ? 'Employee' : 'Vendor')) as 'Vendor' | 'Supplier' | 'Service Provider' | 'Employee' | 'Contractor' | 'Other',
+    category: (type === 'Employee' ? 'Employee' : (defaultCategory || 'Other')) as 'Employee' | 'Utilities' | 'Rent' | 'Services' | 'Suppliers' | 'Other',
     phone: '',
     email: '',
     kraPin: '',
@@ -25,7 +27,8 @@ export function AddPayeeModal({ onClose, defaultCategory }: AddPayeeModalProps) 
     mpesaNumber: '',
     physicalAddress: '',
     contactPerson: '',
-    notes: ''
+    notes: '',
+    commissionRate: '10' // Default 10% commission for employees
   });
 
   const types = ['Vendor', 'Supplier', 'Service Provider', 'Employee', 'Contractor', 'Other'];
@@ -45,7 +48,10 @@ export function AddPayeeModal({ onClose, defaultCategory }: AddPayeeModalProps) 
     const newPayee = {
       ...formData,
       status: 'Active' as const,
-      totalPaid: 0
+      totalPaid: 0,
+      commissionRate: formData.type === 'Employee' || formData.category === 'Employee' 
+        ? parseFloat(formData.commissionRate) 
+        : undefined
     };
     
     addPayee(newPayee);
@@ -60,83 +66,127 @@ export function AddPayeeModal({ onClose, defaultCategory }: AddPayeeModalProps) 
     });
   };
 
+  if (!isOpen) return null;
+
+  const isEmployee = formData.type === 'Employee' || formData.category === 'Employee';
+
   return (
     <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4 ${isDark ? 'dark' : ''}`}>
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
-              <UserPlus className="size-6 text-blue-600 dark:text-blue-400" />
-              <h3 className="text-gray-900 dark:text-white">Add New Payee / Vendor</h3>
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+                <UserPlus className="size-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">
+                  {isEmployee ? 'Add New Staff Member' : 'Add New Payee / Vendor'}
+                </h3>
+                <p className="text-xs text-gray-500">
+                  {isEmployee ? 'Complete the form below to add a staff member' : 'Enter payee details for payment tracking'}
+                </p>
+              </div>
             </div>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+            <button 
+              onClick={onClose} 
+              className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg"
+            >
               <X className="size-5" />
             </button>
           </div>
 
           <form onSubmit={handleSubmit}>
             {/* Basic Information */}
-            <div className="mb-6">
-              <h4 className="text-gray-900 dark:text-white mb-3 text-sm">Basic Information</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-gray-700 dark:text-gray-300 text-sm mb-2">
-                    Payee Name <span className="text-red-500">*</span>
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1 h-4 bg-emerald-600 rounded-full"></div>
+                <h4 className="text-sm font-semibold text-gray-800">Basic Information</h4>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    {isEmployee ? 'Staff Name' : 'Payee Name'} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                     required
-                    placeholder="e.g., Kenya Power & Lighting Co."
+                    placeholder={isEmployee ? "e.g., John Kamau" : "e.g., Kenya Power & Lighting Co."}
                   />
                 </div>
 
-                <div>
-                  <label className="block text-gray-700 dark:text-gray-300 text-sm mb-2">
-                    Type <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="type"
-                    value={formData.type}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
-                    required
-                  >
-                    {types.map(type => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
-                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Type <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="type"
+                      value={formData.type}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      required
+                    >
+                      {types.map(type => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="block text-gray-700 dark:text-gray-300 text-sm mb-2">
-                    Category <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
-                    required
-                  >
-                    <option value="">Select category...</option>
-                    {categories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Category <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      required
+                    >
+                      <option value="">Select category...</option>
+                      {categories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {isEmployee && (
+                    <div>
+                      <label className="block text-xs font-medium text-amber-900 mb-1">
+                        Commission (%) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        name="commissionRate"
+                        value={formData.commissionRate}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 text-sm font-semibold border border-amber-300 bg-amber-50 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
+                        placeholder="10"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        required
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Contact Information */}
-            <div className="mb-6">
-              <h4 className="text-gray-900 dark:text-white mb-3 text-sm">Contact Information</h4>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1 h-4 bg-blue-600 rounded-full"></div>
+                <h4 className="text-sm font-semibold text-gray-800">Contact Information</h4>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-gray-700 dark:text-gray-300 text-sm mb-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Phone Number <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -144,14 +194,14 @@ export function AddPayeeModal({ onClose, defaultCategory }: AddPayeeModalProps) 
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     required
                     placeholder="e.g., 0712345678"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 dark:text-gray-300 text-sm mb-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Email Address
                   </label>
                   <input
@@ -159,13 +209,13 @@ export function AddPayeeModal({ onClose, defaultCategory }: AddPayeeModalProps) 
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     placeholder="e.g., info@example.co.ke"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 dark:text-gray-300 text-sm mb-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Contact Person
                   </label>
                   <input
@@ -173,13 +223,13 @@ export function AddPayeeModal({ onClose, defaultCategory }: AddPayeeModalProps) 
                     name="contactPerson"
                     value={formData.contactPerson}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     placeholder="e.g., John Kamau"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 dark:text-gray-300 text-sm mb-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Physical Address
                   </label>
                   <input
@@ -187,7 +237,7 @@ export function AddPayeeModal({ onClose, defaultCategory }: AddPayeeModalProps) 
                     name="physicalAddress"
                     value={formData.physicalAddress}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     placeholder="e.g., Westlands, Nairobi"
                   />
                 </div>
@@ -195,11 +245,14 @@ export function AddPayeeModal({ onClose, defaultCategory }: AddPayeeModalProps) 
             </div>
 
             {/* Financial Information */}
-            <div className="mb-6">
-              <h4 className="text-gray-900 dark:text-white mb-3 text-sm">Financial Information</h4>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1 h-4 bg-purple-600 rounded-full"></div>
+                <h4 className="text-sm font-semibold text-gray-800">Financial Information</h4>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-gray-700 dark:text-gray-300 text-sm mb-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     KRA PIN
                   </label>
                   <input
@@ -207,13 +260,13 @@ export function AddPayeeModal({ onClose, defaultCategory }: AddPayeeModalProps) 
                     name="kraPin"
                     value={formData.kraPin}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                     placeholder="e.g., P051234567M"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 dark:text-gray-300 text-sm mb-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     M-Pesa Number
                   </label>
                   <input
@@ -221,13 +274,13 @@ export function AddPayeeModal({ onClose, defaultCategory }: AddPayeeModalProps) 
                     name="mpesaNumber"
                     value={formData.mpesaNumber}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                     placeholder="e.g., 0712345678"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 dark:text-gray-300 text-sm mb-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Bank Name
                   </label>
                   <input
@@ -235,13 +288,13 @@ export function AddPayeeModal({ onClose, defaultCategory }: AddPayeeModalProps) 
                     name="bankName"
                     value={formData.bankName}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                     placeholder="e.g., KCB Bank"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 dark:text-gray-300 text-sm mb-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Account Number
                   </label>
                   <input
@@ -249,26 +302,11 @@ export function AddPayeeModal({ onClose, defaultCategory }: AddPayeeModalProps) 
                     name="accountNumber"
                     value={formData.accountNumber}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                     placeholder="e.g., 1234567890"
                   />
                 </div>
               </div>
-            </div>
-
-            {/* Additional Notes */}
-            <div className="mb-6">
-              <label className="block text-gray-700 dark:text-gray-300 text-sm mb-2">
-                Notes
-              </label>
-              <textarea
-                name="notes"
-                value={formData.notes}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
-                rows={2}
-                placeholder="Additional information about this payee"
-              />
             </div>
 
             {/* Actions */}
@@ -276,13 +314,13 @@ export function AddPayeeModal({ onClose, defaultCategory }: AddPayeeModalProps) 
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 dark:text-white rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Save className="size-4" />
                 Add Payee

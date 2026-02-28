@@ -140,7 +140,8 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
       createdBy: currentUser?.name || 'System',
       clientType: clientData.clientType || 'individual',
       businessType: clientData.businessType || undefined,
-      branch: 'Head Office'
+      branch: 'Head Office',
+      staffMemberId: clientData.staffMemberId || undefined
     });
     setShowNewClientModal(false);
     toast.success(`${clientData.clientType === 'business' ? 'Business' : 'Individual'} borrower added successfully!`);

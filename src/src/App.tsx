@@ -37,6 +37,9 @@ import { DataProvider } from '../contexts/DataContext';
 import { NavigationProvider } from '../contexts/NavigationContext';
 import { BV_FUNGUO_LOGO } from '../assets/BVFunguoLogo';
 import logoImage from "figma:asset/8c9a9782f822a04113fd7bff4f68f1bc0ac7a2af.png";
+import { QuickVerify } from '../components/diagnostics/QuickVerify';
+import { JournalEntryFixNotice } from '../components/diagnostics/JournalEntryFixNotice';
+import { PrincipalFixSummary } from '../components/diagnostics/PrincipalFixSummary';
 // Disabled temporarily to debug loading issues
 // import '../utils/devMigrationTools'; // Import developer migration tools for data updates
 
@@ -195,6 +198,12 @@ function AppContent() {
 
   const handleLogin = (userType: 'admin' | 'employee', userData: any) => {
     login(userData);
+    
+    // Check if this is a client logging in
+    if (userData.userType === 'client' && userData.clientId) {
+      setPortalView('client');
+      setSelectedClientId(userData.clientId);
+    }
   };
 
   const handleLogout = () => {

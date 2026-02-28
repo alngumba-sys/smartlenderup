@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '../contexts/NavigationContext';
 import { DashboardTab } from './tabs/DashboardTab';
 import { ClientsTab } from './tabs/ClientsTab';
+import { InstitutionsTab } from './tabs/InstitutionsTab';
 import { LoansTab } from './tabs/LoansTab';
 import { ApprovalsTab } from './tabs/ApprovalsTab';
 import { Approval2Tab } from './tabs/Approval2Tab';
@@ -248,6 +249,8 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
         {activeTab === 'dashboard' && <DashboardTab onNavigate={setActiveTab} />}
         
         {activeTab === 'clients' && <ClientsTab onClientSelect={onClientSelect} />}
+        
+        {activeTab === 'institutions' && <InstitutionsTab />}
         
         {activeTab === 'loans' && <LoansTab />}
         

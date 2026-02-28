@@ -184,7 +184,10 @@ export function ManagePayeesModal({ onClose }: ManagePayeesModalProps) {
       </div>
 
       {showAddPayeeModal && (
-        <AddPayeeModal onClose={() => setShowAddPayeeModal(false)} />
+        <AddPayeeModal 
+          isOpen={showAddPayeeModal}
+          onClose={() => setShowAddPayeeModal(false)} 
+        />
       )}
     </div>
   );

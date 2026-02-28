@@ -1,731 +1,578 @@
-# 🏗️ SmartLenderUp - System Architecture
+# System Architecture - Client Portal & Notifications
 
-Complete technical architecture of your full-stack microfinance platform.
-
----
-
-## 📊 High-Level Architecture
+## Database Schema
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         CLIENT LAYER                            │
-├─────────────────────────────────────────────────────────────────┤
-│  Browser (Chrome, Safari, Firefox, Edge)                        │
-│  Mobile Browser (iOS Safari, Android Chrome)                    │
-└────────────────────────┬────────────────────────────────────────┘
-                         │ HTTPS
-                         ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    PRESENTATION LAYER                           │
-├─────────────────────────────────────────────────────────────────┤
-│  React 18 + TypeScript                                          │
-│  ├── Landing Page (LoginPage.tsx)                               │
-│  ├── Staff Portal (InternalStaffPortal.tsx)                     │
-│  ├── Client Portal (ClientPortal.tsx)                           │
-│  ├── Modals & Forms (Registration, Loan Application)            │
-│  └── Components (Tabs, Cards, Charts)                           │
-│                                                                  │
-│  Styling: Tailwind CSS 4.0                                      │
-│  Icons: Lucide React                                            │
-│  Charts: Recharts                                               │
-│  Notifications: Sonner                                          │
-└────────────────────────┬────────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     STATE MANAGEMENT                            │
-├─────────────────────────────────────────────────────────────────┤
-│  React Context API                                              │
-│  ├── AuthContext (User authentication state)                    │
-│  ├── DataContext (Application data)                             │
-│  ├── ThemeContext (Dark/Light mode)                             │
-│  └── NavigationContext (UI state)                               │
-└────────────────────────┬────────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      API SERVICE LAYER                          │
-├─────────────────────────────────────────────────────────────────┤
-│  /services/api.ts                                               │
-│  ├── authAPI (login, register, logout)                          │
-│  ├── loansAPI (create, approve, disburse)                       │
-│  ├── clientsAPI (CRUD operations)                               │
-│  ├── paymentsAPI (record, track)                                │
-│  ├── mpesaAPI (STK push, verify)                                │
-│  ├── savingsAPI (accounts, transactions)                        │
-│  ├── notificationsAPI (list, mark read)                         │
-│  └── reportsAPI (dashboard, analytics)                          │
-└────────────────────────┬────────────────────────────────────────┘
-                         │ REST API Calls
-                         ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    API/BACKEND LAYER                            │
-│                  (Vercel Serverless Functions)                  │
-├─────────────────────────────────────────────────────────────────┤
-│  Authentication Endpoints:                                       │
-│  ├── POST /api/auth/login                                       │
-│  └── POST /api/auth/register                                    │
-│                                                                  │
-│  Loan Management Endpoints:                                     │
-│  ├── POST /api/loans/create                                     │
-│  ├── GET /api/loans/:id                                         │
-│  └── PATCH /api/loans/:id                                       │
-│                                                                  │
-│  Payment Endpoints:                                             │
-│  ├── POST /api/payments/create                                  │
-│  └── GET /api/payments                                          │
-│                                                                  │
-│  M-Pesa Integration:                                            │
-│  ├── POST /api/mpesa/stk-push                                   │
-│  └── POST /api/mpesa/callback                                   │
-│                                                                  │
-│  Client Management:                                             │
-│  ├── POST /api/clients/create                                   │
-│  ├── GET /api/clients/:id                                       │
-│  └── PATCH /api/clients/:id                                     │
-│                                                                  │
-│  Additional Endpoints:                                          │
-│  ├── Savings (create, transaction)                              │
-│  ├── Notifications (list, read)                                 │
-│  ├── Reports (dashboard, portfolio)                             │
-│  └── Uploads (documents, photos)                                │
-└────────────────────────┬────────────────────────────────────────┘
-                         │
-                         ├─────────────────┐
-                         │                 │
-                         ▼                 ▼
-┌──────────────────────────────┐  ┌─────────────────────────────┐
-│   DATABASE LAYER             │  │  EXTERNAL SERVICES          │
-│   (Supabase PostgreSQL)      │  │                             │
-├──────────────────────────────┤  ├─────────────────────────────┤
-│  18 Tables:                  │  │  M-Pesa API                 │
-│                              │  │  ├── OAuth Token            │
-│  User Management:            │  │  ├── STK Push               │
-│  ├── users                   │  │  ├── Transaction Query      │
-│  ├── organizations           │  │  └── Callback Handler       │
-│  └── groups                  │  │                             │
-│                              │  │  Email Service (Resend)     │
-│  Client Management:          │  │  ├── Transactional emails   │
-│  ├── clients                 │  │  ├── Notifications          │
-│  └── client_documents        │  │  └── Marketing campaigns    │
-│                              │  │                             │
-│  Loan Management:            │  │  SMS Service (Africa's      │
-│  ├── loan_products           │  │  Talking)                   │
-│  ├── loans                   │  │  ├── SMS campaigns          │
-│  ├── loan_guarantors         │  │  ├── Payment reminders      │
-│  └── loan_collateral         │  │  └── Notifications          │
-│                              │  │                             │
-│  Financial:                  │  │  Storage (Supabase)         │
-│  ├── payments                │  │  ├── Document uploads       │
-│  ├── mpesa_transactions      │  │  ├── Profile photos         │
-│  ├── savings_accounts        │  │  └── File management        │
-│  └── savings_transactions    │  │                             │
-│                              │  └─────────────────────────────┘
-│  Communication:              │
-│  ├── sms_campaigns           │
-│  ├── sms_logs                │
-│  └── notifications           │
-│                              │
-│  System:                     │
-│  ├── audit_logs              │
-│  └── system_settings         │
-│                              │
-│  Security Features:          │
-│  ├── Row Level Security      │
-│  ├── Triggers & Functions    │
-│  ├── Indexes                 │
-│  └── Constraints             │
-└──────────────────────────────┘
+│                         ORGANIZATIONS                            │
+│  id: UUID (PK)                                                   │
+│  name: TEXT                                                      │
+│  country: TEXT                                                   │
+│  ...                                                             │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+                               │ (1 to many)
+                               │
+        ┌──────────────────────┴──────────────────────┐
+        │                                             │
+        ▼                                             ▼
+┌────────────────────────┐                  ┌──────────────────────┐
+│       CLIENTS          │                  │   NOTIFICATIONS      │
+│  id: UUID (PK)         │                  │  id: UUID (PK)       │
+│  organization_id: UUID │                  │  organization_id:    │
+│  name: TEXT            │                  │    UUID (FK)         │
+│  phone: TEXT           │                  │  type: TEXT          │
+│  client_password: TEXT │◄─────────────────│  category: TEXT      │
+│  has_changed_password: │   (related_id)   │  title: TEXT         │
+│    BOOLEAN             │                  │  message: TEXT       │
+│  ...                   │                  │  timestamp: TIMESTAMP│
+└────────┬───────────────┘                  │  read: BOOLEAN       │
+         │                                  │  action_required:    │
+         │                                  │    BOOLEAN           │
+         │ (1 to many)                      │  related_id: TEXT    │
+         │                                  │  related_type: TEXT  │
+         ▼                                  │  created_by: TEXT    │
+┌────────────────────────┐                  │  created_at:         │
+│        LOANS           │                  │    TIMESTAMP         │
+│  id: UUID (PK)         │◄─────────────────┤  ...                 │
+│  organization_id: UUID │   (related_id)   └──────────────────────┘
+│  client_id: TEXT (FK)  │
+│  loan_number: TEXT     │
+│  approval_status: TEXT │
+│  staff_member_id: TEXT │──┐
+│  staff_member_name:    │  │
+│    TEXT                │  │
+│  ...                   │  │
+└────────────────────────┘  │
+                            │ (many to 1)
+                            │
+                            ▼
+                   ┌─────────────────────┐
+                   │    STAFF MEMBERS    │
+                   │  id: TEXT (PK)      │
+                   │  name: TEXT         │
+                   │  role: TEXT         │
+                   │  ...                │
+                   └─────────────────────┘
 ```
 
 ---
 
-## 🔐 Authentication Flow
+## Component Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                           /src/App.tsx                            │
+│                        (Main Application)                         │
+└────────────────┬─────────────────────────────┬───────────────────┘
+                 │                             │
+      ┌──────────▼─────────┐        ┌──────────▼─────────────┐
+      │  Staff Portal      │        │   Client Portal        │
+      │  (Admin View)      │        │  (ClientPortal.tsx)    │
+      └──────────┬─────────┘        └──────────┬─────────────┘
+                 │                             │
+    ┌────────────┴────────────┐      ┌─────────┴──────────────┐
+    │                         │      │                        │
+    ▼                         ▼      ▼                        ▼
+┌──────────────┐    ┌──────────────┐ ┌──────────┐  ┌──────────────┐
+│ Main         │    │ Notifications│ │ Client   │  │ Client Apply │
+│ Navigation   │    │ Tab          │ │ HomeTab  │  │ Tab          │
+│              │    │              │ │          │  │              │
+│ - Dashboard  │    │ - Filter     │ │ - Stats  │  │ - Select     │
+│ - Operations │    │ - View All   │ │ - Alerts │  │   Product    │
+│ - Loans      │    │ - Take       │ │ - Quick  │  │ - Enter      │
+│ - Management │    │   Action     │ │   Links  │  │   Amount     │
+│ - Admin ──┐  │    │              │ └──────────┘  │ - Submit ──┐ │
+│   └─→ Noti│  │    └──────┬───────┘               └────────────┼─┘
+└───────────┼──┘           │                                    │
+            │              │                                    │
+            └──────────────┼────────────────────────────────────┘
+                           │
+                           ▼
+              ┌────────────────────────┐
+              │ ClientLoanNotification │
+              │ Card.tsx               │
+              │                        │
+              │ - Review Button        │
+              │ - Decline Button       │
+              │ - Show Details         │
+              └────────┬───────────────┘
+                       │
+                       ▼
+              ┌────────────────────────┐
+              │   DataContext.tsx      │
+              │                        │
+              │ - addNotification()    │
+              │ - markAsRead()         │
+              │ - updateLoan()         │
+              │ - addLoan()            │
+              └────────┬───────────────┘
+                       │
+                       ▼
+              ┌────────────────────────┐
+              │   Supabase Database    │
+              │                        │
+              │ - notifications table  │
+              │ - loans table          │
+              │ - clients table        │
+              └────────────────────────┘
+```
+
+---
+
+## Data Flow Diagrams
+
+### 1. Client Loan Application Flow
 
 ```
 ┌─────────────┐
-│   Browser   │
+│   CLIENT    │
+│   PORTAL    │
 └──────┬──────┘
        │
-       │ 1. User enters credentials
+       │ 1. Fills application form
+       │    - Select product
+       │    - Enter amount
+       │    - Enter purpose
        ▼
-┌─────────────────────────────┐
-│  LoginPage.tsx              │
-│  (React Component)          │
-└──────┬──────────────────────┘
+┌─────────────────┐
+│ ClientApplyTab  │
+│  .tsx           │
+└──────┬──────────┘
        │
-       │ 2. Call authAPI.login()
-       ▼
-┌─────────────────────────────┐
-│  /services/api.ts           │
-│  authAPI.login()            │
-└──────┬──────────────────────┘
+       │ 2. Calls addLoan()
        │
-       │ 3. POST /api/auth/login
        ▼
-┌─────────────────────────────┐
-│  /api/auth/login.ts         │
-│  (Vercel Function)          │
-└──────┬──────────────────────┘
+┌─────────────────┐
+│  DataContext    │
+│  .addLoan()     │
+└──────┬──────────┘
        │
-       │ 4. Validate credentials
-       ▼
-┌─────────────────────────────┐
-│  Supabase Auth              │
-│  auth.signInWithPassword()  │
-└──────┬──────────────────────┘
+       ├──► 3. Insert into Supabase
+       │         loans table
+       │         (status: "Pending")
        │
-       │ 5. Query user profile
-       ▼
-┌─────────────────────────────┐
-│  Supabase DB                │
-│  SELECT * FROM users        │
-└──────┬──────────────────────┘
-       │
-       │ 6. Return JWT token + user data
-       ▼
-┌─────────────────────────────┐
-│  Browser                    │
-│  - Store token in           │
-│    localStorage             │
-│  - Update AuthContext       │
-│  - Navigate to portal       │
-└─────────────────────────────┘
+       └──► 4. Call addNotification()
+                │
+                ▼
+       ┌────────────────────┐
+       │  Supabase          │
+       │  notifications     │
+       │  table             │
+       │                    │
+       │  - type: "info"    │
+       │  - category:       │
+       │    "client_app"    │
+       │  - title: "New     │
+       │    Loan App"       │
+       │  - action_required │
+       │    = TRUE          │
+       └────────┬───────────┘
+                │
+                ▼
+       ┌────────────────────┐
+       │   ADMIN SEES       │
+       │   NOTIFICATION     │
+       │   (Bell icon)      │
+       └────────────────────┘
+```
+
+### 2. Admin Review/Decline Flow
+
+```
+┌─────────────────┐
+│  ADMIN CLICKS   │
+│  NOTIFICATION   │
+└────────┬────────┘
+         │
+         ▼
+┌────────────────────────┐
+│ ClientLoanNotification │
+│ Card.tsx               │
+└────────┬───────────────┘
+         │
+    ┌────┴─────┐
+    │          │
+    ▼          ▼
+┌────────┐  ┌──────────┐
+│ REVIEW │  │ DECLINE  │
+└───┬────┘  └────┬─────┘
+    │            │
+    │            │
+    └────┬───────┘
+         │
+         ▼
+┌────────────────────┐
+│ updateLoan()       │
+│ - approval_status  │
+│   = "Under Review" │
+│   OR "Declined"    │
+└────────┬───────────┘
+         │
+         ├──► Update Supabase
+         │    loans table
+         │
+         └──► addNotification()
+              for CLIENT
+              │
+              ▼
+     ┌────────────────────┐
+     │  Client gets       │
+     │  notification:     │
+     │  - "Under Review"  │
+     │    OR              │
+     │  - "Declined" +    │
+     │    reason          │
+     └────────────────────┘
+```
+
+### 3. Staff Assignment & Commission Flow
+
+```
+┌─────────────────┐
+│  ADMIN CREATES  │
+│  NEW LOAN       │
+└────────┬────────┘
+         │
+         ▼
+┌────────────────────┐
+│ NewLoanModal.tsx   │
+│ - Select Client    │
+│ - Enter Amount     │
+│ - SELECT STAFF ◄───┼─── Staff Dropdown
+│   MEMBER           │     populated from
+└────────┬───────────┘     staff table
+         │
+         ▼
+┌────────────────────┐
+│  addLoan()         │
+│  - staff_member_id │
+│  - staff_member_   │
+│    name            │
+└────────┬───────────┘
+         │
+         ▼
+┌────────────────────┐
+│  Supabase          │
+│  loans table       │
+│  - staff_member_id │
+│    = "STF001"      │
+│  - staff_member_   │
+│    name = "John"   │
+└────────┬───────────┘
+         │
+         │ Later...
+         │
+         ▼
+┌────────────────────────┐
+│  PAYROLL → COMMISSIONS │
+│  Tab                   │
+└────────┬───────────────┘
+         │
+         ▼
+┌────────────────────────┐
+│ Select Staff Member    │
+│ "John Doe"             │
+└────────┬───────────────┘
+         │
+         ▼
+┌────────────────────────┐
+│ Query loans WHERE      │
+│ staff_member_id =      │
+│ "STF001"               │
+└────────┬───────────────┘
+         │
+         ▼
+┌────────────────────────┐
+│ Calculate Commission:  │
+│                        │
+│ For each loan:         │
+│   amount × rate / 100  │
+│                        │
+│ Loan 1: 100k × 2% = 2k │
+│ Loan 2: 150k × 2% = 3k │
+│ Loan 3: 80k × 2% = 1.6k│
+│ ─────────────────────  │
+│ TOTAL: 6,600           │
+└────────────────────────┘
 ```
 
 ---
 
-## 💰 Loan Application Flow
+## Notification Types & Categories
 
+### Types (Visual Styling)
 ```
-Client Portal                Staff Portal
-     │                           │
-     │ 1. Fill loan form         │
-     ▼                           │
-[Apply Tab]                      │
-     │                           │
-     │ 2. Submit application     │
-     ▼                           │
-POST /api/loans/create           │
-     │                           │
-     │ 3. Save to database       │
-     ▼                           │
-[loans table]                    │
-status: pending                  │
-     │                           │
-     │ 4. Create notification    │
-     ▼                           │
-[notifications table]            │
-     │                           │
-     │ ◄───────────────────────┐ │
-     │                         │ │
-     │                  5. Review loan
-     │                         │ │
-     │                         ▼ │
-     │              [Loan Management Tab]
-     │                         │
-     │                  6. Approve/Reject
-     │                         │
-     │                         ▼
-     │              PATCH /api/loans/:id
-     │                         │
-     │                  7. Update status
-     │                         │
-     │                         ▼
-     │                   [loans table]
-     │                   status: approved
-     │                         │
-     │ ◄───────────────────────┘
-     │ 8. Notification sent
-     ▼
-[Client sees approval]
+┌───────────┬──────────────┬─────────────────┐
+│   TYPE    │    COLOR     │   ICON          │
+├───────────┼──────────────┼─────────────────┤
+│ alert     │ Red          │ AlertTriangle   │
+│ warning   │ Amber/Yellow │ Clock           │
+│ success   │ Green        │ CheckCircle     │
+│ info      │ Blue         │ Info            │
+└───────────┴──────────────┴─────────────────┘
+```
+
+### Categories (Business Logic)
+```
+┌──────────────────┬─────────────────────────────────┐
+│    CATEGORY      │   USE CASE                      │
+├──────────────────┼─────────────────────────────────┤
+│ client_app       │ Client applies for loan         │
+│ loan             │ Loan status changes             │
+│ payment          │ Payment received/overdue        │
+│ client           │ Client info updated             │
+│ system           │ System alerts                   │
+│ compliance       │ Compliance issues               │
+└──────────────────┴─────────────────────────────────┘
 ```
 
 ---
 
-## 💳 M-Pesa Payment Flow
-
-```
-1. Client initiates payment
-   │
-   ▼
-POST /api/mpesa/stk-push
-   │
-   ├─ phone_number: 254712345678
-   ├─ amount: 5000
-   └─ loan_id: uuid
-   │
-   ▼
-2. Get M-Pesa OAuth token
-   │
-   ▼
-3. Generate timestamp & password
-   │
-   ▼
-4. Send STK Push request to Safaricom
-   │
-   └─────────────────────────────┐
-                                 │
-5. Save transaction             │
-   │                             │
-   ▼                             ▼
-[mpesa_transactions]     [Client's Phone]
-status: pending          STK Push appears
-   │                             │
-   │                     User enters PIN
-   │                             │
-   │                     Payment processed
-   │                             │
-   │ ◄───────────────────────────┘
-   │
-6. M-Pesa calls /api/mpesa/callback
-   │
-   ├─ ResultCode: 0 (success)
-   ├─ MpesaReceiptNumber: RKL9X8Y7Z6
-   └─ Amount: 5000
-   │
-   ▼
-7. Update transaction status
-   │
-   ▼
-[mpesa_transactions]
-status: success
-   │
-   ▼
-8. Create payment record
-   │
-   ▼
-[payments table]
-   │
-   ▼
-9. Update loan balance
-   │
-   ▼
-[loans table]
-paid_amount: +5000
-outstanding_balance: -5000
-   │
-   ▼
-10. Send notification to client
-   │
-   ▼
-[notifications table]
-"Payment of KES 5,000 received"
-```
-
----
-
-## 🗄️ Database Schema Overview
-
-### Core Entities
-
-```
-users (Authentication & Profiles)
-├── id (UUID, PK)
-├── email (TEXT, UNIQUE)
-├── full_name (TEXT)
-├── role (TEXT: admin, manager, loan_officer, client)
-├── organization_id (UUID, FK → organizations)
-└── status (TEXT: active, suspended, inactive)
-
-organizations (SACCOs, MFIs, Credit Unions)
-├── id (UUID, PK)
-├── name (TEXT)
-├── type (TEXT: sacco, mfi, credit_union)
-├── subscription_tier (TEXT: starter, growth, professional)
-└── subscription_status (TEXT: trial, active, suspended)
-
-clients (Client Profiles & KYC)
-├── id (UUID, PK)
-├── user_id (UUID, FK → users)
-├── client_number (TEXT, UNIQUE)
-├── first_name, last_name (TEXT)
-├── id_number (TEXT, UNIQUE)
-├── phone_primary (TEXT)
-├── kyc_status (TEXT: pending, verified, rejected)
-└── credit_score (INTEGER)
-
-loans (Loan Applications & Tracking)
-├── id (UUID, PK)
-├── loan_number (TEXT, UNIQUE)
-├── client_id (UUID, FK → clients)
-├── principal_amount (DECIMAL)
-├── interest_rate (DECIMAL)
-├── total_amount (DECIMAL)
-├── outstanding_balance (DECIMAL)
-└── status (TEXT: pending, approved, disbursed, active, completed)
-
-payments (Payment Transactions)
-├── id (UUID, PK)
-├── loan_id (UUID, FK → loans)
-├── payment_number (TEXT, UNIQUE)
-├── amount (DECIMAL)
-├── payment_method (TEXT: mpesa, cash, bank_transfer)
-├── mpesa_receipt_number (TEXT)
-└── status (TEXT: pending, completed, failed)
-
-mpesa_transactions (M-Pesa Integration)
-├── id (UUID, PK)
-├── transaction_id (TEXT, UNIQUE)
-├── checkout_request_id (TEXT)
-├── phone_number (TEXT)
-├── amount (DECIMAL)
-├── loan_id (UUID, FK → loans)
-├── payment_id (UUID, FK → payments)
-└── status (TEXT: pending, success, failed)
-```
-
-### Relationships
-
-```
-organizations 1──────┐
-                     │ has many
-                     ▼
-                   users 1─────┐
-                                │ has many
-                                ▼
-                              clients 1──────┐
-                                             │ has many
-                                             ▼
-                                           loans 1──────┐
-                                                        │ has many
-                                                        ▼
-                                                     payments
-                                                        │
-                                                        │ may have
-                                                        ▼
-                                                  mpesa_transactions
-```
-
----
-
-## 🔒 Security Architecture
+## Security & Permissions
 
 ### Row Level Security (RLS)
 
-```
-Policy: "Users can view own profile"
-ON users
-FOR SELECT
-USING (auth.uid() = id)
+```sql
+-- Notifications table RLS
+CREATE POLICY "Users can view their organization's notifications"
+  ON notifications FOR SELECT
+  USING (
+    organization_id IN (
+      SELECT organization_id FROM users WHERE id = auth.uid()
+    )
+  );
 
-Policy: "Staff can view organization clients"
-ON clients
-FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1 FROM users
-    WHERE users.id = auth.uid()
-    AND users.organization_id = clients.organization_id
-  )
-)
-
-Policy: "Users can view own loans"
-ON loans
-FOR SELECT
-USING (
-  client_id IN (
-    SELECT id FROM clients
-    WHERE user_id = auth.uid()
-  )
-)
+-- Similar policies for INSERT, UPDATE, DELETE
 ```
 
-### Authentication
+### Client Authentication
 
 ```
-1. User Login
-   ↓
-2. Supabase Auth validates credentials
-   ↓
-3. Generate JWT token
-   ├── Payload: { sub: user_id, role: user_role, exp: expiry }
-   └── Signed with secret key
-   ↓
-4. Token sent to client
-   ↓
-5. Client stores in localStorage
-   ↓
-6. All API requests include:
-   Authorization: Bearer <token>
-   ↓
-7. Server verifies token
-   ├── Valid → Process request
-   └── Invalid → Return 401 Unauthorized
-```
-
-### Environment Variables Security
-
-```
-Frontend (VITE_ prefix):
-├── VITE_SUPABASE_URL → Exposed to browser (safe)
-└── VITE_SUPABASE_ANON_KEY → Exposed to browser (safe, RLS protects data)
-
-Backend (No prefix):
-├── SUPABASE_SERVICE_ROLE_KEY → Server-side only (CRITICAL - NEVER EXPOSE)
-├── MPESA_CONSUMER_SECRET → Server-side only
-└── RESEND_API_KEY → Server-side only
-
-Protection:
-├── .env file in .gitignore
-├── Vercel environment variables encrypted
-└── Service keys only in serverless functions
+┌─────────────────────────────────────────┐
+│  Client Login Flow                      │
+├─────────────────────────────────────────┤
+│                                         │
+│  1. Client enters:                      │
+│     - Last 4 digits of phone: "5678"    │
+│     - Password: "1234"                  │
+│                                         │
+│  2. System queries:                     │
+│     SELECT * FROM clients               │
+│     WHERE phone LIKE '%5678'            │
+│     AND client_password = '1234'        │
+│                                         │
+│  3. If match:                           │
+│     - Set currentClientId               │
+│     - Load client data                  │
+│     - Show ClientPortal                 │
+│                                         │
+│  4. If no match:                        │
+│     - Show error                        │
+│     - Remain on login screen            │
+│                                         │
+└─────────────────────────────────────────┘
 ```
 
 ---
 
-## 📊 Data Flow Examples
+## State Management
 
-### Example 1: Creating a Loan
+### DataContext.tsx - Key State Variables
 
-```
-Frontend                    API                         Database
-   │                        │                              │
-   │ 1. User fills form     │                              │
-   │                        │                              │
-   │ 2. POST /api/loans/create                             │
-   ├────────────────────────►                              │
-   │  { client_id,          │                              │
-   │    principal_amount,   │                              │
-   │    duration_months }   │                              │
-   │                        │                              │
-   │                        │ 3. Validate request          │
-   │                        │                              │
-   │                        │ 4. Calculate interest        │
-   │                        │    total_amount =            │
-   │                        │    principal + interest      │
-   │                        │                              │
-   │                        │ 5. Generate loan_number      │
-   │                        │    LN-20241219-1234          │
-   │                        │                              │
-   │                        │ 6. INSERT INTO loans         │
-   │                        ├──────────────────────────────►
-   │                        │                              │
-   │                        │ 7. INSERT INTO loan_guarantors (if any)
-   │                        ├──────────────────────────────►
-   │                        │                              │
-   │                        │ 8. INSERT INTO notifications │
-   │                        ├──────────────────────────────►
-   │                        │                              │
-   │                        │ 9. Return created loan       │
-   │                        │◄──────────────────────────────
-   │                        │                              │
-   │ 10. Response           │                              │
-   │◄────────────────────────                              │
-   │  { success: true,      │                              │
-   │    loan: {...} }       │                              │
-   │                        │                              │
-   │ 11. Update UI          │                              │
-   │     Show success msg   │                              │
+```typescript
+// Clients
+const [clients, setClients] = useState<Client[]>([]);
+
+// Loans
+const [loans, setLoans] = useState<Loan[]>([]);
+
+// Notifications
+const [notifications, setNotifications] = useState<Notification[]>([]);
+
+// Staff
+const [staff, setStaff] = useState<Staff[]>([]);
 ```
 
-### Example 2: Dashboard Analytics
+### Real-time Updates
 
 ```
-Frontend                    API                         Database
-   │                        │                              │
-   │ 1. Load dashboard      │                              │
-   │                        │                              │
-   │ 2. GET /api/reports/dashboard                         │
-   ├────────────────────────►                              │
-   │                        │                              │
-   │                        │ 3. Run aggregation queries   │
-   │                        │                              │
-   │                        │ SELECT COUNT(*) FROM clients │
-   │                        ├──────────────────────────────►
-   │                        │◄──────────────────────────────
-   │                        │ total_clients: 150           │
-   │                        │                              │
-   │                        │ SELECT SUM(principal_amount) │
-   │                        │ FROM loans                   │
-   │                        │ WHERE status = 'disbursed'   │
-   │                        ├──────────────────────────────►
-   │                        │◄──────────────────────────────
-   │                        │ total_disbursed: 5000000     │
-   │                        │                              │
-   │                        │ (More queries for other metrics)
-   │                        │                              │
-   │                        │ 4. Compile results           │
-   │                        │                              │
-   │ 5. Response            │                              │
-   │◄────────────────────────                              │
-   │  { total_clients: 150, │                              │
-   │    total_disbursed: 5M,│                              │
-   │    active_loans: 45,   │                              │
-   │    ... }               │                              │
-   │                        │                              │
-   │ 6. Render charts       │                              │
-   │    Update metrics      │                              │
-```
-
----
-
-## 🚀 Deployment Architecture
-
-```
-Developer Machine
+User Action
     │
-    │ git push
     ▼
-┌───────────────────┐
-│  GitHub           │
-│  Repository       │
-└────────┬──────────┘
-         │ webhook
-         ▼
-┌───────────────────────────────────────┐
-│  Vercel Platform                      │
-├───────────────────────────────────────┤
-│  1. Detect push                       │
-│  2. Clone repository                  │
-│  3. Install dependencies (npm install)│
-│  4. Run build (npm run build)         │
-│  5. Optimize assets                   │
-│  6. Deploy to Edge Network            │
-└────────┬──────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────┐
-│  Vercel Edge Network (Global CDN)           │
-├─────────────────────────────────────────────┤
-│  Locations:                                 │
-│  ├── North America (US East, US West)      │
-│  ├── Europe (London, Frankfurt, Amsterdam) │
-│  ├── Asia (Singapore, Tokyo, Hong Kong)    │
-│  └── Africa (South Africa)                 │
-└────────┬────────────────────────────────────┘
-         │
-         ▼
-    End Users
-    (Worldwide)
+Local State Update (optimistic)
+    │
+    ▼
+Supabase Write
+    │
+    ├──► Success: State already updated
+    │
+    └──► Error: Rollback local state
+         Show error toast
 ```
 
 ---
 
-## 📈 Scalability
+## API Endpoints (Supabase Functions)
 
-### Current Capacity (Free Tier)
+### Current Implementation
 
+```typescript
+// Direct Supabase client calls
+await supabase
+  .from('notifications')
+  .insert([{ ... }])
+  .select()
+  .single();
+
+await supabase
+  .from('loans')
+  .update({ approval_status: 'Under Review' })
+  .eq('loan_number', loanNumber);
+
+await supabase
+  .from('clients')
+  .select('*')
+  .eq('organization_id', orgId);
 ```
-Vercel:
-├── Bandwidth: 100 GB/month
-├── Build time: 100 hours/month
-├── Serverless executions: Unlimited
-└── Edge requests: Unlimited
 
-Supabase:
-├── Database: 500 MB
-├── Bandwidth: 2 GB/month
-├── Storage: 1 GB
-└── Concurrent connections: 50
+### Future Enhancement: Edge Functions
 
-Estimated capacity:
-├── Users: 1,000-5,000
-├── Transactions/month: 10,000
-├── API calls/month: 100,000
-└── Page views/month: 50,000
-```
-
-### Scaling Strategy
-
-```
-Phase 1: 0-100 users
-├── Free tier sufficient
-└── Cost: $0/month
-
-Phase 2: 100-1,000 users
-├── Upgrade Supabase to Pro ($25/mo)
-├── Keep Vercel free
-└── Cost: $25/month
-
-Phase 3: 1,000-10,000 users
-├── Supabase Pro: $25/mo
-├── Vercel Pro: $20/mo
-├── Add caching layer (Redis)
-└── Cost: $65/month
-
-Phase 4: 10,000+ users
-├── Supabase Team: $599/mo
-├── Vercel Enterprise: Custom
-├── Dedicated database
-├── Load balancing
-└── Cost: $1,000+/month
+```typescript
+// Email notification on loan application
+await supabase.functions.invoke('send-loan-notification', {
+  body: {
+    clientEmail: 'client@example.com',
+    loanAmount: 50000,
+    status: 'Under Review'
+  }
+});
 ```
 
 ---
 
-## 🔧 Technology Stack Summary
+## Performance Optimizations
 
-### Frontend
-- **Framework**: React 18.2
-- **Language**: TypeScript 5.0
-- **Build Tool**: Vite 4.4
-- **Styling**: Tailwind CSS 4.0
-- **Icons**: Lucide React 0.263
-- **Charts**: Recharts 2.8
-- **Notifications**: Sonner 1.0
+### Database Indexes
 
-### Backend
-- **Runtime**: Node.js 18+
-- **Functions**: Vercel Serverless
-- **API Type**: RESTful
-- **Authentication**: Supabase Auth (JWT)
+```sql
+-- Notifications indexes
+CREATE INDEX idx_notifications_org_id 
+  ON notifications(organization_id);
 
-### Database
-- **Type**: PostgreSQL 15
-- **Provider**: Supabase
-- **ORM**: Supabase Client JS
-- **Tables**: 18
-- **Security**: Row Level Security
+CREATE INDEX idx_notifications_read 
+  ON notifications(read);
 
-### Infrastructure
-- **Hosting**: Vercel
-- **CDN**: Vercel Edge Network
-- **DNS**: Vercel DNS
-- **SSL**: Auto-provisioned (Let's Encrypt)
+CREATE INDEX idx_notifications_category 
+  ON notifications(category);
 
-### Integrations
-- **Payments**: M-Pesa (Safaricom)
-- **Email**: Resend
-- **SMS**: Africa's Talking
-- **Storage**: Supabase Storage
-
-### Development Tools
-- **Version Control**: Git
-- **Repository**: GitHub
-- **Package Manager**: npm
-- **Linting**: ESLint
-- **Type Checking**: TypeScript
-
----
-
-## 📊 Performance Metrics
-
-### Target Performance
-
+CREATE INDEX idx_notifications_created_at 
+  ON notifications(created_at DESC);
 ```
-Page Load Time:
-├── First Contentful Paint: < 1.5s
-├── Largest Contentful Paint: < 2.5s
-├── Time to Interactive: < 3.5s
-└── Total Page Load: < 4s
 
-API Response Time:
-├── Authentication: < 500ms
-├── Data queries: < 300ms
-├── Complex reports: < 1s
-└── M-Pesa STK push: < 2s
+### Query Optimization
 
-Database Performance:
-├── Simple queries: < 50ms
-├── Complex joins: < 200ms
-├── Aggregations: < 500ms
-└── Bulk operations: < 2s
-
-Uptime:
-└── Target: 99.9% (8.76 hours downtime/year)
+```typescript
+// Load only unread notifications initially
+const { data } = await supabase
+  .from('notifications')
+  .select('*')
+  .eq('organization_id', orgId)
+  .eq('read', false)
+  .order('created_at', { ascending: false })
+  .limit(50);
 ```
 
 ---
 
-This architecture supports **1,000s of users** and **100,000s of transactions** with room to scale! 🚀
+## Error Handling
+
+### Graceful Degradation
+
+```typescript
+try {
+  // Attempt Supabase operation
+  const { data, error } = await supabase
+    .from('notifications')
+    .insert([notification]);
+    
+  if (error) throw error;
+  
+  // Update local state
+  setNotifications(prev => [data, ...prev]);
+  
+} catch (error) {
+  console.error('Failed to save notification:', error);
+  
+  // Still update local state (offline-first)
+  setNotifications(prev => [notification, ...prev]);
+  
+  // Show user-friendly message
+  toast.error('Notification saved locally. Will sync when online.');
+}
+```
+
+---
+
+## Testing Strategy
+
+### Unit Tests (Recommended)
+```typescript
+describe('addNotification', () => {
+  it('should create notification with UUID', async () => {
+    const result = await addNotification({
+      type: 'info',
+      category: 'loan',
+      title: 'Test',
+      message: 'Test message'
+    });
+    
+    expect(result.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-/);
+  });
+});
+```
+
+### Integration Tests
+```typescript
+describe('Client Loan Application', () => {
+  it('should create loan and notification', async () => {
+    // Apply for loan as client
+    await applyForLoan({ amount: 50000, product: 'Business' });
+    
+    // Check loan created
+    const loan = await getLoan(loanId);
+    expect(loan.approval_status).toBe('Pending');
+    
+    // Check notification created
+    const notifications = await getNotifications();
+    expect(notifications[0].category).toBe('client_application');
+  });
+});
+```
+
+---
+
+## Deployment Checklist
+
+- [x] Database migration applied
+- [x] TypeScript types updated
+- [x] Field mapping implemented
+- [x] RLS policies enabled
+- [x] Indexes created
+- [ ] Edge Functions deployed (optional)
+- [ ] Email templates configured (optional)
+- [ ] User acceptance testing completed
+- [ ] Documentation reviewed
+- [ ] Production backups configured
+
+---
+
+**System Status: ✅ Fully Operational**
+
+All components are integrated and working. The system supports:
+- Client self-service loan applications
+- Admin notification management  
+- Staff assignment to loans
+- Commission tracking for payroll
+- Real-time updates via Supabase
+- Secure authentication for clients and admins

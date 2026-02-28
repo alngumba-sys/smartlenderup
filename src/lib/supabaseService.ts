@@ -526,6 +526,8 @@ const transformLoanForSupabase = (loan: any): any => {
     'guarantor_required': 'guarantor_required',
     'collateralRequired': 'collateral_required',
     'collateral_required': 'collateral_required',
+    'staffMemberId': 'staff_member_id', // ✅ Staff member assignment
+    'staff_member_id': 'staff_member_id',
     'createdAt': 'created_at',
     'created_at': 'created_at',
     'updatedAt': 'updated_at',
@@ -650,6 +652,7 @@ const transformLoanFromSupabase = (loan: any): any => {
     paymentMethod: loan.payment_method || 'Cash',
     guarantorRequired: loan.guarantor_required || false,
     collateralRequired: loan.collateral_required || false,
+    staffMemberId: loan.staff_member_id || undefined,
     createdAt: loan.created_at,
     updatedAt: loan.updated_at,
   };
@@ -2093,29 +2096,18 @@ export const fetchDisbursements = async (): Promise<Disbursement[]> => {
   
   if (!orgId) return [];
   
-  const { data, error } = await supabase
-    .from('disbursements')
-    .select('*')
-    .eq('organization_id', orgId);
-  
-  if (error) {
-    // Silently fail if Supabase is not available
-    return [];
-  }
-  return data || [];
+  // ⚠️ DEPRECATED: Disbursements now tracked via journal entries
+  // Return empty array to avoid schema errors
+  console.log('ℹ️ Disbursements now tracked via journal entries');
+  return [];
 };
 
 export const createDisbursement = async (disbursement: Disbursement): Promise<boolean> => {
   const orgId = getOrganizationId();
-  const { error } = await supabase
-    .from('disbursements')
-    .insert({ ...disbursement, organization_id: orgId });
   
-  if (error) {
-    console.error('Error creating disbursement:', error);
-    return false;
-  }
-  return true;
+  // ⚠️ DEPRECATED: Use journal entries for new disbursements
+  console.log('ℹ️ Use journal entries to create disbursements');
+  return false;
 };
 
 // =============================================

@@ -1,4 +1,4 @@
-import { FileText, Upload, Download, Eye, Trash2, Filter, FolderOpen, Image, File, Search, User } from 'lucide-react';
+import { FileText, Upload, Download, Eye, Trash2, Filter, FolderOpen, Image, File, Search, User, Users } from 'lucide-react';
 import { useState } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -25,6 +25,7 @@ export function DocumentsTab() {
   const [filterType, setFilterType] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'client'>('table');
 
   console.log('DocumentsTab - loanDocuments:', loanDocuments);
   console.log('DocumentsTab - loans:', loans);
@@ -138,14 +139,14 @@ export function DocumentsTab() {
   };
 
   return (
-    <div className={`p-6 space-y-6 ${isDark ? 'bg-[#111120]' : 'bg-gray-50'} min-h-screen`}>
+    <div className={`p-6 space-y-6 ${isDark ? 'bg-[#111120]' : 'bg-[#FAFAFA]'} min-h-screen`}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className={isDark ? 'text-white' : 'text-gray-900'}>Document Management</h2>
-          <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Centralized document storage and management</p>
+          <h2 className="text-2xl font-bold text-black">Document Management</h2>
+          <p className="text-sm text-gray-600">{documents.length} documents</p>
         </div>
-        <button className="px-[16px] py-[7px] bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 text-sm">
+        <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 text-sm font-medium transition-colors">
           <Upload className="size-4" />
           Upload Document
         </button>
@@ -153,172 +154,217 @@ export function DocumentsTab() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className={`p-4 rounded-lg border ${isDark ? 'bg-[#1a1d2e] border-gray-700' : 'bg-white border-gray-200'}`}>
+        {/* Total Docs */}
+        <div className="bg-[#D4D8E8] border border-gray-300 rounded-lg p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Documents</p>
-              <p className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>{documents.length}</p>
-              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>All categories</p>
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="size-5 text-[#5B6B9E]" />
+              <span className="text-sm text-gray-700">Total Docs</span>
             </div>
-            <FileText className="size-12 text-blue-600 dark:text-blue-400" />
           </div>
+          <p className="text-3xl font-bold text-black">{documents.length}</p>
         </div>
-        <div className={`p-4 rounded-lg border ${isDark ? 'bg-[#1a3a2e] border-teal-800' : 'bg-teal-50 border-teal-200'}`}>
+
+        {/* Client Docs */}
+        <div className="bg-[#D8E8E0] border border-gray-300 rounded-lg p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm ${isDark ? 'text-teal-300' : 'text-teal-800'}`}>Client Documents</p>
-              <p className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>{categoryStats['Client Documents']}</p>
-              <p className={`text-xs ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>ID, payslips, etc.</p>
+            <div className="flex items-center gap-2 mb-2">
+              <User className="size-5 text-[#5E8F71]" />
+              <span className="text-sm text-gray-700">Client Docs</span>
             </div>
-            <User className="size-12 text-teal-600 dark:text-teal-400" />
           </div>
+          <p className="text-3xl font-bold text-black">{categoryStats['Client Documents']}</p>
         </div>
-        <div className={`p-4 rounded-lg border ${isDark ? 'bg-[#2a1d3e] border-purple-800' : 'bg-purple-50 border-purple-200'}`}>
+
+        {/* Agreements */}
+        <div className="bg-[#E8D8E8] border border-gray-300 rounded-lg p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm ${isDark ? 'text-purple-300' : 'text-purple-800'}`}>Loan Agreements</p>
-              <p className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>{categoryStats['Loan Agreements']}</p>
-              <p className={`text-xs ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>Contracts & forms</p>
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="size-5 text-[#8F5E8F]" />
+              <span className="text-sm text-gray-700">Agreements</span>
             </div>
-            <FileText className="size-12 text-purple-600 dark:text-purple-400" />
           </div>
+          <p className="text-3xl font-bold text-black">{categoryStats['Loan Agreements']}</p>
         </div>
-        <div className={`p-4 rounded-lg border ${isDark ? 'bg-[#3a2d1e] border-amber-800' : 'bg-amber-50 border-amber-200'}`}>
+
+        {/* Collateral */}
+        <div className="bg-[#F5E8D8] border border-gray-300 rounded-lg p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>Collateral</p>
-              <p className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>{categoryStats['Collateral']}</p>
-              <p className={`text-xs ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>Title deeds, assets</p>
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="size-5 text-[#B8935E]" />
+              <span className="text-sm text-gray-700">Clients</span>
             </div>
-            <FolderOpen className="size-12 text-amber-600 dark:text-amber-400" />
           </div>
+          <p className="text-3xl font-bold text-black">{categoryStats['Collateral']}</p>
         </div>
       </div>
 
       {/* Search and Filters */}
-      <div className={`p-4 rounded-lg border ${isDark ? 'bg-[#1a1d2e] border-gray-700' : 'bg-white border-gray-200'} space-y-3`}>
-        <div className="flex items-center gap-2">
-          <Search className="size-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search documents by name or client..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={`flex-1 px-3 py-2 border rounded text-sm ${isDark ? 'bg-[#111120] border-gray-600 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900'}`}
-          />
-        </div>
-        
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Category:</span>
+      <div className="bg-[#2C3547] border border-gray-600 rounded-lg p-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
+          {/* Search bar */}
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by document name or client"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[#1E2433] border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+          
+          {/* Filters */}
+          <div className="flex items-center gap-2 w-full md:w-auto">
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className={`px-3 py-1.5 border rounded text-sm ${isDark ? 'bg-[#111120] border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+              className="px-4 py-2.5 rounded-lg bg-[#1E2433] border border-gray-600 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <option value="all">All ({documents.length})</option>
+              <option value="all">All (0)</option>
               <option value="Client Documents">Client Documents ({categoryStats['Client Documents']})</option>
               <option value="Loan Agreements">Loan Agreements ({categoryStats['Loan Agreements']})</option>
               <option value="Collateral">Collateral ({categoryStats['Collateral']})</option>
-              <option value="other">Other ({categoryStats['other']})</option>
             </select>
+            
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="px-4 py-2.5 rounded-lg bg-[#1E2433] border border-gray-600 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="all">All Clients (0)</option>
+            </select>
+            
+            {/* View Toggle */}
+            <div className="flex items-center gap-1 border-l border-gray-600 pl-2">
+              <button 
+                onClick={() => setViewMode('table')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  viewMode === 'table' 
+                    ? 'bg-white text-black' 
+                    : 'bg-transparent text-gray-400 hover:text-white'
+                }`}
+              >
+                ☰ Table
+              </button>
+              <button 
+                onClick={() => setViewMode('grid')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  viewMode === 'grid' 
+                    ? 'bg-white text-black' 
+                    : 'bg-transparent text-gray-400 hover:text-white'
+                }`}
+              >
+                ⊞ Grid
+              </button>
+              <button 
+                onClick={() => setViewMode('client')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  viewMode === 'client' 
+                    ? 'bg-white text-black' 
+                    : 'bg-transparent text-gray-400 hover:text-white'
+                }`}
+              >
+                👤 By Client
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Documents List */}
-      <div className="space-y-3">
-        {filteredDocuments.map((doc) => (
-          <div
-            key={doc.id}
-            onClick={() => setSelectedDoc(doc.id === selectedDoc ? null : doc.id)}
-            className={`rounded-lg border cursor-pointer transition-all ${isDark ? 'bg-[#1a1d2e] border-gray-700 hover:border-emerald-600' : 'bg-white border-gray-200 hover:border-emerald-300'} ${
-              selectedDoc === doc.id ? 'ring-2 ring-emerald-500 border-emerald-500' : ''
-            }`}
-          >
-            <div className="p-4">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 mt-1">
-                  {getTypeIcon(doc.type)}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-4 mb-2">
-                    <div className="flex-1">
-                      <h3 className={`mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{doc.name}</h3>
-                      <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                        <span>{doc.relatedTo}</span>
-                        <span className="text-gray-500">•</span>
-                        <span>{doc.relatedId}</span>
-                        <span className="text-gray-500">•</span>
-                        <span>{doc.size}</span>
+      {filteredDocuments.length > 0 ? (
+        <div className="space-y-3">
+          {filteredDocuments.map((doc) => (
+            <div
+              key={doc.id}
+              onClick={() => setSelectedDoc(doc.id === selectedDoc ? null : doc.id)}
+              className={`bg-white border border-gray-300 rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                selectedDoc === doc.id ? 'ring-2 ring-emerald-500 border-emerald-500' : ''
+              }`}
+            >
+              <div className="p-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 mt-1">
+                    {getTypeIcon(doc.type)}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-4 mb-2">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-black mb-1">{doc.name}</h3>
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <span>{doc.relatedTo}</span>
+                          <span className="text-gray-400">•</span>
+                          <span>{doc.relatedId}</span>
+                          <span className="text-gray-400">•</span>
+                          <span>{doc.size}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryBadge(doc.category)}`}>
+                          {doc.category}
+                        </span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(doc.status)}`}>
+                          {doc.status}
+                        </span>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded-full text-xs ${getCategoryBadge(doc.category)}`}>
-                        {doc.category}
-                      </span>
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusBadge(doc.status)}`}>
-                        {doc.status}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {doc.tags.map((tag, idx) => (
-                        <span key={idx} className={`px-2 py-0.5 rounded text-xs ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                    
-                    <div className={`flex items-center gap-4 text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                      <span>Uploaded by {doc.uploadedBy}</span>
-                      <span>{doc.uploadDate}</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {doc.tags.map((tag, idx) => (
+                          <span key={idx} className="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                      
+                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <span>Uploaded by {doc.uploadedBy}</span>
+                        <span>{doc.uploadDate}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
+
+                {selectedDoc === doc.id && (
+                  <div className="mt-4 pt-4 border-t border-gray-300">
+                    <div className="flex gap-2">
+                      <button className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center gap-2 transition-colors">
+                        <Eye className="size-4" />
+                        View
+                      </button>
+                      <button className="px-3 py-1.5 bg-emerald-600 text-white rounded text-sm hover:bg-emerald-700 flex items-center gap-2 transition-colors">
+                        <Download className="size-4" />
+                        Download
+                      </button>
+                      <button className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300 transition-colors">
+                        View Related Record
+                      </button>
+                      <button 
+                        className="px-3 py-1.5 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200 flex items-center gap-2 ml-auto transition-colors" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteDocument(doc.id, doc.name);
+                        }}
+                      >
+                        <Trash2 className="size-4" />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {selectedDoc === doc.id && (
-                <div className={`mt-4 pt-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                  <div className="flex gap-2">
-                    <button className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center gap-2">
-                      <Eye className="size-4" />
-                      View
-                    </button>
-                    <button className="px-3 py-1.5 bg-emerald-600 text-white rounded text-sm hover:bg-emerald-700 flex items-center gap-2">
-                      <Download className="size-4" />
-                      Download
-                    </button>
-                    <button className={`px-3 py-1.5 rounded text-sm ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
-                      View Related Record
-                    </button>
-                    <button 
-                      className="px-3 py-1.5 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200 flex items-center gap-2 ml-auto" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteDocument(doc.id, doc.name);
-                      }}
-                    >
-                      <Trash2 className="size-4" />
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
-          </div>
-        ))}
-      </div>
-
-      {filteredDocuments.length === 0 && (
-        <div className={`text-center py-16 rounded-lg border ${isDark ? 'bg-[#1a1d2e] border-gray-700' : 'bg-white border-gray-200'}`}>
-          <FileText className={`size-16 mx-auto mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
-          <p className={`text-lg mb-2 ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>No documents found</p>
-          <p className={isDark ? 'text-gray-500' : 'text-gray-600'}>Try adjusting your search or filters</p>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-300 rounded-lg text-center py-16">
+          <FileText className="size-16 mx-auto mb-4 text-gray-400" />
+          <p className="text-lg font-semibold text-black mb-2">No documents found</p>
+          <p className="text-gray-600">Try adjusting your search or filters</p>
         </div>
       )}
     </div>

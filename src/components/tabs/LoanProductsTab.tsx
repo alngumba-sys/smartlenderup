@@ -4,6 +4,7 @@ import { AddLoanProductModal } from '../modals/AddLoanProductModal';
 import { DeleteLoanProductModal } from '../modals/DeleteLoanProductModal';
 import { EditLoanProductModal } from '../modals/EditLoanProductModal';
 import { LinkLoansToProductModal } from '../modals/LinkLoansToProductModal';
+import { ProductLoansModal } from '../modals/ProductLoansModal';
 import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -16,6 +17,7 @@ export function LoanProductsTab() {
   const [productToDelete, setProductToDelete] = useState<any>(null);
   const [productToEdit, setProductToEdit] = useState<any>(null);
   const [showLinkModal, setShowLinkModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
 
   // Get currency symbol based on organization currency
   const getCurrencySymbol = (currency: string): string => {
@@ -105,47 +107,89 @@ export function LoanProductsTab() {
   });
   console.log('Loan distribution by productName:', productNameCounts);
 
+  // 🔍 DIAGNOSTIC: Find orphaned loans and missing products
+  const diagnostics = {
+    orphanedLoans: [] as any[],
+    missingProducts: new Set<string>(),
+    properlyLinkedLoans: 0
+  };
+
+  validLoans.forEach(loan => {
+    const hasProductId = !!(loan.productId || loan.product_id);
+    const productName = (loan.productName || loan.product_name || '').trim();
+    
+    if (!hasProductId) {
+      diagnostics.orphanedLoans.push({
+        loanNumber: loan.loanNumber,
+        productName: productName || 'NO_NAME',
+        status: loan.status
+      });
+      
+      if (productName && !validLoanProducts.some(p => 
+        p.name.trim().toUpperCase() === productName.toUpperCase()
+      )) {
+        diagnostics.missingProducts.add(productName);
+      }
+    } else {
+      diagnostics.properlyLinkedLoans++;
+    }
+  });
+
+  if (diagnostics.orphanedLoans.length > 0) {
+    console.log('⚠️ ORPHANED LOANS (no product_id):', diagnostics.orphanedLoans);
+  }
+  if (diagnostics.missingProducts.size > 0) {
+    console.log('🚨 MISSING PRODUCTS:', Array.from(diagnostics.missingProducts));
+  }
+  console.log(`✅ Properly linked loans: ${diagnostics.properlyLinkedLoans}/${validLoans.length}`);
+
   // Calculate product metrics
   const getProductMetrics = (productId: string) => {
     // Find the product to get its name
     const product = validLoanProducts.find(p => p.id === productId);
     const productName = product?.name;
     
-    // Match loans to products using multiple strategies
-    // The loans come from Supabase with a JOIN that includes the product object
+    console.log(`📊 [PRODUCT METRICS] Calculating for product:`, {
+      productId,
+      productName,
+      totalLoansInSystem: validLoans.length
+    });
+    
+    // Match loans to products - STRICT UUID matching first
     const productLoans = validLoans.filter(l => {
-      // Strategy 1: Match by product_id (UUID foreign key) - direct field
-      if (l.productId === productId || l.product_id === productId) return true;
-      
-      // Strategy 2: Match by product.id from Supabase JOIN
-      if (l.product && typeof l.product === 'object' && l.product.id === productId) return true;
-      
-      // Strategy 3: Match by productName field (case-insensitive, exact match)
-      const loanProductName = (l.productName || l.product_name || '').trim().toUpperCase();
-      const targetProductName = (productName || '').trim().toUpperCase();
-      if (loanProductName && targetProductName && loanProductName === targetProductName) return true;
-      
-      // Strategy 4: Match by product.product_name from JOIN
-      if (l.product && typeof l.product === 'object') {
-        const joinedProductName = (l.product.product_name || l.product.name || '').trim().toUpperCase();
-        if (joinedProductName && targetProductName && joinedProductName === targetProductName) return true;
+      // Strategy 1: Match by product_id (UUID foreign key) - PRIMARY and MOST RELIABLE
+      if (l.productId === productId || l.product_id === productId) {
+        console.log(`  ✅ Matched loan ${l.loanNumber} by product_id`);
+        return true;
       }
       
-      // Strategy 5: Handle common variations (e.g., "Personal Loan" matches "PERSONAL LOAN")
-      // Remove common words and check if core names match
-      const normalizeProductName = (name: string) => {
-        return name.toUpperCase()
-          .replace(/\s+/g, '') // Remove all spaces
-          .replace(/LOAN$/, '') // Remove "LOAN" suffix
-          .trim();
-      };
+      // Strategy 2: Match by product.id from Supabase JOIN
+      if (l.product && typeof l.product === 'object' && l.product.id === productId) {
+        console.log(`  ✅ Matched loan ${l.loanNumber} by product.id`);
+        return true;
+      }
       
-      const normalizedLoanProduct = normalizeProductName(loanProductName);
-      const normalizedTargetProduct = normalizeProductName(targetProductName);
-      if (normalizedLoanProduct && normalizedTargetProduct && normalizedLoanProduct === normalizedTargetProduct) return true;
+      // ⚠️ FALLBACK: Only use name matching if product_id is missing/null
+      // This handles legacy data or incomplete records
+      if (!l.productId && !l.product_id) {
+        const loanProductName = (l.productName || l.product_name || '').trim();
+        const targetProductName = (productName || '').trim();
+        
+        // Exact match only (case-insensitive)
+        if (loanProductName && targetProductName && 
+            loanProductName.toUpperCase() === targetProductName.toUpperCase()) {
+          console.log(`  ⚠️ Matched loan ${l.loanNumber} by name (no product_id)`);
+          return true;
+        }
+      }
       
       return false;
     });
+    
+    console.log(`  📊 Found ${productLoans.length} loans for product ${productName}`);
+    if (productLoans.length > 0) {
+      console.log(`  Loan numbers:`, productLoans.map(l => l.loanNumber).join(', '));
+    }
     
     const activeLoans = productLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed' || l.status === 'In Arrears');
     
@@ -273,6 +317,37 @@ export function LoanProductsTab() {
           </button>
         </div>
 
+        {/* 🚨 DATA INTEGRITY WARNING */}
+        {diagnostics.orphanedLoans.length > 0 && (
+          <div className={`mb-6 p-4 rounded-lg border-2 ${isDark ? 'bg-amber-900/20 border-amber-600/50' : 'bg-amber-50 border-amber-300'}`}>
+            <div className="flex items-start gap-3">
+              <AlertTriangle className={`size-5 flex-shrink-0 mt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+              <div className="flex-1">
+                <h3 className={`text-sm font-semibold ${isDark ? 'text-amber-300' : 'text-amber-900'} mb-1`}>
+                  Data Integrity Issue Detected
+                </h3>
+                <p className={`text-xs ${isDark ? 'text-amber-200' : 'text-amber-800'} mb-3`}>
+                  Found <strong>{diagnostics.orphanedLoans.length} loan{diagnostics.orphanedLoans.length === 1 ? '' : 's'}</strong> without proper product linkage.
+                  {diagnostics.missingProducts.size > 0 && (
+                    <> Also detected <strong>{diagnostics.missingProducts.size} missing product{diagnostics.missingProducts.size === 1 ? '' : 's'}</strong>: {Array.from(diagnostics.missingProducts).join(', ')}.</>
+                  )}
+                </p>
+                <button
+                  onClick={() => setShowLinkModal(true)}
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    isDark 
+                      ? 'bg-amber-600 hover:bg-amber-500 text-white' 
+                      : 'bg-amber-600 hover:bg-amber-700 text-white'
+                  }`}
+                >
+                  <Link2 className="size-3.5" />
+                  Fix Product Links
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {validLoanProducts.length === 0 ? (
           <div className={`text-center py-12 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             <Package className="size-16 mx-auto mb-4 opacity-50" />
@@ -288,7 +363,8 @@ export function LoanProductsTab() {
               return (
                 <div
                   key={product.id}
-                  className={`border ${isDark ? 'border-gray-700' : 'border-gray-200'} rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200`}
+                  onClick={() => setSelectedProduct(product)}
+                  className={`border ${isDark ? 'border-gray-700' : 'border-gray-200'} rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer`}
                 >
                   {/* Header with gradient */}
                   <div className={`p-6 ${
@@ -313,14 +389,14 @@ export function LoanProductsTab() {
                       </div>
                       <div className="flex gap-1 ml-2">
                         <button
-                          onClick={() => setProductToEdit(product)}
+                          onClick={(e) => { e.stopPropagation(); setProductToEdit(product); }}
                           className={`p-2 ${isDark ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'} ${isDark ? 'text-gray-300' : 'text-gray-700'} rounded-lg transition-colors`}
                           title="Edit product"
                         >
                           <Pencil className="size-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteProduct(product)}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteProduct(product); }}
                           className={`p-2 ${isDark ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'} ${isDark ? 'text-gray-300' : 'text-gray-700'} rounded-lg transition-colors`}
                           title="Delete product"
                         >
@@ -506,6 +582,13 @@ export function LoanProductsTab() {
             // Linking is handled via DataContext, no need to update local state
             setShowLinkModal(false);
           }}
+        />
+      )}
+
+      {selectedProduct && (
+        <ProductLoansModal
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
         />
       )}
     </>

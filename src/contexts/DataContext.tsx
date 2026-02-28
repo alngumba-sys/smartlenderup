@@ -26,6 +26,9 @@ import {
   showMigrationNotification,
   downloadMigrationSQL
 } from '../utils/simpleAutoMigration';
+import { generateUniqueJournalEntryNumber } from '../utils/journalEntryNumberGenerator';
+import { getCorrectPrincipal } from '../utils/knownLoanPrincipals';
+import { loadDisbursementPrincipals, getPrincipalFromDisbursements } from '../utils/getPrincipalFromDisbursements';
 
 // ============= TYPE DEFINITIONS =============
 
@@ -75,6 +78,8 @@ export interface Client {
   joinDate: string;
   createdBy: string;
   lastUpdated: string;
+  institutionId?: string; // Added for assigning clients to institutions
+  staffMemberId?: string; // Assigned relationship manager/staff member
   // Additional aliases and properties for backwards compatibility
   clientId?: string;
   fullName?: string;
@@ -115,6 +120,8 @@ export interface Loan {
   disbursedBy?: string;
   disbursedDate?: string;
   paymentSource?: string; // Bank account ID from which loan was disbursed
+  staffMemberId?: string; // Staff member who brought the deal
+  staffMemberName?: string; // Staff member name for display
   collateral?: {
     type: string;
     description: string;
@@ -353,6 +360,7 @@ export interface Payee {
   lastPaymentDate?: string;
   status: 'Active' | 'Inactive';
   createdDate: string;
+  commissionRate?: number; // Commission percentage for loan facilitation (applies to Employee type)
 }
 
 // Payroll Management
@@ -657,6 +665,7 @@ export interface Staff {
   photo?: string;
   status: 'Active' | 'Inactive' | 'Suspended';
   createdDate: string;
+  commissionRate?: number; // Commission percentage for loan facilitation
   loginRestrictions?: {
     workDays: string[];
     workStartTime: string;
@@ -684,6 +693,43 @@ export interface CreditScoringParameter {
   enabled: boolean;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface Institution {
+  id: string;
+  organization_id?: string;
+  name: string;
+  type: 'SACCO' | 'Corporate' | 'Cooperative' | 'NGO' | 'Government' | 'Association' | 'Other';
+  contactPerson?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  county?: string;
+  registrationNumber?: string;
+  taxId?: string;
+  status: 'Active' | 'Inactive';
+  notes?: string;
+  created_at?: string;
+  created_by?: string;
+  updated_at?: string;
+}
+
+// Notifications
+export interface Notification {
+  id: string;
+  organization_id?: string;
+  type: 'alert' | 'info' | 'success' | 'warning';
+  category: 'loan' | 'payment' | 'client' | 'system' | 'compliance' | 'client_application';
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  actionRequired: boolean;
+  relatedId?: string; // Loan ID, Client ID, etc.
+  relatedType?: 'loan' | 'client' | 'payment';
+  createdBy?: string; // client or admin who triggered it
+  created_at?: string;
 }
 
 // ============= CONTEXT DEFINITION =============
@@ -899,6 +945,21 @@ interface DataContextType {
   saveCreditScoringParameters: (clientType: 'individual' | 'business', parameters: any[]) => Promise<void>;
   getCreditScoringParameters: (clientType: 'individual' | 'business') => CreditScoringParameter[];
   
+  // Institutions
+  institutions: Institution[];
+  addInstitution: (institution: Omit<Institution, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateInstitution: (id: string, updates: Partial<Institution>) => Promise<void>;
+  deleteInstitution: (id: string) => Promise<void>;
+  getInstitution: (id: string) => Institution | undefined;
+  
+  // Notifications
+  notifications: Notification[];
+  addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'created_at'>) => Promise<void>;
+  markNotificationAsRead: (id: string) => Promise<void>;
+  markAllNotificationsAsRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  getUnreadNotificationsCount: () => number;
+  
   // Utility functions
   generateReceiptNumber: () => string;
   generateAccountNumber: () => string;
@@ -936,6 +997,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [fundingTransactions, setFundingTransactions] = useState<FundingTransaction[]>([]);
   const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [guarantors, setGuarantors] = useState<any[]>([]);
   const [collaterals, setCollaterals] = useState<any[]>([]);
   const [loanDocuments, setLoanDocuments] = useState<any[]>([]);
@@ -1285,7 +1348,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     
     const loadData = async () => {
       console.log('');
-      console.log('═══════════════════════════════════════════════');
+      console.log('════════════════════════════════════��══════════');
       console.log('🚀 LOADDATA() FUNCTION STARTED');
       console.log('══���════════════════════════════════════════════');
       console.log('   Organization ID:', currentUser.organizationId);
@@ -1362,7 +1425,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           }
           
           // ✅ Set ALL state from the single project state object
-          // ⚠️ SKIP: Don't load clients from project_states - will load from individual table below
+          // ⚠��� SKIP: Don't load clients from project_states - will load from individual table below
           // setClients(finalClients);
           // ⚠️ SKIP: Don't load loans from project_states - will load from individual table below
           // setLoans(finalLoans);
@@ -1721,6 +1784,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 occupation: c.occupation || '',
                 employer: c.employer || '',
                 monthlyIncome: c.monthly_income || 0,
+                institutionId: c.institution_id || '',
                 dateOfBirth: c.date_of_birth || '',
                 gender: c.gender || '',
                 maritalStatus: c.marital_status || '',
@@ -1771,6 +1835,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
             console.log('   ⚠️  Clients state set to empty array due to error');
           }
           
+          // ✅ CRITICAL: Load journal entries FIRST to get correct principals
+          console.log('');
+          console.log('💸 ========================================');
+          console.log('💸 LOADING JOURNAL ENTRIES (SOURCE OF TRUTH)');
+          console.log('💸 ========================================');
+          const disbursementPrincipals = await loadDisbursementPrincipals(currentUser.organizationId);
+          console.log(`✅ Loaded ${disbursementPrincipals.size} loan principals from journal entries`);
+          
           // ✅ CRITICAL: Load loans from individual table (Supabase-first)
           try {
             console.log('');
@@ -1812,29 +1884,68 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
                 };
                 
-                // ✅ READ VALUES DIRECTLY FROM DATABASE (use actual DB values)
-                const principalAmount = parseFloat(l.amount) || 0;
-                const paidAmount = parseFloat(l.amount_paid) || 0;
-                const principalPaidFromDB = parseFloat(l.principal_paid) || 0;
-                const interestPaidFromDB = parseFloat(l.interest_paid) || 0;
-                const balanceFromDB = parseFloat(l.balance) || 0;
+                // ✅ GET CORRECT PRINCIPAL using 4-tier approach:
+                // 1. Use disbursement amount (SOURCE OF TRUTH - actual money disbursed)
+                // 2. Use known correct values for specific loans
+                // 3. Use reverse calculation for loans where principal_amount = total_amount
+                // 4. Otherwise trust the database
+                const dbPrincipalAmount = parseFloat(l.principal_amount) || 0;
                 const totalAmountFromDB = parseFloat(l.total_amount) || 0;
                 const interestRate = parseFloat(l.interest_rate) || 0;
                 const termPeriod = parseInt(l.term_period) || 0;
                 
+                // Get principal from disbursements table (most reliable)
+                const disbursementPrincipal = getPrincipalFromDisbursements(
+                  l.loan_number || '',
+                  disbursementPrincipals
+                );
+                
+                const principalAmount = getCorrectPrincipal(
+                  l.loan_number || '',
+                  dbPrincipalAmount,
+                  totalAmountFromDB,
+                  interestRate,
+                  termPeriod,
+                  disbursementPrincipal
+                );
+                
+                // Debug logging to verify calculation
+                if (l.loan_number === '5224' || l.loan_number === '5276' || l.loan_number === '5344' || 
+                    l.loan_number === '5328' || l.loan_number === '5220' || l.loan_number === '5110') {
+                  const source = disbursementPrincipal ? '📒 Journal Entry' : 
+                                (Math.abs(dbPrincipalAmount - totalAmountFromDB) < 1 ? '🧮 Reverse Calc' : '💾 Database');
+                  console.log(`🔍 LOAN ${l.loan_number} PRINCIPAL:`, {
+                    'Source': source,
+                    'DB principal_amount': dbPrincipalAmount.toLocaleString(),
+                    'DB total_amount': totalAmountFromDB.toLocaleString(),
+                    'Journal entry amount': disbursementPrincipal ? disbursementPrincipal.toLocaleString() : 'N/A',
+                    'interest_rate': interestRate + '%',
+                    'term_period': termPeriod + ' months',
+                    '✅ FINAL principal': principalAmount.toLocaleString()
+                  });
+                }
+                
+                const paidAmount = parseFloat(l.amount_paid) || 0;
+                const principalPaidFromDB = parseFloat(l.principal_paid) || 0;
+                const interestPaidFromDB = parseFloat(l.interest_paid) || 0;
+                const balanceFromDB = parseFloat(l.balance) || 0;
+                
                 // ✅ CALCULATE interest from FORMULA: amount × (interest_rate / 100) × term_period
                 const calculatedInterest = principalAmount * (interestRate / 100) * termPeriod;
                 
-                // ✅ Use total_amount from DB if available (handles discounts), otherwise calculate
-                const totalRepayable = totalAmountFromDB > 0 ? totalAmountFromDB : (principalAmount + calculatedInterest);
+                // ✅ ALWAYS calculate total repayable from formula for accuracy
+                // Only use DB total_amount if it has a discount applied (less than calculated)
+                const calculatedTotal = principalAmount + calculatedInterest;
+                const totalRepayable = (totalAmountFromDB > 0 && totalAmountFromDB < calculatedTotal) 
+                  ? totalAmountFromDB  // Use DB value only if it's a discounted amount
+                  : calculatedTotal;   // Otherwise use calculated value
                 
-                // ✅ Use balance from DB if available, otherwise calculate
-                const calculatedOutstanding = balanceFromDB !== null && balanceFromDB !== undefined 
-                  ? balanceFromDB 
-                  : Math.max(0, totalRepayable - paidAmount);
+                // ✅ ALWAYS calculate outstanding from totalRepayable - paidAmount for accuracy
+                // Don't rely on potentially stale balance field in database
+                const calculatedOutstanding = Math.max(0, totalRepayable - paidAmount);
                 
                 // 🔍 Debug logging to verify database values
-                if (l.loan_number && (l.loan_number.includes('5021') || l.loan_number.includes('5035') || l.loan_number.includes('LN001') || l.loan_number.includes('LN002'))) {
+                if (l.loan_number && (l.loan_number.includes('5021') || l.loan_number.includes('5035') || l.loan_number.includes('5343') || l.loan_number.includes('LN001') || l.loan_number.includes('LN002'))) {
                   console.log(`📊 [DB READ] ${l.loan_number} values:`, {
                     'DB amount (principal)': l.amount,
                     'DB interest_rate': l.interest_rate,
@@ -1949,8 +2060,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   principalPaid: principalPaidFromDB,  // ✅ Read from database
                   interestPaid: interestPaidFromDB,    // ✅ Read from database
                   outstandingBalance: calculatedOutstanding,
-                  principalOutstanding: calculatedOutstanding,
-                  interestOutstanding: 0,
+                  principalOutstanding: Math.max(0, principalAmount - principalPaidFromDB), // Principal - Principal paid
+                  interestOutstanding: Math.max(0, (totalRepayable - principalAmount) - interestPaidFromDB), // Total interest - Interest paid
                   createdBy: '',
                   loanOfficer: '',
                   purpose: l.purpose || '',
@@ -2145,6 +2256,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 status: p.status === 'active' ? 'Active' : (p.status || 'Active'),
                 totalPaid: p.total_paid || 0,
                 createdDate: p.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+                commissionRate: p.commission_rate || undefined, // Commission rate for employees
                 // Additional fields that may exist
                 contactPerson: p.contact_person || '',
                 physicalAddress: p.address || '',
@@ -2274,6 +2386,86 @@ export function DataProvider({ children }: { children: ReactNode }) {
             setCreditScoringParameters([]);
           }
           
+          // ✅ NEW: Load institutions from individual table (Supabase-first)
+          try {
+            console.log('');
+            console.log('🏢 ========================================');
+            console.log('🏢 LOADING INSTITUTIONS FROM INDIVIDUAL TABLE');
+            console.log('🏢 ========================================');
+            console.log('   Organization ID:', currentUser.organizationId);
+            console.log('   Table: institutions');
+            console.log('   Calling: supabaseDataService.institutions.getAll()');
+            
+            const supabaseInstitutions = await supabaseDataService.institutions.getAll(currentUser.organizationId);
+            
+            console.log('   ✅ Query complete!');
+            console.log('   Raw response:', supabaseInstitutions);
+            console.log('   Type:', typeof supabaseInstitutions);
+            console.log('   Is Array:', Array.isArray(supabaseInstitutions));
+            console.log('   Length:', supabaseInstitutions?.length);
+            
+            if (supabaseInstitutions && supabaseInstitutions.length > 0) {
+              console.log(`✅ Loaded ${supabaseInstitutions.length} institutions from individual table`);
+              setInstitutions(supabaseInstitutions);
+              console.log('   ✅ Institutions state updated');
+            } else {
+              console.log('ℹ️ No institutions found in individual table');
+              setInstitutions([]);
+            }
+          } catch (error: any) {
+            // Check if table doesn't exist yet
+            if (error?.code === 'PGRST204' || error?.code === 'PGRST205' || error?.message?.includes('Could not find the table')) {
+              console.log('ℹ️ Institutions table not created yet - using empty array');
+              console.log('   Run the SQL migration to create the institutions table');
+            } else {
+              console.warn('⚠️ Error loading institutions from Supabase:', error);
+            }
+            setInstitutions([]);
+          }
+          
+          // ✅ Load notifications from Supabase
+          try {
+            console.log('🔔 Loading notifications from Supabase...');
+            const { data: supabaseNotifications, error } = await supabase
+              .from('notifications')
+              .select('*')
+              .eq('organization_id', currentUser.organizationId)
+              .order('created_at', { ascending: false });
+            
+            if (error) throw error;
+            
+            if (supabaseNotifications && supabaseNotifications.length > 0) {
+              console.log(`✅ Loaded ${supabaseNotifications.length} notifications from Supabase`);
+              // Map database fields to frontend format
+              const mappedNotifications = supabaseNotifications.map((n: any) => ({
+                id: n.id,
+                organization_id: n.organization_id,
+                type: n.type,
+                category: n.category,
+                title: n.title,
+                message: n.message,
+                timestamp: n.timestamp,
+                read: n.read,
+                actionRequired: n.action_required,
+                relatedId: n.related_id,
+                relatedType: n.related_type,
+                createdBy: n.created_by,
+                created_at: n.created_at
+              }));
+              setNotifications(mappedNotifications);
+            } else {
+              console.log('ℹ️ No notifications found');
+              setNotifications([]);
+            }
+          } catch (error: any) {
+            if (error?.code === 'PGRST204' || error?.code === 'PGRST205' || error?.message?.includes('Could not find the table')) {
+              console.log('ℹ️ Notifications table not created yet - using empty array');
+            } else {
+              console.warn('⚠️ Error loading notifications from Supabase:', error);
+            }
+            setNotifications([]);
+          }
+          
           console.log('✅ All data loaded from Supabase successfully');
           
           // ✅ Create missing journal entries for existing transactions (one-time migration)
@@ -2307,6 +2499,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           setProcessingFeeRecords([]);
           setDisbursements([]);
           setPayrollRuns([]);
+          setInstitutions([]);
           setJournalEntries([]);
           setAuditLogs([]);
           setTickets([]);
@@ -2518,6 +2711,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🔄 Refreshing data from Supabase...');
       
+      // Reload journal entries first to get correct principals
+      const disbursementPrincipals = await loadDisbursementPrincipals(currentUser.organizationId);
+      
       // Reload loans
       const supabaseLoans = await supabaseDataService.loans.getAll(currentUser.organizationId);
       if (supabaseLoans && supabaseLoans.length > 0) {
@@ -2529,23 +2725,42 @@ export function DataProvider({ children }: { children: ReactNode }) {
             return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
           };
           
-          const principalAmount = parseFloat(l.amount) || 0;
-          const paidAmount = parseFloat(l.amount_paid) || 0;
-          const principalPaidFromDB = parseFloat(l.principal_paid) || 0;
-          const interestPaidFromDB = parseFloat(l.interest_paid) || 0;
-          const balanceFromDB = parseFloat(l.balance) || 0;
+          // ✅ GET CORRECT PRINCIPAL using 4-tier approach
+          const dbPrincipalAmount = parseFloat(l.principal_amount) || 0;
           const totalAmountFromDB = parseFloat(l.total_amount) || 0;
           const interestRate = parseFloat(l.interest_rate) || 0;
           const termPeriod = parseInt(l.term_period) || 0;
           
+          const disbursementPrincipal = getPrincipalFromDisbursements(
+            l.loan_number || '',
+            disbursementPrincipals
+          );
+          
+          const principalAmount = getCorrectPrincipal(
+            l.loan_number || '',
+            dbPrincipalAmount,
+            totalAmountFromDB,
+            interestRate,
+            termPeriod,
+            disbursementPrincipal
+          );
+          
+          const paidAmount = parseFloat(l.amount_paid) || 0;
+          const principalPaidFromDB = parseFloat(l.principal_paid) || 0;
+          const interestPaidFromDB = parseFloat(l.interest_paid) || 0;
+          const balanceFromDB = parseFloat(l.balance) || 0;
+          
           // ✅ CALCULATE interest from FORMULA: amount × (interest_rate / 100) × term_period
           const calculatedInterest = principalAmount * (interestRate / 100) * termPeriod;
           
-          // ✅ Use total_amount from DB if available (handles discounts), otherwise calculate
-          const totalRepayable = totalAmountFromDB > 0 ? totalAmountFromDB : (principalAmount + calculatedInterest);
-          const calculatedOutstanding = balanceFromDB !== null && balanceFromDB !== undefined 
-            ? balanceFromDB 
-            : Math.max(0, totalRepayable - paidAmount);
+          // ✅ ALWAYS calculate total repayable from formula for accuracy
+          // Only use DB total_amount if it has a discount applied (less than calculated)
+          const calculatedTotal = principalAmount + calculatedInterest;
+          const totalRepayable = (totalAmountFromDB > 0 && totalAmountFromDB < calculatedTotal) 
+            ? totalAmountFromDB  // Use DB value only if it's a discounted amount
+            : calculatedTotal;   // Otherwise use calculated value
+          // ✅ ALWAYS calculate outstanding from totalRepayable - paidAmount for accuracy
+          const calculatedOutstanding = Math.max(0, totalRepayable - paidAmount);
           
           console.log(`📊 [REFRESH] ${l.loan_number} - Total Repayable: ${totalRepayable}, Outstanding: ${calculatedOutstanding}`);
           
@@ -2643,8 +2858,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
             principalPaid: principalPaidFromDB,  // ✅ Read from database
             interestPaid: interestPaidFromDB,    // ✅ Read from database
             outstandingBalance: calculatedOutstanding,
-            principalOutstanding: calculatedOutstanding,
-            interestOutstanding: 0,
+            principalOutstanding: Math.max(0, principalAmount - principalPaidFromDB), // Principal - Principal paid
+            interestOutstanding: Math.max(0, (totalRepayable - principalAmount) - interestPaidFromDB), // Total interest - Interest paid
             createdBy: '',
             loanOfficer: '',
             purpose: l.purpose || '',
@@ -2835,6 +3050,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (updates.county !== undefined) supabaseUpdates.county = updates.county;
       if (updates.occupation !== undefined) supabaseUpdates.occupation = updates.occupation;
       if (updates.employer !== undefined) supabaseUpdates.employer = updates.employer;
+      if (updates.institutionId !== undefined) supabaseUpdates.institution_id = updates.institutionId;
       // Skip creditScore - not in Supabase schema (frontend only)
       // if (updates.creditScore !== undefined) supabaseUpdates.credit_score = updates.creditScore;
       
@@ -3817,7 +4033,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     // Credit Scoring Engine weights based on client type
     const isIndividual = client.clientType === 'individual';
-    const weights = isIndividual ? {
+    
+    // 🔥 NEW: Get weights from database (credit scoring parameters)
+    const clientType = isIndividual ? 'individual' : 'business';
+    const params = getCreditScoringParameters(clientType);
+    
+    let weights = isIndividual ? {
       paymentHistory: 35,
       creditUtilization: 30,
       accountAge: 15,
@@ -3830,6 +4051,39 @@ export function DataProvider({ children }: { children: ReactNode }) {
       loanCount: 15,
       savingsBalance: 10
     };
+    
+    // If parameters exist in database, use them instead of defaults
+    if (params && params.length > 0) {
+      // Start with 0 weights and only add enabled parameters
+      weights = {
+        paymentHistory: 0,
+        creditUtilization: 0,
+        accountAge: 0,
+        loanCount: 0,
+        savingsBalance: 0
+      };
+      
+      params.forEach(param => {
+        if (!param.enabled) return; // Skip disabled parameters
+        
+        const name = param.parameter_name.toLowerCase().replace(/\s+/g, '');
+        if (name.includes('payment') && name.includes('history')) {
+          weights.paymentHistory = param.weight;
+        } else if (name.includes('credit') && name.includes('utilization')) {
+          weights.creditUtilization = param.weight;
+        } else if (name.includes('account') && name.includes('age')) {
+          weights.accountAge = param.weight;
+        } else if (name.includes('loan') && name.includes('count')) {
+          weights.loanCount = param.weight;
+        } else if (name.includes('savings') && name.includes('balance')) {
+          weights.savingsBalance = param.weight;
+        }
+      });
+      
+      console.log(`📊 Using ${clientType} weights from database:`, weights);
+    } else {
+      console.log(`⚠️ No ${clientType} parameters in database, using defaults:`, weights);
+    }
 
     // Start with base score of 300, add up to 550 points
     let score = 300;
@@ -4773,7 +5027,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           address: (payeeData as any).physicalAddress || (payeeData as any).address || '',
           bank_name: (payeeData as any).bankName || '',
           account_number: (payeeData as any).accountNumber || '',
-          category: (payeeData as any).category || 'Other'
+          category: (payeeData as any).category || 'Other',
+          commission_rate: (payeeData as any).commissionRate || null
         },
         currentUser?.organizationId || ''
       );
@@ -4826,9 +5081,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         phone: supabasePayee.phone || '',
         email: supabasePayee.email || '',
         category: supabasePayee.category || (payeeData as any).category || 'Other',
-        status: supabasePayee.status || 'Active',
+        status: (supabasePayee.status && supabasePayee.status.charAt(0).toUpperCase() + supabasePayee.status.slice(1)) || 'Active',
         totalPaid: 0,
-        createdDate: supabasePayee.created_at?.split('T')[0] || new Date().toISOString().split('T')[0]
+        createdDate: supabasePayee.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        commissionRate: supabasePayee.commission_rate || (payeeData as any).commissionRate
       } as Payee;
       
       setPayees([...payees, newPayee]);
@@ -5013,15 +5269,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const generateJournalEntryNumber = async (): Promise<string> => {
     try {
-      // Get organization ID
+      // Get organization ID from current_organization or current user
+      let organizationId = null;
+      
       const orgData = localStorage.getItem('current_organization');
-      if (!orgData) {
+      if (orgData) {
+        const org = JSON.parse(orgData);
+        organizationId = org.organization_id || org.id;
+      } else {
+        // Try to get from current user (for client logins)
+        const userStr = localStorage.getItem('bvfunguo_user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          organizationId = user.organizationId;
+        }
+      }
+      
+      if (!organizationId) {
         throw new Error('Organization not found');
       }
       
-      const org = JSON.parse(orgData);
-      const organizationId = org.organization_id || org.id;
+      // ✅ FIX: Use improved function to prevent duplicates
+      return await generateUniqueJournalEntryNumber(organizationId);
       
+      /* OLD CODE - Replaced with improved version
       // Query Supabase for the latest entry number
       const { data: existing, error } = await supabase
         .from('journal_entries')
@@ -5029,6 +5300,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
         .limit(1);
+      */
       
       if (error) {
         console.error('Error fetching latest journal entry:', error);
@@ -5052,6 +5324,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
       }
       
+      // This code is now unreachable - using generateUniqueJournalEntryNumber instead
       return `JE-${year}-${String(nextNumber).padStart(4, '0')}`;
     } catch (error) {
       console.error('Error generating journal entry number:', error);
@@ -5074,13 +5347,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const entryNumber = await generateJournalEntryNumber();
         
         // ✅ 1. WRITE TO SUPABASE FIRST
+        // Get organization ID from current_organization or current user
+        let organizationId = null;
+        
         const orgData = localStorage.getItem('current_organization');
-        if (!orgData) {
-          throw new Error('Organization not found');
+        if (orgData) {
+          const org = JSON.parse(orgData);
+          organizationId = org.organization_id || org.id;
+        } else {
+          // Try to get from current user (for client logins)
+          const userStr = localStorage.getItem('bvfunguo_user');
+          if (userStr) {
+            const user = JSON.parse(userStr);
+            organizationId = user.organizationId;
+          }
         }
         
-        const org = JSON.parse(orgData);
-        const organizationId = org.organization_id || org.id;
+        if (!organizationId) {
+          throw new Error('Organization not found');
+        }
         
         console.log('💾 Saving journal entry to Supabase:', {
           entryNumber,
@@ -6148,6 +6433,189 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return creditScoringParameters.filter(p => p.client_type === clientType);
   };
 
+  // ============= INSTITUTION FUNCTIONS =============
+
+  const addInstitution = async (institutionData: Omit<Institution, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      console.log('🔵 Creating institution with Supabase-first approach...');
+      
+      // ✅ 1. WRITE TO SUPABASE FIRST
+      const supabaseInstitution = await supabaseDataService.institutions.create(
+        institutionData,
+        currentUser?.organizationId || ''
+      );
+      
+      console.log('✅ Institution created in Supabase:', supabaseInstitution);
+      
+      // ✅ 2. UPDATE LOCAL STATE
+      setInstitutions(prev => [...prev, supabaseInstitution]);
+      
+      toast.success(`Institution "${institutionData.name}" added successfully!`);
+    } catch (error: any) {
+      console.error('❌ Error adding institution:', error);
+      toast.error(`Failed to add institution: ${error.message}`);
+      throw error;
+    }
+  };
+
+  const updateInstitution = async (id: string, updates: Partial<Institution>) => {
+    try {
+      console.log('🔵 Updating institution with Supabase-first approach...');
+      
+      // ✅ 1. UPDATE IN SUPABASE FIRST
+      const updatedInstitution = await supabaseDataService.institutions.update(id, updates);
+      
+      console.log('✅ Institution updated in Supabase:', updatedInstitution);
+      
+      // ✅ 2. UPDATE LOCAL STATE
+      setInstitutions(prev => prev.map(i => i.id === id ? updatedInstitution : i));
+      
+      toast.success('Institution updated successfully!');
+    } catch (error: any) {
+      console.error('❌ Error updating institution:', error);
+      toast.error(`Failed to update institution: ${error.message}`);
+      throw error;
+    }
+  };
+
+  const deleteInstitution = async (id: string) => {
+    try {
+      console.log('🔵 Deleting institution with Supabase-first approach...');
+      
+      // ✅ 1. DELETE FROM SUPABASE FIRST
+      await supabaseDataService.institutions.delete(id);
+      
+      console.log('✅ Institution deleted from Supabase');
+      
+      // ✅ 2. UPDATE LOCAL STATE
+      setInstitutions(prev => prev.filter(i => i.id !== id));
+      
+      toast.success('Institution deleted successfully!');
+    } catch (error: any) {
+      console.error('❌ Error deleting institution:', error);
+      toast.error(`Failed to delete institution: ${error.message}`);
+      throw error;
+    }
+  };
+
+  const getInstitution = (id: string) => {
+    return institutions.find(i => i.id === id);
+  };
+
+  // ============= NOTIFICATION FUNCTIONS =============
+  
+  const addNotification = async (notificationData: Omit<Notification, 'id' | 'timestamp' | 'created_at'>) => {
+    try {
+      // Save to Supabase - let the database generate the UUID
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert([{
+          ...notificationData,
+          timestamp: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          organization_id: currentUser?.organizationId || '',
+          read: notificationData.read ?? false,
+          action_required: notificationData.actionRequired ?? false,
+          related_id: notificationData.relatedId,
+          related_type: notificationData.relatedType,
+          created_by: notificationData.createdBy
+        }])
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('❌ Error saving notification to Supabase:', error);
+        throw error;
+      }
+      
+      console.log('✅ Notification saved to Supabase:', data);
+      
+      // Add to local state with the database-generated UUID
+      const newNotification: Notification = {
+        id: data.id,
+        organization_id: data.organization_id,
+        type: data.type,
+        category: data.category,
+        title: data.title,
+        message: data.message,
+        timestamp: data.timestamp,
+        read: data.read,
+        actionRequired: data.action_required,
+        relatedId: data.related_id,
+        relatedType: data.related_type,
+        createdBy: data.created_by,
+        created_at: data.created_at
+      };
+      
+      setNotifications(prev => [newNotification, ...prev]);
+    } catch (error: any) {
+      console.error('��� Error adding notification:', error);
+      // Don't throw error - notifications are non-critical
+    }
+  };
+  
+  const markNotificationAsRead = async (id: string) => {
+    try {
+      // Update in Supabase
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('id', id);
+      
+      if (error) {
+        console.error('❌ Error updating notification in Supabase:', error);
+      }
+      
+      // Update local state
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    } catch (error: any) {
+      console.error('❌ Error marking notification as read:', error);
+    }
+  };
+  
+  const markAllNotificationsAsRead = async () => {
+    try {
+      // Update in Supabase
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('organization_id', currentUser?.organizationId || '');
+      
+      if (error) {
+        console.error('❌ Error updating notifications in Supabase:', error);
+      }
+      
+      // Update local state
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      toast.success('All notifications marked as read');
+    } catch (error: any) {
+      console.error('❌ Error marking all notifications as read:', error);
+    }
+  };
+  
+  const deleteNotification = async (id: string) => {
+    try {
+      // Delete from Supabase
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error('❌ Error deleting notification from Supabase:', error);
+      }
+      
+      // Update local state
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    } catch (error: any) {
+      console.error('❌ Error deleting notification:', error);
+    }
+  };
+  
+  const getUnreadNotificationsCount = () => {
+    return notifications.filter(n => !n.read).length;
+  };
+
   // ============= DISBURSEMENT FUNCTIONS =============
 
   const addDisbursement = (disbursementData: Omit<Disbursement, 'id' | 'createdDate'>) => {
@@ -6380,6 +6848,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
     creditScoringParameters,
     saveCreditScoringParameters,
     getCreditScoringParameters,
+    
+    institutions,
+    addInstitution,
+    updateInstitution,
+    deleteInstitution,
+    getInstitution,
+    
+    notifications,
+    addNotification,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    deleteNotification,
+    getUnreadNotificationsCount,
     
     generateReceiptNumber,
     generateAccountNumber,

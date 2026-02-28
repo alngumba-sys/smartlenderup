@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { X, DollarSign, Calendar, FileText, AlertTriangle, User, Upload, Trash2, Info, CheckCircle } from 'lucide-react';
+import { X, DollarSign, Calendar, FileText, AlertTriangle, User, Upload, Trash2, Info, CheckCircle, Edit2, Save } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useData } from '../../contexts/DataContext';
 import { getCurrencyCode } from '../../utils/currencyUtils';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { formatNumberWithCommas, parseFormattedNumber } from '../../utils/numberFormat';
+import { calculateFacilitationFee, type FacilitationFeeBreakdown, saveFacilitationFeeConfig, getFacilitationFeeConfig } from '../../utils/facilitationFeeCalculator';
+import { toast } from 'sonner@2.0.3';
 
 interface NewLoanModalProps {
   onClose: () => void;
@@ -25,7 +27,7 @@ interface UploadedDocument {
 export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLoanId }: NewLoanModalProps) {
   const { isDark } = useTheme();
   useEscapeKey(onClose);
-  const { clients, loanProducts, loanDocuments, loans, payments } = useData();
+  const { clients, loanProducts, loanDocuments, loans, payments, payees } = useData();
   const [allowCustomRate, setAllowCustomRate] = useState(false);
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([]);
   const [existingClientDocuments, setExistingClientDocuments] = useState<any[]>([]);
@@ -33,6 +35,17 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
   const [creditScore, setCreditScore] = useState<number | null>(null);
   const [scoringDetails, setScoringDetails] = useState<any>(null);
   const [hasPayments, setHasPayments] = useState(false);
+  const [isManualFacilitationFee, setIsManualFacilitationFee] = useState(false);
+  const [feeBreakdown, setFeeBreakdown] = useState<FacilitationFeeBreakdown | null>(null);
+  const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
+  const [editingFeeConfig, setEditingFeeConfig] = useState(false);
+  const [tempFeeConfig, setTempFeeConfig] = useState({
+    processingFeeRate: 3.0,
+    lifeInsuranceRate: 1.5,
+    attestationFee: 1000,
+    rtgsFee: 1000,
+    crbCheckFee: 500
+  });
   
   // Get active country currency
   const currencyCode = getCurrencyCode();
@@ -50,7 +63,8 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
     collateralValue: '',
     guarantorName: '',
     guarantorPhone: '',
-    facilitationFee: ''
+    facilitationFee: '',
+    staffMemberId: ''
   });
 
   // Pre-fill form data when editing a loan
@@ -71,7 +85,8 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
           collateralValue: '',
           guarantorName: '',
           guarantorPhone: '',
-          facilitationFee: loanToEdit.facilitationFee?.toString() || loanToEdit.processingFee?.toString() || ''
+          facilitationFee: loanToEdit.facilitationFee?.toString() || loanToEdit.processingFee?.toString() || '',
+          staffMemberId: loanToEdit.staffMemberId || ''
         });
       }
     }
@@ -98,6 +113,19 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
       calculateCreditScore();
     }
   }, [formData.clientId, formData.principalAmount, formData.collateralValue, formData.guarantorName, formData.guarantorPhone, uploadedDocuments]);
+
+  // Auto-calculate facilitation fee when principal, product, or term changes
+  useEffect(() => {
+    // Only auto-calculate if not manually edited and we have the required data
+    if (!isManualFacilitationFee && formData.principalAmount && formData.productId && formData.loanTerm) {
+      const principal = parseFloat(formData.principalAmount);
+      if (principal > 0) {
+        const breakdown = calculateFacilitationFee(principal);
+        setFeeBreakdown(breakdown);
+        setFormData(prev => ({ ...prev, facilitationFee: breakdown.total.toString() }));
+      }
+    }
+  }, [formData.principalAmount, formData.productId, formData.loanTerm, isManualFacilitationFee]);
 
   const calculateCreditScore = () => {
     const client = clients.find(c => c.id === formData.clientId);
@@ -380,6 +408,31 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
                   <p className="text-red-600 text-xs mt-1">No active loan products available. Please create one first.</p>
                 )}
               </div>
+
+              {/* Staff Member (Deal Owner) */}
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Staff Member (Who Brought This Deal) <span className="text-gray-400 text-xs">(Optional)</span>
+                </label>
+                <div className="relative">
+                  <User className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
+                  <select
+                    value={formData.staffMemberId}
+                    onChange={(e) => setFormData({ ...formData, staffMemberId: e.target.value })}
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  >
+                    <option value="">No staff member assigned</option>
+                    {payees.filter(p => (p.type === 'Employee' || p.category === 'Employee') && p.status === 'Active').map(staff => (
+                      <option key={staff.id} value={staff.id}>
+                        {staff.name} - {staff.phone}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-gray-500 text-xs mt-1">
+                  Assign this loan to a staff member to track their commission on the facilitation fee
+                </p>
+              </div>
             </div>
 
             {/* Client & Product Info Boxes - Combined */}
@@ -427,7 +480,7 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
               <h3 className="text-base font-semibold text-gray-800">Loan Details</h3>
             </div>
             
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-5 gap-4 mb-3">
               {/* Principal Amount */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1.5">
@@ -510,20 +563,255 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
 
               {/* Facilitation Fee */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                  Facilitation Fee ({currencyCode})
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium text-gray-700">
+                    Facilitation Fee ({currencyCode})
+                  </label>
+                  <div className="flex items-center gap-1">
+                    {feeBreakdown && (
+                      <button
+                        type="button"
+                        onClick={() => setShowFeeBreakdown(!showFeeBreakdown)}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                        title={showFeeBreakdown ? 'Hide Breakdown' : 'View Breakdown'}
+                      >
+                        📊
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsManualFacilitationFee(!isManualFacilitationFee)}
+                      className="text-xs text-gray-600 hover:text-gray-800 font-medium"
+                      title={isManualFacilitationFee ? 'Use Auto-Calculate' : 'Manual Override'}
+                    >
+                      {isManualFacilitationFee ? '🔄' : '✏️'}
+                    </button>
+                  </div>
+                </div>
                 <input
                   type="text"
                   value={formatNumberWithCommas(formData.facilitationFee)}
-                  onChange={(e) => setFormData({ ...formData, facilitationFee: parseFormattedNumber(e.target.value) })}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                  onChange={(e) => {
+                    setIsManualFacilitationFee(true);
+                    setFormData({ ...formData, facilitationFee: parseFormattedNumber(e.target.value) });
+                  }}
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 transition-all ${
+                    isManualFacilitationFee 
+                      ? 'border-amber-300 bg-amber-50 text-gray-900 focus:ring-amber-500 focus:border-transparent' 
+                      : 'border-gray-300 bg-white text-gray-900 focus:ring-emerald-500 focus:border-transparent'
+                  }`}
                   placeholder="0.00"
                 />
+                {!isManualFacilitationFee && formData.principalAmount ? (
+                  <p className="text-emerald-600 text-xs mt-1">✨ Auto-calculated</p>
+                ) : isManualFacilitationFee ? (
+                  <p className="text-amber-600 text-xs mt-1">Manual mode</p>
+                ) : null}
               </div>
+            </div>
 
-              {/* Purpose */}
-              <div className="col-span-3">
+            {/* Fee Breakdown Display - Full Width Below */}
+            {showFeeBreakdown && feeBreakdown && (
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg mb-3">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-semibold text-gray-800">Fee Breakdown:</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editingFeeConfig) {
+                        // Save the configuration
+                        const config = getFacilitationFeeConfig();
+                        const updatedConfig = {
+                          ...config,
+                          processingFeeRate: tempFeeConfig.processingFeeRate,
+                          lifeInsuranceRate: tempFeeConfig.lifeInsuranceRate,
+                          attestationFee: tempFeeConfig.attestationFee,
+                          rtgsFee: tempFeeConfig.rtgsFee,
+                          crbCheckFee: tempFeeConfig.crbCheckFee
+                        };
+                        saveFacilitationFeeConfig(updatedConfig);
+                        
+                        // Recalculate the fee breakdown with new config
+                        if (formData.principalAmount) {
+                          const principal = parseFloat(formData.principalAmount);
+                          if (principal > 0) {
+                            const breakdown = calculateFacilitationFee(principal, updatedConfig);
+                            setFeeBreakdown(breakdown);
+                            if (!isManualFacilitationFee) {
+                              setFormData(prev => ({ ...prev, facilitationFee: breakdown.total.toString() }));
+                            }
+                          }
+                        }
+                        
+                        toast.success('Fee structure saved successfully');
+                        setEditingFeeConfig(false);
+                      } else {
+                        // Load current config into temp state
+                        const config = getFacilitationFeeConfig();
+                        setTempFeeConfig({
+                          processingFeeRate: config.processingFeeRate,
+                          lifeInsuranceRate: config.lifeInsuranceRate,
+                          attestationFee: config.attestationFee,
+                          rtgsFee: config.rtgsFee,
+                          crbCheckFee: config.crbCheckFee
+                        });
+                        setEditingFeeConfig(true);
+                      }
+                    }}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      editingFeeConfig 
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white' 
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
+                  >
+                    {editingFeeConfig ? (
+                      <>
+                        <Save className="size-3.5" />
+                        Save
+                      </>
+                    ) : (
+                      <>
+                        <Edit2 className="size-3.5" />
+                        Edit
+                      </>
+                    )}
+                  </button>
+                </div>
+                
+                {editingFeeConfig ? (
+                  // Editable Mode
+                  <div className="grid grid-cols-5 gap-3">
+                    {/* Processing Fee */}
+                    <div className="bg-white rounded-lg p-2.5 border border-blue-300">
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Processing (%):</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={tempFeeConfig.processingFeeRate}
+                        onChange={(e) => setTempFeeConfig({ ...tempFeeConfig, processingFeeRate: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        {currencyCode} {Math.round((parseFloat(formData.principalAmount) || 0) * tempFeeConfig.processingFeeRate / 100).toLocaleString()}
+                      </p>
+                    </div>
+
+                    {/* Life Insurance */}
+                    <div className="bg-white rounded-lg p-2.5 border border-blue-300">
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Life Insurance (%):</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={tempFeeConfig.lifeInsuranceRate}
+                        onChange={(e) => setTempFeeConfig({ ...tempFeeConfig, lifeInsuranceRate: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        {currencyCode} {Math.round((parseFloat(formData.principalAmount) || 0) * tempFeeConfig.lifeInsuranceRate / 100).toLocaleString()}
+                      </p>
+                    </div>
+
+                    {/* Attestation Fee */}
+                    <div className="bg-white rounded-lg p-2.5 border border-blue-300">
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Attestation:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={tempFeeConfig.attestationFee}
+                        onChange={(e) => setTempFeeConfig({ ...tempFeeConfig, attestationFee: parseInt(e.target.value) || 0 })}
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        {currencyCode} {tempFeeConfig.attestationFee.toLocaleString()}
+                      </p>
+                    </div>
+
+                    {/* RTGS Fee */}
+                    <div className="bg-white rounded-lg p-2.5 border border-blue-300">
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">RTGS:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={tempFeeConfig.rtgsFee}
+                        onChange={(e) => setTempFeeConfig({ ...tempFeeConfig, rtgsFee: parseInt(e.target.value) || 0 })}
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        {currencyCode} {tempFeeConfig.rtgsFee.toLocaleString()}
+                      </p>
+                    </div>
+
+                    {/* CRB Check Fee */}
+                    <div className="bg-white rounded-lg p-2.5 border border-blue-300">
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">CRB Check:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={tempFeeConfig.crbCheckFee}
+                        onChange={(e) => setTempFeeConfig({ ...tempFeeConfig, crbCheckFee: parseInt(e.target.value) || 0 })}
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        {currencyCode} {tempFeeConfig.crbCheckFee.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  // View Mode
+                  <div className="grid grid-cols-5 gap-3">
+                    <div className="bg-white rounded-lg p-2.5 border border-blue-200">
+                      <span className="block text-xs text-gray-600 mb-1">Processing (3%):</span>
+                      <span className="block text-sm font-semibold text-gray-900">{currencyCode} {feeBreakdown.processingFee.toLocaleString()}</span>
+                    </div>
+                    <div className="bg-white rounded-lg p-2.5 border border-blue-200">
+                      <span className="block text-xs text-gray-600 mb-1">Life Insurance (1.5%):</span>
+                      <span className="block text-sm font-semibold text-gray-900">{currencyCode} {feeBreakdown.lifeInsurance.toLocaleString()}</span>
+                    </div>
+                    <div className="bg-white rounded-lg p-2.5 border border-blue-200">
+                      <span className="block text-xs text-gray-600 mb-1">Attestation:</span>
+                      <span className="block text-sm font-semibold text-gray-900">{currencyCode} {feeBreakdown.attestationFee.toLocaleString()}</span>
+                    </div>
+                    <div className="bg-white rounded-lg p-2.5 border border-blue-200">
+                      <span className="block text-xs text-gray-600 mb-1">RTGS:</span>
+                      <span className="block text-sm font-semibold text-gray-900">{currencyCode} {feeBreakdown.rtgsFee.toLocaleString()}</span>
+                    </div>
+                    <div className="bg-white rounded-lg p-2.5 border border-blue-200">
+                      <span className="block text-xs text-gray-600 mb-1">CRB Check:</span>
+                      <span className="block text-sm font-semibold text-gray-900">{currencyCode} {feeBreakdown.crbCheckFee.toLocaleString()}</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Total Row */}
+                <div className="mt-3 pt-3 border-t-2 border-blue-300">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-gray-900">Total Facilitation Fee:</span>
+                    <span className="text-xl font-bold text-emerald-700">
+                      {currencyCode} {editingFeeConfig ? (
+                        Math.round(
+                          (parseFloat(formData.principalAmount) || 0) * tempFeeConfig.processingFeeRate / 100 +
+                          (parseFloat(formData.principalAmount) || 0) * tempFeeConfig.lifeInsuranceRate / 100 +
+                          tempFeeConfig.attestationFee +
+                          tempFeeConfig.rtgsFee +
+                          tempFeeConfig.crbCheckFee
+                        ).toLocaleString()
+                      ) : (
+                        feeBreakdown.total.toLocaleString()
+                      )}
+                    </span>
+                  </div>
+                  {editingFeeConfig && (
+                    <p className="text-xs text-amber-600 mt-1 text-right">⚠️ Click "Save" to apply changes</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Purpose - Full Width */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1.5">
                   Loan Purpose <span className="text-red-500">*</span>
                 </label>

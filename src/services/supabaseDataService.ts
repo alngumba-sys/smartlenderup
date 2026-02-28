@@ -374,6 +374,9 @@ export const clientService = {
       employer_phone: clientData.employerPhone || clientData.employer_phone || null,
       monthly_income: parseNumber(clientData.monthlyIncome || clientData.monthly_income),
       
+      // Institution
+      institution_id: clientData.institutionId || clientData.institution_id || null,
+      
       // Business
       business_name: clientData.businessName || clientData.business_name || null,
       business_type: clientData.businessType || clientData.business_type || null,
@@ -900,9 +903,12 @@ export const loanService = {
       'totalRepayable': 'total_amount',
       'outstandingBalance': 'balance',
       'paidAmount': 'amount_paid',
+      'principalPaid': 'principal_paid',
+      'interestPaid': 'interest_paid',
       'interestRate': 'interest_rate',
       'productId': 'product_id',
       'clientId': 'client_id',
+      'staffMemberId': 'staff_member_id',
       'lastPaymentDate': 'last_payment_date',
       'lastPaymentAmount': 'last_payment_amount',
       'nextPaymentDate': 'next_payment_date',
@@ -1405,30 +1411,17 @@ export const loanDocumentService = {
 
 export const disbursementService = {
   async getAll(organizationId: string) {
-    const { data, error } = await supabase
-      .from('disbursements')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .order('disbursement_date', { ascending: false });
-    if (error) throw error;
-    return data || [];
+    // ⚠️ DEPRECATED: Disbursements table structure has changed
+    // Now using journal entries for disbursement tracking
+    // Return empty array to avoid schema errors
+    console.log('ℹ️ Disbursements now tracked via journal entries, not disbursements table');
+    return [];
   },
 
   async create(disbursementData: any, organizationId: string) {
-    const { data, error } = await supabase
-      .from('disbursements')
-      .insert([{
-        id: crypto.randomUUID(),
-        ...disbursementData,
-        organization_id: organizationId,
-        status: 'completed',
-        disbursement_date: disbursementData.disbursement_date || new Date().toISOString(),
-        created_at: new Date().toISOString()
-      }])
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
+    // ⚠️ DEPRECATED: Use journal entries for new disbursements
+    console.log('ℹ️ Use journal entries to create disbursements');
+    return null;
   }
 };
 
@@ -2309,6 +2302,7 @@ export const payeeService = {
     if (updates.physicalAddress || updates.address) updateData.address = updates.physicalAddress || updates.address;
     if (updates.bankName) updateData.bank_name = updates.bankName;
     if (updates.accountNumber) updateData.account_number = updates.accountNumber;
+    if (updates.commissionRate !== undefined) updateData.commission_rate = updates.commissionRate;
     
     const { data, error } = await supabase
       .from('payees')
@@ -2570,6 +2564,124 @@ export const creditScoringParametersService = {
 };
 
 // =====================================================
+// INSTITUTION SERVICE
+// =====================================================
+
+const institutionService = {
+  /**
+   * Create a new institution
+   */
+  async create(institutionData: any, organizationId: string) {
+    // Convert camelCase to snake_case for database
+    const dbData: any = {
+      organization_id: organizationId,
+      name: institutionData.name,
+      type: institutionData.type,
+      status: institutionData.status || 'Active',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // Optional fields - map camelCase to snake_case
+    if (institutionData.contactPerson !== undefined) dbData.contact_person = institutionData.contactPerson;
+    if (institutionData.contact_person !== undefined) dbData.contact_person = institutionData.contact_person;
+    
+    if (institutionData.email !== undefined) dbData.email = institutionData.email;
+    if (institutionData.phone !== undefined) dbData.phone = institutionData.phone;
+    if (institutionData.address !== undefined) dbData.address = institutionData.address;
+    if (institutionData.city !== undefined) dbData.city = institutionData.city;
+    if (institutionData.county !== undefined) dbData.county = institutionData.county;
+    
+    if (institutionData.registrationNumber !== undefined) dbData.registration_number = institutionData.registrationNumber;
+    if (institutionData.registration_number !== undefined) dbData.registration_number = institutionData.registration_number;
+    
+    if (institutionData.taxId !== undefined) dbData.tax_id = institutionData.taxId;
+    if (institutionData.tax_id !== undefined) dbData.tax_id = institutionData.tax_id;
+    
+    if (institutionData.notes !== undefined) dbData.notes = institutionData.notes;
+    if (institutionData.createdBy !== undefined) dbData.created_by = institutionData.createdBy;
+    if (institutionData.created_by !== undefined) dbData.created_by = institutionData.created_by;
+    
+    const { data, error } = await supabase
+      .from('institutions')
+      .insert([dbData])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Get all institutions for an organization
+   */
+  async getAll(organizationId: string) {
+    const { data, error } = await supabase
+      .from('institutions')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .order('name', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  /**
+   * Update an institution
+   */
+  async update(id: string, updates: any) {
+    // Convert camelCase to snake_case for database
+    const dbData: any = {
+      updated_at: new Date().toISOString()
+    };
+
+    // Map fields
+    if (updates.name !== undefined) dbData.name = updates.name;
+    if (updates.type !== undefined) dbData.type = updates.type;
+    if (updates.status !== undefined) dbData.status = updates.status;
+    
+    if (updates.contactPerson !== undefined) dbData.contact_person = updates.contactPerson;
+    if (updates.contact_person !== undefined) dbData.contact_person = updates.contact_person;
+    
+    if (updates.email !== undefined) dbData.email = updates.email;
+    if (updates.phone !== undefined) dbData.phone = updates.phone;
+    if (updates.address !== undefined) dbData.address = updates.address;
+    if (updates.city !== undefined) dbData.city = updates.city;
+    if (updates.county !== undefined) dbData.county = updates.county;
+    
+    if (updates.registrationNumber !== undefined) dbData.registration_number = updates.registrationNumber;
+    if (updates.registration_number !== undefined) dbData.registration_number = updates.registration_number;
+    
+    if (updates.taxId !== undefined) dbData.tax_id = updates.taxId;
+    if (updates.tax_id !== undefined) dbData.tax_id = updates.tax_id;
+    
+    if (updates.notes !== undefined) dbData.notes = updates.notes;
+    
+    const { data, error } = await supabase
+      .from('institutions')
+      .update(dbData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Delete an institution
+   */
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('institutions')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+  }
+};
+
+// =====================================================
 // EXPORT COMBINED SERVICE
 // =====================================================
 
@@ -2602,7 +2714,8 @@ export const supabaseDataService = {
   branches: branchService,
   payments: paymentService,
   payees: payeeService,
-  creditScoringParameters: creditScoringParametersService
+  creditScoringParameters: creditScoringParametersService,
+  institutions: institutionService
 };
 
 // Register global test function

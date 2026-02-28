@@ -5,12 +5,14 @@ import { useData } from '../../contexts/DataContext';
 import { getCurrencyCode } from '../../utils/currencyUtils';
 import { AddPayrollModal } from '../modals/AddPayrollModal';
 import { PayrollDetailsModal } from '../modals/PayrollDetailsModal';
+import { PayrollCommissionsTab } from './PayrollCommissionsTab';
 import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
 
 export function PayrollTab() {
   const { isDark } = useTheme();
   const currencyCode = getCurrencyCode();
   const { payrollRuns, payees } = useData();
+  const [activeTab, setActiveTab] = useState<'payroll' | 'commissions'>('payroll');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Statuses');
   const [showAddPayrollModal, setShowAddPayrollModal] = useState(false);
@@ -52,15 +54,56 @@ export function PayrollTab() {
     }
   };
 
+  // If showing commissions tab, render it directly
+  if (activeTab === 'commissions') {
+    return (
+      <div className={isDark ? 'dark' : ''}>
+        <div className="p-6">
+          {/* Header with Tabs */}
+          <div className="mb-6">
+            <h2 className="text-gray-900 dark:text-white mb-4">Payroll Management</h2>
+            <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setActiveTab('payroll')}
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              >
+                Payroll Runs
+              </button>
+              <button
+                onClick={() => setActiveTab('commissions')}
+                className="px-4 py-2 text-sm font-medium text-emerald-600 border-b-2 border-emerald-600"
+              >
+                Staff Commissions
+              </button>
+            </div>
+          </div>
+          <PayrollCommissionsTab />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={isDark ? 'dark' : ''}>
       <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-start">
-          <div>
-            <h2 className="text-gray-900 dark:text-white">Payroll Management</h2>
-            <p className="text-gray-600 dark:text-gray-400">Manage employee payroll and salary disbursements</p>
+        {/* Header with Tabs */}
+        <div>
+          <h2 className="text-gray-900 dark:text-white mb-4">Payroll Management</h2>
+          <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 mb-6">
+            <button
+              onClick={() => setActiveTab('payroll')}
+              className="px-4 py-2 text-sm font-medium text-emerald-600 border-b-2 border-emerald-600"
+            >
+              Payroll Runs
+            </button>
+            <button
+              onClick={() => setActiveTab('commissions')}
+              className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+            >
+              Staff Commissions
+            </button>
           </div>
+          <p className="text-gray-600 dark:text-gray-400">Manage employee payroll and salary disbursements</p>
         </div>
 
         {/* Stats Cards */}

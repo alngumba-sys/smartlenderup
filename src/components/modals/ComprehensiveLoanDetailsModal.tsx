@@ -52,10 +52,20 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
     return Math.round(correctInterest);
   };
   
-  // ✅ Use values from database (handles discounts), calculate only if missing
-  // loan.totalRepayable comes from DataContext which reads total_amount from DB
-  const correctTotalRepayable = loan?.totalRepayable || loan?.totalRepayment || 0;
-  const correctInterest = loan ? (correctTotalRepayable - (loan.principalAmount || 0)) : 0;
+  // ✅ Smart calculation: Use DB if it has a discount, otherwise use formula
+  const calculatedInterest = loan ? calculateCorrectInterest(loan) : 0;
+  const calculatedTotal = loan ? (loan.principalAmount || 0) + calculatedInterest : 0;
+  const dbTotal = loan?.totalRepayable || loan?.totalRepayment || 0;
+  
+  // If DB total is significantly different from calculated (>1% difference), it might be:
+  // 1. A discount (DB < calculated) → Use DB ✅
+  // 2. Wrong old data (DB > calculated) → Use calculated ✅  
+  const tolerance = calculatedTotal * 0.01; // 1% tolerance for rounding
+  const hasDiscount = dbTotal > 0 && dbTotal < (calculatedTotal - tolerance);
+  const hasWrongData = dbTotal > (calculatedTotal + tolerance);
+  
+  const correctTotalRepayable = hasDiscount ? dbTotal : calculatedTotal;
+  const correctInterest = correctTotalRepayable - (loan?.principalAmount || 0);
   
   // Generate installments directly from loan data
   const generateLoanInstallments = (loanData: any) => {
@@ -201,12 +211,9 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
 
   const riskRating = getRiskRating();
 
-  // Calculate outstanding balance and payoff quote
-  const totalRepayable = loan.totalRepayable || loan.totalRepayment || 0;
-  // ✅ Use outstanding balance from loan data (already calculated in DataContext with DB balance)
-  const outstandingBalance = loan.outstandingBalance !== undefined 
-    ? loan.outstandingBalance 
-    : Math.max(0, totalRepayable - totalPaid);
+  // Calculate outstanding balance and payoff quote using CORRECTED total
+  // ✅ ALWAYS recalculate outstanding based on corrected total (don't trust DB balance)
+  const outstandingBalance = Math.max(0, correctTotalRepayable - totalPaid);
   const earlyPaymentDiscount = 0; // You can add logic for early payment discounts
   const payoffQuote = outstandingBalance - earlyPaymentDiscount;
 

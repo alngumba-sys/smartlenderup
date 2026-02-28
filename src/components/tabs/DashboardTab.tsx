@@ -232,10 +232,19 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   );
   const filteredPayments = filterByDuration(payments, 'paymentDate', collectionsDuration);
   
-  // ✅ Helper to calculate outstanding balance correctly
+  // ✅ Helper to calculate outstanding balance correctly using SMART CALCULATION
   const calculateOutstanding = (l: any) => {
-    const totalRepayable = l.totalRepayable || l.totalRepayment || 0;
+    const principalAmt = l.principalAmount || 0;
     const paidAmount = l.paidAmount || l.amount_paid || l.amountPaid || 0;
+    
+    // Smart calculation: Use DB if it has a discount, otherwise use formula
+    const calculatedInterest = calculateCorrectInterest(l);
+    const calculatedTotal = principalAmt + calculatedInterest;
+    const dbTotal = l.totalRepayable || l.totalRepayment || 0;
+    const tolerance = calculatedTotal * 0.01;
+    const hasDiscount = dbTotal > 0 && dbTotal < (calculatedTotal - tolerance);
+    const totalRepayable = hasDiscount ? dbTotal : calculatedTotal;
+    
     return Math.max(0, totalRepayable - paidAmount);
   };
   
@@ -704,11 +713,12 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   // Calculate total collections from payments
   const totalCollections = payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
   
-  // ✅ Calculate overdueLoans with corrected daysInArrears
+  // ✅ Calculate overdueLoans with corrected daysInArrears AND outstanding balance
   const overdueLoans = contextLoans
     .map((l: any) => ({
       ...l,
-      daysInArrears: calculateDaysInArrears(l) // Override with calculated value
+      daysInArrears: calculateDaysInArrears(l), // Override with calculated value
+      outstandingBalance: calculateOutstanding(l) // Recalculate with correct total
     }))
     .filter((l: any) => l.daysInArrears > 0);
   const recentApplications = contextLoans.slice(-5).reverse();

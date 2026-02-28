@@ -15,9 +15,11 @@ import { SuperAdminLoginModal } from './modals/SuperAdminLoginModal';
 import { SuperAdminDashboard } from './SuperAdminDashboard';
 import { FeaturesCarousel } from './FeaturesCarousel';
 import { StaffLogin } from './StaffLogin';
+import { ClientLogin } from './ClientLogin';
 import { db } from '../utils/database';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner@2.0.3';
+import { logClientLogin } from '../utils/auditLogger';
 
 interface LoginPageProps {
   onLogin: (userType: 'admin' | 'employee' | 'staff', userData: any) => void;
@@ -76,6 +78,7 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
   const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', message: '' });
   const [sendingContact, setSendingContact] = useState(false);
   const [showStaffLogin, setShowStaffLogin] = useState(false);
+  const [showClientLogin, setShowClientLogin] = useState(false);
   const signInRef = useRef<HTMLDivElement>(null);
   const pricingRef = useRef<HTMLDivElement>(null);
   const logoClickTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -940,6 +943,56 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
     );
   }
 
+  // If showing client login, render only that component
+  if (showClientLogin) {
+    return (
+      <ClientLogin
+        onLogin={async (clientId) => {
+          try {
+            // Fetch full client data from Supabase
+            const { data: clientData, error } = await supabase
+              .from('clients')
+              .select('*')
+              .eq('id', clientId)
+              .single();
+            
+            if (error || !clientData) {
+              toast.error('Failed to load client data');
+              return;
+            }
+            
+            // Create a user object for the client
+            const clientUserData = {
+              id: clientData.id,
+              username: clientData.client_number || clientData.id,
+              name: `${clientData.first_name || ''} ${clientData.last_name || ''}`.trim(),
+              email: clientData.email || '',
+              role: 'client',
+              userType: 'client',
+              organizationId: clientData.organization_id,
+              permissions: {}, // Clients don't use permissions
+              clientId: clientData.id,
+              phone: clientData.phone
+            };
+            
+            // Store in localStorage
+            localStorage.setItem('bvfunguo_user', JSON.stringify(clientUserData));
+            
+            // Log the client login for audit trail
+            await logClientLogin(clientData.id);
+            
+            setShowClientLogin(false);
+            onLogin('staff', clientUserData); // Use 'staff' type but with client data
+          } catch (error) {
+            console.error('Error during client login:', error);
+            toast.error('Login failed. Please try again.');
+          }
+        }}
+        onBack={() => setShowClientLogin(false)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen" style={{ backgroundImage: 'radial-gradient(circle farthest-corner at 17.6% 50.7%, rgba(0,100,50,1) 0%, rgba(0,0,0,1) 90%)' }}>
       {/* Navigation Header */}
@@ -1496,13 +1549,30 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                             setShowSignInDropdown(false);
                             setShowStaffLogin(true);
                           }}
-                          className="w-full text-sm py-2 mb-3 rounded-lg border hover:opacity-90 transition-all"
+                          className="w-full text-sm py-2 mb-2 rounded-lg border hover:opacity-90 transition-all"
                           style={{
                             borderColor: colors.accentRgba3,
                             color: colors.accent
                           }}
                         >
                           Staff Login
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('Client Login button clicked');
+                            setShowSignInDropdown(false);
+                            setShowClientLogin(true);
+                          }}
+                          className="w-full text-sm py-2 mb-3 rounded-lg border hover:opacity-90 transition-all"
+                          style={{
+                            borderColor: colors.accentRgba3,
+                            color: colors.accent
+                          }}
+                        >
+                          Client Login
                         </button>
                         <p className="text-xs" style={{ color: '#ffffff', opacity: 0.7 }}>
                           Don't have an account? <button onClick={() => { 
