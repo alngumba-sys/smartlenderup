@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { getCurrencyCode, getMobileMoneyProviders, formatCurrency } from '../../utils/currencyUtils';
 import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
 import { supabaseDataService } from '../../services/supabaseDataService';
+import { canCreateInTab, canEditInTab, canDeleteInTab, showPermissionError } from '../../utils/staffPermissions';
 
 interface Account {
   id: string;
@@ -947,6 +948,10 @@ export function AccountingTab() {
   // Note: shareholders, capitalDeposits, and profitDistributions now come from DataContext
 
   const handleAddShareholder = () => {
+    if (!canCreateInTab('accounting_chart')) {
+      showPermissionError();
+      return;
+    }
     setSelectedShareholder(null);
     setShowShareholderModal(true);
   };

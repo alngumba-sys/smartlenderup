@@ -1954,7 +1954,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                     'DB balance': l.balance,
                     'DB total_amount': l.total_amount,
                     '✅ Total Repayable (DB or calculated)': totalRepayable,
-                    '✅ Total Interest (derived)': totalRepayable - principalAmount,
+                    '✅ Total Interest (calculated, never negative)': calculatedInterest,
                     '✅ Outstanding Balance (DB or calculated)': calculatedOutstanding
                   });
                 }
@@ -1974,6 +1974,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   interestRate: l.interest_rate || l.product?.interest_rate || 0,
                   interestType: 'Flat',
                   term: l.term_period || 0,
+                  termPeriod: l.term_period || 0, // ✅ Add termPeriod alias
+                  loanTerm: l.term_period || 0,  // ✅ Add loanTerm alias
+                  termMonths: l.term_period || 0, // ✅ Add termMonths alias
                   termUnit: l.term_period_unit ? (l.term_period_unit.charAt(0).toUpperCase() + l.term_period_unit.slice(1)) : 'Months',
                   repaymentFrequency: l.repayment_frequency ? (l.repayment_frequency.charAt(0).toUpperCase() + l.repayment_frequency.slice(1)) : 'Monthly',
                   facilitationFee: l.processing_fee || 0,
@@ -2050,7 +2053,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                     
                     return numberOfInstallments > 0 ? totalRepayable / numberOfInstallments : 0;
                   })(),
-                  totalInterest: totalRepayable - principalAmount, // ✅ Derive from totalRepayable (handles discounts)
+                  totalInterest: calculatedInterest, // ✅ Use calculated interest (never negative)
                   totalRepayable: totalRepayable,
                   totalRepayment: totalRepayable,
                   numberOfInstallments: 0,
@@ -2059,7 +2062,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   interestPaid: interestPaidFromDB,    // ✅ Read from database
                   outstandingBalance: calculatedOutstanding,
                   principalOutstanding: Math.max(0, principalAmount - principalPaidFromDB), // Principal - Principal paid
-                  interestOutstanding: Math.max(0, (totalRepayable - principalAmount) - interestPaidFromDB), // Total interest - Interest paid
+                  interestOutstanding: Math.max(0, calculatedInterest - interestPaidFromDB), // ✅ Calculated interest - Interest paid (never negative)
                   createdBy: '',
                   loanOfficer: '',
                   purpose: l.purpose || '',
@@ -2271,9 +2274,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
               setPayees([]);
               console.log('   ✅ Payees state set to empty array');
             }
-          } catch (error) {
-            console.error('❌ Error loading payees from Supabase:', error);
-            toast.error('Database not reachable. Check your internet connection.');
+          } catch (error: any) {
+            // Handle network errors gracefully
+            const isNetworkError = error?.message?.includes('Failed to fetch') || 
+                                   error?.message?.includes('NetworkError') ||
+                                   error?.message?.includes('TypeError: Failed to fetch');
+            
+            if (isNetworkError) {
+              console.warn('⚠️ Network unavailable - payees not loaded from database');
+              // Don't show error toast for expected network issues in preview/dev
+            } else {
+              console.error('❌ Error loading payees from Supabase:', error);
+              toast.error('Error loading payees. Please try again.');
+            }
             setPayees([]);
             console.log('   ⚠️  Payees state set to empty array due to error');
           }
@@ -2780,6 +2793,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
             interestRate: l.interest_rate || l.product?.interest_rate || 0,
             interestType: 'Flat',
             term: l.term_period || 0,
+            termPeriod: l.term_period || 0, // ✅ Add termPeriod alias
+            loanTerm: l.term_period || 0,  // ✅ Add loanTerm alias
+            termMonths: l.term_period || 0, // ✅ Add termMonths alias
             termUnit: l.term_period_unit ? (l.term_period_unit.charAt(0).toUpperCase() + l.term_period_unit.slice(1)) : 'Months',
             repaymentFrequency: l.repayment_frequency ? (l.repayment_frequency.charAt(0).toUpperCase() + l.repayment_frequency.slice(1)) : 'Monthly',
             facilitationFee: l.processing_fee || 0,
@@ -2851,7 +2867,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               
               return numberOfInstallments > 0 ? totalRepayable / numberOfInstallments : 0;
             })(),
-            totalInterest: totalRepayable - principalAmount, // ✅ Derive from totalRepayable (handles discounts)
+            totalInterest: calculatedInterest, // ✅ Use calculated interest (never negative)
             totalRepayable: totalRepayable,
             totalRepayment: totalRepayable,
             numberOfInstallments: 0,
@@ -2860,7 +2876,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             interestPaid: interestPaidFromDB,    // ✅ Read from database
             outstandingBalance: calculatedOutstanding,
             principalOutstanding: Math.max(0, principalAmount - principalPaidFromDB), // Principal - Principal paid
-            interestOutstanding: Math.max(0, (totalRepayable - principalAmount) - interestPaidFromDB), // Total interest - Interest paid
+            interestOutstanding: Math.max(0, calculatedInterest - interestPaidFromDB), // ✅ Calculated interest - Interest paid (never negative)
             createdBy: '',
             loanOfficer: '',
             purpose: l.purpose || '',

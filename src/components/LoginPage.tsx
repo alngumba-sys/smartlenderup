@@ -14,8 +14,7 @@ import { GroupSignUpModal } from './modals/GroupSignUpModal';
 import { SuperAdminLoginModal } from './modals/SuperAdminLoginModal';
 import { SuperAdminDashboard } from './SuperAdminDashboard';
 import { FeaturesCarousel } from './FeaturesCarousel';
-import { StaffLogin } from './StaffLogin';
-import { ClientLogin } from './ClientLogin';
+
 import { db } from '../utils/database';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner@2.0.3';
@@ -77,8 +76,6 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
   const [showContactUs, setShowContactUs] = useState(false);
   const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', message: '' });
   const [sendingContact, setSendingContact] = useState(false);
-  const [showStaffLogin, setShowStaffLogin] = useState(false);
-  const [showClientLogin, setShowClientLogin] = useState(false);
   const signInRef = useRef<HTMLDivElement>(null);
   const pricingRef = useRef<HTMLDivElement>(null);
   const logoClickTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -173,10 +170,7 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
     }
   }, [showPricing]);
 
-  // Debug: Log when showStaffLogin changes
-  useEffect(() => {
-    console.log('🔄 showStaffLogin changed:', showStaffLogin);
-  }, [showStaffLogin]);
+
 
   const textArray = [
     'Transform your MFI operations\npowered by innovation',
@@ -563,6 +557,143 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
         return;
       }
 
+      // ===== CHECK STAFF USERS =====
+      console.log('🔍 Checking for staff user...');
+      const { data: staffUsers, error: staffError } = await supabase
+        .from('staff_users')
+        .select('*')
+        .or(`email.eq.${loginId},phone_number.eq.${loginId}`)
+        .limit(1);
+
+      if (staffError) {
+        console.error('❌ Staff query error:', staffError);
+      }
+
+      if (staffUsers && staffUsers.length > 0) {
+        const staff = staffUsers[0];
+        
+        // Verify password (last 4 digits of phone)
+        const last4Digits = staff.phone_number.slice(-4);
+        if (loginPass !== last4Digits) {
+          console.log('❌ Staff password mismatch');
+          setError('Invalid credentials. Please try again.');
+          setLoading(false);
+          return;
+        }
+        
+        console.log('✅ Staff user found:', staff.full_name);
+
+        // Fetch staff permissions
+        console.log('🔍 Loading staff permissions...');
+        const { data: permissions, error: permError } = await supabase
+          .from('staff_permissions')
+          .select('*')
+          .eq('staff_user_id', staff.id);
+
+        if (permError) {
+          console.error('❌ Error loading permissions:', permError);
+        }
+
+        console.log('✅ Loaded permissions:', permissions);
+
+        // Create user data for session
+        const userData = {
+          id: staff.id,
+          name: staff.full_name,
+          email: staff.email,
+          phone: staff.phone_number,
+          role: staff.role || 'Staff',
+          userType: 'staff' as const,
+          organizationId: staff.organization_id,
+          permissions: permissions || [],
+          staffId: staff.id
+        };
+
+        if (rememberMe) {
+          localStorage.setItem('bv_funguo_credentials', JSON.stringify({
+            identifier: loginId,
+            password: loginPass,
+            userType: 'staff'
+          }));
+        } else {
+          localStorage.removeItem('bv_funguo_credentials');
+        }
+
+        // Store staff user data
+        localStorage.setItem('bvfunguo_user', JSON.stringify(userData));
+
+        toast.success('Login Successful', {
+          description: `Welcome back, ${staff.full_name}!`
+        });
+
+        onLogin('staff', userData);
+        setLoading(false);
+        return;
+      }
+
+      // ===== CHECK CLIENT USERS =====
+      console.log('🔍 Checking for client user...');
+      const { data: clients, error: clientError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('phone', loginId)
+        .limit(1);
+
+      if (clientError) {
+        console.error('❌ Client query error:', clientError);
+      }
+
+      if (clients && clients.length > 0) {
+        const client = clients[0];
+        
+        // Verify password (last 4 digits of phone)
+        const last4Digits = client.phone.slice(-4);
+        if (loginPass !== last4Digits) {
+          console.log('❌ Client password mismatch');
+          setError('Invalid credentials. Please try again.');
+          setLoading(false);
+          return;
+        }
+        
+        console.log('✅ Client user found:', client.name);
+
+        // Log client login for audit trail
+        await logClientLogin(client.id, client.organization_id);
+
+        // Create user data for session
+        const userData = {
+          id: client.id,
+          name: client.name,
+          email: client.email || '',
+          phone: client.phone,
+          role: 'Client',
+          userType: 'client' as const,
+          organizationId: client.organization_id,
+          clientId: client.id
+        };
+
+        if (rememberMe) {
+          localStorage.setItem('bv_funguo_credentials', JSON.stringify({
+            identifier: loginId,
+            password: loginPass,
+            userType: 'client'
+          }));
+        } else {
+          localStorage.removeItem('bv_funguo_credentials');
+        }
+
+        // Store client user data
+        localStorage.setItem('bvfunguo_user', JSON.stringify(userData));
+
+        toast.success('Login Successful', {
+          description: `Welcome back, ${client.name}!`
+        });
+
+        onLogin('staff', userData); // Use 'staff' to show the internal portal
+        setLoading(false);
+        return;
+      }
+
       // ===== FALLBACK: CHECK LOCALSTORAGE FOR OFFLINE MODE =====
       console.log('⚠️ Not found in Supabase, checking localStorage for offline mode...');
       const authResult = db.authenticate(loginId, loginPass);
@@ -929,69 +1060,6 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
       description: 'Real-time insights and regulatory compliance reporting.'
     }
   ];
-
-  // If showing staff login, render only that component
-  if (showStaffLogin) {
-    return (
-      <StaffLogin
-        onLoginSuccess={(userData) => {
-          setShowStaffLogin(false);
-          onLogin('staff', userData);
-        }}
-        onBackToMain={() => setShowStaffLogin(false)}
-      />
-    );
-  }
-
-  // If showing client login, render only that component
-  if (showClientLogin) {
-    return (
-      <ClientLogin
-        onLogin={async (clientId) => {
-          try {
-            // Fetch full client data from Supabase
-            const { data: clientData, error } = await supabase
-              .from('clients')
-              .select('*')
-              .eq('id', clientId)
-              .single();
-            
-            if (error || !clientData) {
-              toast.error('Failed to load client data');
-              return;
-            }
-            
-            // Create a user object for the client
-            const clientUserData = {
-              id: clientData.id,
-              username: clientData.client_number || clientData.id,
-              name: `${clientData.first_name || ''} ${clientData.last_name || ''}`.trim(),
-              email: clientData.email || '',
-              role: 'client',
-              userType: 'client',
-              organizationId: clientData.organization_id,
-              permissions: {}, // Clients don't use permissions
-              clientId: clientData.id,
-              phone: clientData.phone
-            };
-            
-            // Store in localStorage
-            localStorage.setItem('bvfunguo_user', JSON.stringify(clientUserData));
-            
-            // Log the client login for audit trail
-            await logClientLogin(clientData.id);
-            
-            setShowClientLogin(false);
-            onLogin('staff', clientUserData); // Use 'staff' type but with client data
-          } catch (error) {
-            console.error('Error during client login:', error);
-            toast.error('Login failed. Please try again.');
-          }
-        }}
-        onBack={() => setShowClientLogin(false)}
-      />
-    );
-  }
 
   return (
     <div className="min-h-screen" style={{ backgroundImage: 'radial-gradient(circle farthest-corner at 17.6% 50.7%, rgba(0,100,50,1) 0%, rgba(0,0,0,1) 90%)' }}>
@@ -1540,40 +1608,6 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
                       </button>
 
                       <div className="text-center pt-3 border-t" style={{ borderColor: colors.accentRgba2 }}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            console.log('Staff Login button clicked');
-                            setShowSignInDropdown(false);
-                            setShowStaffLogin(true);
-                          }}
-                          className="w-full text-sm py-2 mb-2 rounded-lg border hover:opacity-90 transition-all"
-                          style={{
-                            borderColor: colors.accentRgba3,
-                            color: colors.accent
-                          }}
-                        >
-                          Staff Login
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            console.log('Client Login button clicked');
-                            setShowSignInDropdown(false);
-                            setShowClientLogin(true);
-                          }}
-                          className="w-full text-sm py-2 mb-3 rounded-lg border hover:opacity-90 transition-all"
-                          style={{
-                            borderColor: colors.accentRgba3,
-                            color: colors.accent
-                          }}
-                        >
-                          Client Login
-                        </button>
                         <p className="text-xs" style={{ color: '#ffffff', opacity: 0.7 }}>
                           Don't have an account? <button onClick={() => { 
                             if (onGoToRegister) {

@@ -57,6 +57,21 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
   const calculatedTotal = loan ? (loan.principalAmount || 0) + calculatedInterest : 0;
   const dbTotal = loan?.totalRepayable || loan?.totalRepayment || 0;
   
+  // 🔍 DEBUG: Log loan values to see what's wrong
+  if (loan) {
+    console.log('🔍 LOAN DETAILS DEBUG:', {
+      loanNumber: loan.loanNumber,
+      principal: loan.principalAmount,
+      rate: loan.interestRate,
+      term: loan.term,
+      termPeriod: loan.termPeriod,
+      loanTerm: loan.loanTerm,
+      calculatedInterest: calculatedInterest,
+      dbTotal: dbTotal,
+      formula: `${loan.principalAmount} × ${loan.interestRate} × ${loan.term || loan.termPeriod || loan.loanTerm} / 100 = ${calculatedInterest}`
+    });
+  }
+  
   // If DB total is significantly different from calculated (>1% difference), it might be:
   // 1. A discount (DB < calculated) → Use DB ✅
   // 2. Wrong old data (DB > calculated) → Use calculated ✅  
@@ -65,7 +80,8 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
   const hasWrongData = dbTotal > (calculatedTotal + tolerance);
   
   const correctTotalRepayable = hasDiscount ? dbTotal : calculatedTotal;
-  const correctInterest = correctTotalRepayable - (loan?.principalAmount || 0);
+  // ✅ ALWAYS use calculated interest (never negative, even if DB has wrong totalRepayable)
+  const correctInterest = calculatedInterest;
   
   // Generate installments directly from loan data
   const generateLoanInstallments = (loanData: any) => {
@@ -82,7 +98,8 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
     
     // ✅ Use total from database (handles discounts), calculate only if missing
     const totalRepayableForInstallments = loanData.totalRepayable || loanData.totalRepayment || (loanData.principalAmount + calculateCorrectInterest(loanData));
-    const totalInterestForInstallments = totalRepayableForInstallments - loanData.principalAmount;
+    // ✅ ALWAYS use calculated interest (never negative)
+    const totalInterestForInstallments = calculateCorrectInterest(loanData);
     const interestPerInstallment = Math.round(totalInterestForInstallments / numInstallments);
     const installmentAmount = Math.round(totalRepayableForInstallments / numInstallments);
     

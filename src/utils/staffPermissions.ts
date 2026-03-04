@@ -1,6 +1,43 @@
-// Staff Permission Utilities
+import { toast } from 'sonner@2.0.3';
 
-import { TabKey, TabPermission } from '../types/staff';
+export type TabKey = 
+  | 'dashboard'
+  | 'operations_loans'
+  | 'operations_products'
+  | 'operations_clients'
+  | 'operations_groups'
+  | 'accounting_chart'
+  | 'accounting_journal'
+  | 'accounting_trial'
+  | 'reports_par'
+  | 'reports_collections'
+  | 'reports_management'
+  | 'payroll'
+  | 'ai_tools'
+  | 'settings';
+
+export interface TabPermission {
+  tab_name: string;
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+}
+
+// Permission error message
+export const PERMISSION_ERROR_MESSAGE = "CAUTION!! You do not have permission to carry out this task";
+
+// Show permission denied error
+export function showPermissionError(): void {
+  toast.error(PERMISSION_ERROR_MESSAGE, {
+    duration: 4000,
+    style: {
+      background: '#FEE2E2',
+      border: '1px solid #DC2626',
+      color: '#991B1B',
+    },
+  });
+}
 
 // Get current user's permissions from localStorage
 export function getCurrentUserPermissions(): TabPermission[] {
@@ -118,6 +155,58 @@ export function canEditInTab(tabKey: TabKey): boolean {
     }
   } catch (error) {
     console.error('Error checking edit permission:', error);
+  }
+  return false;
+}
+
+// Check if user can create in a specific tab
+export function canCreateInTab(tabKey: TabKey): boolean {
+  // Check if user is manager (full access)
+  if (isManager()) {
+    return true;
+  }
+  
+  try {
+    const userData = localStorage.getItem('bvfunguo_user');
+    if (userData) {
+      const user = JSON.parse(userData);
+      
+      const permissions = user.permissions || [];
+      
+      // Handle object-based permissions (new format)
+      if (!Array.isArray(permissions) && typeof permissions === 'object') {
+        // Map tab keys to create permission flags
+        const tabCreatePermissionMap: Record<TabKey, boolean> = {
+          'dashboard': false, // Dashboard has no create
+          'operations_loans': permissions.addLoans || false,
+          'operations_products': permissions.manageProducts || false,
+          'operations_clients': permissions.addClients || false,
+          'operations_groups': permissions.canAccessOperations || false,
+          'accounting_chart': permissions.canAccessTransactions || false,
+          'accounting_journal': permissions.canAccessTransactions || false,
+          'accounting_trial': false, // Trial balance has no create
+          'reports_par': false, // Reports have no create
+          'reports_collections': false,
+          'reports_management': false,
+          'payroll': permissions.canAccessManagement || false,
+          'ai_tools': false, // AI tools have no create
+          'settings': permissions.canAccessAdmin || false,
+        };
+        
+        return tabCreatePermissionMap[tabKey] || false;
+      }
+      
+      // Handle array-based permissions (new format with can_create)
+      if (Array.isArray(permissions)) {
+        const tabPermission = permissions.find((p: TabPermission) => p.tab_name === tabKey);
+        return tabPermission ? (tabPermission.can_create || false) : false;
+      }
+      
+      // Unknown format
+      return false;
+    }
+  } catch (error) {
+    console.error('Error checking create permission:', error);
   }
   return false;
 }
@@ -332,7 +421,7 @@ export function getFirstVisibleTabRoute(): string {
   const visibleTabs = getVisibleTabs();
   
   if (visibleTabs.length === 0) {
-    return 'dashboard'; // Fallback
+    return 'loans'; // Fallback to loans if no permissions
   }
   
   // Map tabKeys to their navigation routes
@@ -353,6 +442,14 @@ export function getFirstVisibleTabRoute(): string {
     'settings': 'settings',
   };
   
+  // ✅ REQUIREMENT: If Dashboard is disabled, set landing page to Loans
+  const hasDashboard = visibleTabs.includes('dashboard');
+  
+  if (!hasDashboard) {
+    console.log('📍 Dashboard disabled - redirecting to Loans as landing page');
+    return 'loans'; // Loans is the landing page when Dashboard is disabled
+  }
+  
   const firstTabKey = visibleTabs[0];
-  return tabKeyToRoute[firstTabKey] || 'dashboard';
+  return tabKeyToRoute[firstTabKey] || 'loans'; // Default to loans instead of dashboard
 }

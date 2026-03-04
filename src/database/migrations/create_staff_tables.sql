@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS staff_permissions (
   staff_user_id UUID NOT NULL REFERENCES staff_users(id) ON DELETE CASCADE,
   tab_name TEXT NOT NULL,
   can_view BOOLEAN DEFAULT FALSE,
+  can_create BOOLEAN DEFAULT FALSE,
   can_edit BOOLEAN DEFAULT FALSE,
   can_delete BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

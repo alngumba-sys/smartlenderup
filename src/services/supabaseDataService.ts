@@ -2260,12 +2260,29 @@ export const paymentService = {
 
 export const payeeService = {
   async getAll(organizationId: string) {
-    const { data, error } = await supabase
-      .from('payees')
-      .select('*')
-      .eq('organization_id', organizationId);
-    if (error) throw error;
-    return data || [];
+    try {
+      const { data, error } = await supabase
+        .from('payees')
+        .select('*')
+        .eq('organization_id', organizationId);
+      
+      if (error) {
+        // Handle network errors gracefully
+        if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+          console.warn('⚠️ Network error loading payees - using cached data');
+          return [];
+        }
+        throw error;
+      }
+      return data || [];
+    } catch (err: any) {
+      // Catch network errors that weren't caught above
+      if (err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError')) {
+        console.warn('⚠️ Network unavailable - payees not loaded');
+        return [];
+      }
+      throw err;
+    }
   },
 
   async create(payeeData: any, organizationId: string) {

@@ -11,6 +11,7 @@ import { toast } from 'sonner@2.0.3';
 import { safePercentage, safeToFixed } from '../../utils/safeCalculations';
 import { getOrganizationName } from '../../utils/organizationUtils';
 import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
+import { canCreateInTab, canEditInTab, canDeleteInTab, showPermissionError } from '../../utils/staffPermissions';
 
 interface ClientsTabProps {
   onClientSelect: (clientId: string) => void;
@@ -251,7 +252,13 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
           <h2 className={isDark ? 'text-white' : 'text-gray-900'}>Borrower Management</h2>
           <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Manage all your borrowers and their information</p>
         </div>
-        <button className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 text-sm" onClick={() => setShowNewClientModal(true)}>
+        <button className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 text-sm" onClick={() => {
+          if (!canCreateInTab('operations_clients')) {
+            showPermissionError();
+            return;
+          }
+          setShowNewClientModal(true);
+        }}>
           <Plus className="size-4" />
           Add Borrower
         </button>

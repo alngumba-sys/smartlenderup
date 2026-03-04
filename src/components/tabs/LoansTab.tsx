@@ -13,6 +13,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { toast } from 'sonner';
 import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
 import { getCurrencySymbol, getCurrencyCode } from '../../utils/currencyUtils';
+import { canCreateInTab, canEditInTab, canDeleteInTab, showPermissionError } from '../../utils/staffPermissions';
 
 // ✨ Professional redesign: Compact tables + Expected payments analytics
 export function LoansTab() {
@@ -1042,27 +1043,6 @@ export function LoansTab() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => {
-              toast.info('Refreshing loan data...');
-              refreshData();
-            }}
-            className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm"
-          >
-            <RefreshCw className="size-4" />
-            Refresh Data
-          </button>
-          <button
-            onClick={() => {
-              if (confirm('This will recalculate all principal amounts using the reverse formula from total amounts. Continue?')) {
-                fixLoanPrincipals();
-              }
-            }}
-            className="px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-2 text-sm"
-          >
-            <AlertCircle className="size-4" />
-            Fix Principals
-          </button>
-          <button
             onClick={() => setShowCalculator(true)}
             className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm"
           >
@@ -1070,7 +1050,13 @@ export function LoansTab() {
             Calculator
           </button>
           <button
-            onClick={() => setShowNewLoanModal(true)}
+            onClick={() => {
+              if (!canCreateInTab('operations_loans')) {
+                showPermissionError();
+                return;
+              }
+              setShowNewLoanModal(true);
+            }}
             className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 text-sm"
           >
             <Plus className="size-4" />
@@ -1762,12 +1748,27 @@ export function LoansTab() {
                       const paidAmt = loan.paidAmount || 0;
                       // ✅ Smart calculation: Use DB if it has a discount, otherwise use formula
                       const calculatedInterest = calculateCorrectInterest(loan);
+                      
+                      // 🔍 DEBUG for LN001
+                      if (loan.loanNumber === 'LN001') {
+                        console.log('🔍 LOANS TABLE - LN001 DEBUG:', {
+                          principal: principalAmt,
+                          rate: loan.interestRate,
+                          term: loan.term,
+                          termPeriod: loan.termPeriod,
+                          loanTerm: loan.loanTerm,
+                          calculatedInterest: calculatedInterest,
+                          formula: `${principalAmt} × ${loan.interestRate} × ${loan.term || loan.termPeriod || loan.loanTerm || 1} / 100 = ${calculatedInterest}`
+                        });
+                      }
+                      
                       const calculatedTotal = principalAmt + calculatedInterest;
                       const dbTotal = loan.totalRepayable || loan.totalRepayment || 0;
                       const tolerance = calculatedTotal * 0.01;
                       const hasDiscount = dbTotal > 0 && dbTotal < (calculatedTotal - tolerance);
                       const totalRepayable = hasDiscount ? dbTotal : calculatedTotal;
-                      const interestFromTotal = totalRepayable - principalAmt;
+                      // ✅ ALWAYS use calculated interest (never negative)
+                      const interestAmount = calculatedInterest;
                       // ✅ ALWAYS recalculate outstanding based on corrected total (don't trust DB balance)
                       const outstandingAmt = Math.max(0, totalRepayable - paidAmt);
                       // Determine actual display status: if outstanding is 0 or less, show "Paid"
@@ -1798,7 +1799,7 @@ export function LoansTab() {
                             KES {(loan.processing_fee || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
                           <td className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                            KES {interestFromTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            KES {interestAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
                           <td className={`px-4 py-2 text-right text-xs text-emerald-700 dark:text-emerald-400`}>
                             KES {paidAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
@@ -1828,6 +1829,10 @@ export function LoansTab() {
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
+                                      if (!canEditInTab('operations_loans')) {
+                                        showPermissionError();
+                                        return;
+                                      }
                                       setEditingLoanId(loan.id);
                                       setShowNewLoanModal(true);
                                     }}

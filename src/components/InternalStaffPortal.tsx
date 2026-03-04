@@ -5,6 +5,7 @@ import { LoanApprovalWorkflow } from './LoanApprovalWorkflow';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '../contexts/NavigationContext';
+import { canViewTab, canEditInTab, canCreateInTab, canDeleteInTab } from '../utils/staffPermissions';
 import { DashboardTab } from './tabs/DashboardTab';
 import { ClientsTab } from './tabs/ClientsTab';
 import { InstitutionsTab } from './tabs/InstitutionsTab';
@@ -89,20 +90,19 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
       label: 'Dashboard',
       icon: LayoutDashboard,
       type: 'single' as const,
-      permission: 'viewDashboard'
+      tabKey: 'dashboard' as const
     },
     {
       id: 'operations',
       label: 'Operations',
       icon: LayoutDashboard,
       type: 'dropdown' as const,
-      permission: 'canAccessOperations',
       items: [
-        { id: 'clients', label: 'Clients', icon: Users, permission: 'viewClients' },
-        { id: 'loans', label: 'Loans', icon: DollarSign, permission: 'viewLoans' },
-        { id: 'loan-calculator', label: 'Loan Calculator', icon: Calculator, permission: 'viewLoans' },
-        { id: 'approval1', label: 'Approval', icon: GitBranch, permission: 'approveLoans' },
-        { id: 'loan-reconciliation', label: 'Loan Reconciliation', icon: FileCheck, permission: 'viewTransactions' }
+        { id: 'clients', label: 'Clients', icon: Users, tabKey: 'operations_clients' as const },
+        { id: 'loans', label: 'Loans', icon: DollarSign, tabKey: 'operations_loans' as const },
+        { id: 'loan-calculator', label: 'Loan Calculator', icon: Calculator, tabKey: 'operations_loans' as const },
+        { id: 'approval1', label: 'Approval', icon: GitBranch, tabKey: 'operations_loans' as const },
+        { id: 'loan-reconciliation', label: 'Loan Reconciliation', icon: FileCheck, tabKey: 'accounting_journal' as const }
       ]
     },
     {
@@ -110,10 +110,9 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
       label: 'Transactions',
       icon: CreditCard,
       type: 'dropdown' as const,
-      permission: 'canAccessTransactions',
       items: [
-        { id: 'payments', label: 'Payments & Collections', icon: CreditCard, permission: 'addRepayments' },
-        { id: 'collection-sheets', label: 'Collection Sheets', icon: FileText, permission: 'addRepayments' }
+        { id: 'payments', label: 'Payments & Collections', icon: CreditCard, tabKey: 'operations_loans' as const },
+        { id: 'collection-sheets', label: 'Collection Sheets', icon: FileText, tabKey: 'reports_collections' as const }
       ]
     },
     {
@@ -121,10 +120,9 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
       label: 'Risk & AI',
       icon: Brain,
       type: 'dropdown' as const,
-      permission: 'canAccessRiskAI',
       items: [
-        { id: 'credit-scoring', label: 'Credit Scoring', icon: Target, permission: 'viewRiskInsights' },
-        { id: 'ai-insights', label: 'AI Insights', icon: Brain, permission: 'viewRiskInsights' }
+        { id: 'credit-scoring', label: 'Credit Scoring', icon: Target, tabKey: 'ai_tools' as const },
+        { id: 'ai-insights', label: 'AI Insights', icon: Brain, tabKey: 'ai_tools' as const }
       ]
     },
     {
@@ -132,13 +130,12 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
       label: 'Management',
       icon: BarChart3,
       type: 'dropdown' as const,
-      permission: 'canAccessManagement',
       items: [
-        { id: 'reports', label: 'Reports & Analytics', icon: BarChart3, permission: 'exportData' },
-        { id: 'tasks', label: 'Tasks', icon: CheckSquare, permission: 'viewDashboard' },
-        { id: 'payroll', label: 'Payroll', icon: Banknote, permission: 'viewTransactions' },
-        { id: 'expenses', label: 'Expenses', icon: Receipt, permission: 'viewTransactions' },
-        { id: 'accounting', label: 'Accounting', icon: BookOpen, permission: 'viewTransactions' }
+        { id: 'reports', label: 'Reports & Analytics', icon: BarChart3, tabKey: 'reports_management' as const },
+        { id: 'tasks', label: 'Tasks', icon: CheckSquare, tabKey: 'dashboard' as const },
+        { id: 'payroll', label: 'Payroll', icon: Banknote, tabKey: 'payroll' as const },
+        { id: 'expenses', label: 'Expenses', icon: Receipt, tabKey: 'accounting_journal' as const },
+        { id: 'accounting', label: 'Accounting', icon: BookOpen, tabKey: 'accounting_chart' as const }
       ]
     },
     {
@@ -146,11 +143,10 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
       label: 'Documents',
       icon: FolderOpen,
       type: 'dropdown' as const,
-      permission: 'canAccessCompliance',
       items: [
-        { id: 'compliance', label: 'Document Management', icon: FolderOpen, permission: 'viewClients' },
-        { id: 'kyc', label: 'KYC Verification', icon: FileCheck, permission: 'viewClients' },
-        { id: 'audit-trail', label: 'Audit Trail', icon: Shield, permission: 'viewTransactions' }
+        { id: 'compliance', label: 'Document Management', icon: FolderOpen, tabKey: 'settings' as const },
+        { id: 'kyc', label: 'KYC Verification', icon: FileCheck, tabKey: 'settings' as const },
+        { id: 'audit-trail', label: 'Audit Trail', icon: Shield, tabKey: 'settings' as const }
       ]
     },
     {
@@ -158,13 +154,12 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
       label: 'Admin',
       icon: Settings,
       type: 'dropdown' as const,
-      permission: 'canAccessAdmin',
       items: [
-        { id: 'staff-management', label: 'Staff Management', icon: Users, permission: 'manageStaff' },
-        { id: 'loan-products', label: 'Loan Products', icon: Package, permission: 'manageProducts' },
-        { id: 'financial-statements', label: 'Financial Statements', icon: TrendingUp, permission: 'viewTransactions' },
-        { id: 'documents', label: 'Documents', icon: FileText, permission: 'viewDashboard' },
-        { id: 'settings', label: 'Settings', icon: Settings, permission: 'canAccessAdmin' }
+        { id: 'staff-management', label: 'Staff Management', icon: Users, tabKey: 'settings' as const },
+        { id: 'loan-products', label: 'Loan Products', icon: Package, tabKey: 'operations_products' as const },
+        { id: 'financial-statements', label: 'Financial Statements', icon: TrendingUp, tabKey: 'accounting_trial' as const },
+        { id: 'documents', label: 'Documents', icon: FileText, tabKey: 'settings' as const },
+        { id: 'settings', label: 'Settings', icon: Settings, tabKey: 'settings' as const }
       ]
     },
     {
@@ -173,31 +168,40 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
       icon: Headphones,
       type: 'single' as const,
       linkedTab: 'tickets',
-      permission: 'canAccessSupport'
+      tabKey: 'settings' as const
     }
   ];
 
-  // Filter menu items based on permissions
+  // Filter menu items based on tab permissions using canViewTab
   const filteredMenuItems = menuItems.filter(item => {
-    // Check if user has permission for this menu item
-    if (item.permission && !hasPermission(item.permission as any)) {
-      return false;
+    // For single items, check tab permission
+    if (item.type === 'single') {
+      if (item.tabKey) {
+        return canViewTab(item.tabKey);
+      }
+      return true; // Show if no tabKey (shouldn't happen)
     }
     
-    // If it's a dropdown, filter its sub-items
+    // For dropdown items, filter sub-items
     if (item.type === 'dropdown' && item.items) {
-      const filteredSubItems = item.items.filter(subItem => 
-        !subItem.permission || hasPermission(subItem.permission as any)
-      );
+      const filteredSubItems = item.items.filter(subItem => {
+        if (subItem.tabKey) {
+          return canViewTab(subItem.tabKey);
+        }
+        return false;
+      });
+      
       // Only show dropdown if it has accessible sub-items
       if (filteredSubItems.length === 0) {
         return false;
       }
+      
       // Update items with filtered list
       (item as any).filteredItems = filteredSubItems;
+      return true;
     }
     
-    return true;
+    return false; // Hide if unknown type
   });
 
   const handleMenuClick = (item: typeof menuItems[0]) => {

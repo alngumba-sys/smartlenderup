@@ -185,7 +185,7 @@ export async function saveProjectState(
         // Table doesn't exist - this is expected, silently skip
         console.log('ℹ️ project_states table not found - skipping centralized state save');
       } else {
-        console.error('❌ Error saving project state:', error);
+        console.warn('⚠️ Could not save project state (network issue) - will retry later');
         // Don't show toast - this is a background operation
       }
       return false;

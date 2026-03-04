@@ -1,0 +1,150 @@
+[
+  {
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "column_name": "organization_id",
+    "data_type": "uuid"
+  },
+  {
+    "column_name": "client_id",
+    "data_type": "uuid"
+  },
+  {
+    "column_name": "product_id",
+    "data_type": "uuid"
+  },
+  {
+    "column_name": "loan_number",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "principal_amount",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "interest_rate",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "term_period",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "term_period_unit",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "repayment_frequency",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "total_amount",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "outstanding_balance",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "amount_paid",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "purpose",
+    "data_type": "text"
+  },
+  {
+    "column_name": "disbursement_method",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "disbursement_account",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "disbursement_date",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "phase",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "status",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "application_date",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "approval_date",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "expected_repayment_date",
+    "data_type": "date"
+  },
+  {
+    "column_name": "maturity_date",
+    "data_type": "date"
+  },
+  {
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "created_by",
+    "data_type": "uuid"
+  },
+  {
+    "column_name": "approved_by",
+    "data_type": "uuid"
+  },
+  {
+    "column_name": "days_in_arrears",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "arrears_amount",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "overdue_amount",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "penalty_amount",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "processing_fee",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "first_name",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "last_name",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "staff_member_id",
+    "data_type": "text"
+  },
+  {
+    "column_name": "staff_member_name",
+    "data_type": "text"
+  },
+  {
+    "column_name": "total_repayable",
+    "data_type": "numeric"
+  }
+]

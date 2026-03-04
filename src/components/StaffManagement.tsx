@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import { StaffUser, AVAILABLE_TABS, TabPermission, StaffRole } from '../types/staff';
 import { getOrganizationId } from '../utils/organizationUtils';
 import { toast } from 'sonner@2.0.3';
+import { canCreateInTab, canEditInTab, canDeleteInTab, showPermissionError } from '../utils/staffPermissions';
 
 export function StaffManagement() {
   const [staffList, setStaffList] = useState<StaffUser[]>([]);
@@ -11,13 +12,15 @@ export function StaffManagement() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<StaffUser | null>(null);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [staffToReset, setStaffToReset] = useState<StaffUser | null>(null);
   const [formData, setFormData] = useState({
     full_name: '',
     phone_number: '',
     email: '',
     role: 'staff' as StaffRole,
   });
-  const [selectedPermissions, setSelectedPermissions] = useState<{[key: string]: {view: boolean, edit: boolean, delete: boolean}}>({});
+  const [selectedPermissions, setSelectedPermissions] = useState<{[key: string]: {view: boolean, create: boolean, edit: boolean, delete: boolean}}>({});
 
   useEffect(() => {
     loadStaffMembers();
@@ -74,8 +77,19 @@ export function StaffManagement() {
   };
 
   const handleCreateStaff = async () => {
-    if (!formData.full_name || !formData.phone_number) {
-      toast.error('Please fill in all required fields');
+    if (!canCreateInTab('settings')) {
+      showPermissionError();
+      return;
+    }
+    if (!formData.full_name || !formData.phone_number || !formData.email) {
+      toast.error('Please fill in all required fields (Name, Phone, and Email)');
+      return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error('Please enter a valid email address');
       return;
     }
 
@@ -103,7 +117,7 @@ export function StaffManagement() {
           organization_id: orgId,
           full_name: formData.full_name,
           phone_number: formData.phone_number,
-          email: formData.email || null,
+          email: formData.email, // Email is now required
           password_hash: last4Digits, // Default password is last 4 digits
           role: formData.role,
           is_first_login: true,
@@ -122,6 +136,7 @@ export function StaffManagement() {
           staff_user_id: newStaff.id,
           tab_name: tabKey,
           can_view: perms.view,
+          can_create: perms.create,
           can_edit: perms.edit,
           can_delete: perms.delete,
         }));
@@ -151,6 +166,11 @@ export function StaffManagement() {
   const handleUpdatePermissions = async () => {
     if (!selectedStaff) return;
 
+    if (!canEditInTab('settings')) {
+      showPermissionError();
+      return;
+    }
+
     try {
       // Delete existing permissions
       const { error: deleteError } = await supabase
@@ -167,6 +187,7 @@ export function StaffManagement() {
           staff_user_id: selectedStaff.id,
           tab_name: tabKey,
           can_view: perms.view,
+          can_create: perms.create,
           can_edit: perms.edit,
           can_delete: perms.delete,
         }));
@@ -216,15 +237,54 @@ export function StaffManagement() {
     }
   };
 
+  const handleResetPassword = async (staff: StaffUser) => {
+    if (!canEditInTab('settings')) {
+      showPermissionError();
+      return;
+    }
+
+    try {
+      // Generate a new password - using last 4 digits of phone number
+      const newPassword = staff.phone_number.slice(-4);
+
+      const { error } = await supabase
+        .from('staff_users')
+        .update({ 
+          password_hash: newPassword,
+          is_first_login: true 
+        })
+        .eq('id', staff.id);
+
+      if (error) throw error;
+
+      toast.success(`Password reset successfully! New password: ${newPassword}`, {
+        duration: 8000,
+        description: 'The staff member will be prompted to change this on first login.'
+      });
+      
+      setShowResetPasswordModal(false);
+      setStaffToReset(null);
+      loadStaffMembers();
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+        toast.error('Database not reachable. Check your internet');
+      } else {
+        toast.error('Failed to reset password');
+      }
+    }
+  };
+
   const openEditModal = (staff: StaffUser) => {
     setSelectedStaff(staff);
     
     // Initialize permissions
-    const perms: {[key: string]: {view: boolean, edit: boolean, delete: boolean}} = {};
+    const perms: {[key: string]: {view: boolean, create: boolean, edit: boolean, delete: boolean}} = {};
     AVAILABLE_TABS.forEach(tab => {
       const existing = staff.permissions?.find(p => p.tab_name === tab.key);
       perms[tab.key] = {
         view: existing?.can_view || false,
+        create: existing?.can_create || false,
         edit: existing?.can_edit || false,
         delete: existing?.can_delete || false,
       };
@@ -244,19 +304,20 @@ export function StaffManagement() {
     setSelectedPermissions({});
   };
 
-  const togglePermission = (tabKey: string, permType: 'view' | 'edit' | 'delete') => {
+  const togglePermission = (tabKey: string, permType: 'view' | 'create' | 'edit' | 'delete') => {
     setSelectedPermissions(prev => {
-      const current = prev[tabKey] || { view: false, edit: false, delete: false };
+      const current = prev[tabKey] || { view: false, create: false, edit: false, delete: false };
       const updated = { ...current, [permType]: !current[permType] };
       
-      // If view is disabled, disable edit and delete too
+      // If view is disabled, disable create, edit and delete too
       if (permType === 'view' && !updated.view) {
+        updated.create = false;
         updated.edit = false;
         updated.delete = false;
       }
       
-      // If edit or delete is enabled, enable view
-      if ((permType === 'edit' || permType === 'delete') && updated[permType]) {
+      // If create, edit or delete is enabled, enable view
+      if ((permType === 'create' || permType === 'edit' || permType === 'delete') && updated[permType]) {
         updated.view = true;
       }
       
@@ -361,6 +422,16 @@ export function StaffManagement() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={() => {
+                      setStaffToReset(staff);
+                      setShowResetPasswordModal(true);
+                    }}
+                    className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                    title="Reset Password"
+                  >
+                    <Key className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => openEditModal(staff)}
                     className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     title="Edit Permissions"
@@ -424,13 +495,16 @@ export function StaffManagement() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email (Optional)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="john@example.com"
+                    required
                   />
                 </div>
 
@@ -459,7 +533,7 @@ export function StaffManagement() {
                 
                 <div className="space-y-2">
                   {AVAILABLE_TABS.map(tab => {
-                    const perms = selectedPermissions[tab.key] || { view: false, edit: false, delete: false };
+                    const perms = selectedPermissions[tab.key] || { view: false, create: false, edit: false, delete: false };
                     return (
                       <div key={tab.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                         <span className="font-medium text-gray-900">{tab.name}</span>
@@ -472,6 +546,16 @@ export function StaffManagement() {
                               className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                             />
                             <span className="text-sm text-gray-700">View</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={perms.create}
+                              onChange={() => togglePermission(tab.key, 'create')}
+                              disabled={!perms.view}
+                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 disabled:opacity-50"
+                            />
+                            <span className="text-sm text-gray-700">Create</span>
                           </label>
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -535,7 +619,7 @@ export function StaffManagement() {
             <div className="p-6 space-y-4">
               <div className="space-y-2">
                 {AVAILABLE_TABS.map(tab => {
-                  const perms = selectedPermissions[tab.key] || { view: false, edit: false, delete: false };
+                  const perms = selectedPermissions[tab.key] || { view: false, create: false, edit: false, delete: false };
                   return (
                     <div key={tab.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                       <span className="font-medium text-gray-900">{tab.name}</span>
@@ -548,6 +632,16 @@ export function StaffManagement() {
                             className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                           />
                           <span className="text-sm text-gray-700">View</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={perms.create}
+                            onChange={() => togglePermission(tab.key, 'create')}
+                            disabled={!perms.view}
+                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 disabled:opacity-50"
+                          />
+                          <span className="text-sm text-gray-700">Create</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -591,6 +685,37 @@ export function StaffManagement() {
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 Update Permissions
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {showResetPasswordModal && staffToReset && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#2A2A3C] rounded-lg shadow-2xl w-full max-w-md">
+            <div className="p-6 space-y-4">
+              <p className="text-white text-base">
+                Are you sure you want to reset the password for <strong>{staffToReset.full_name}</strong>?
+              </p>
+            </div>
+
+            <div className="px-6 pb-6 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowResetPasswordModal(false);
+                  setStaffToReset(null);
+                }}
+                className="px-6 py-2 bg-[#1A3A52] text-white rounded-lg hover:bg-[#2A4A62] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleResetPassword(staffToReset)}
+                className="px-6 py-2 bg-[#7B9FCC] text-white rounded-lg hover:bg-[#8BAFD8] transition-colors"
+              >
+                OK
               </button>
             </div>
           </div>

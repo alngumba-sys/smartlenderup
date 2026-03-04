@@ -7,6 +7,7 @@ import { AddPayrollModal } from '../modals/AddPayrollModal';
 import { PayrollDetailsModal } from '../modals/PayrollDetailsModal';
 import { PayrollCommissionsTab } from './PayrollCommissionsTab';
 import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
+import { canCreateInTab, canEditInTab, canDeleteInTab, showPermissionError } from '../../utils/staffPermissions';
 
 export function PayrollTab() {
   const { isDark } = useTheme();
@@ -185,7 +186,13 @@ export function PayrollTab() {
               <option>Cancelled</option>
             </select>
             <button
-              onClick={() => setShowAddPayrollModal(true)}
+              onClick={() => {
+                if (!canCreateInTab('payroll')) {
+                  showPermissionError();
+                  return;
+                }
+                setShowAddPayrollModal(true);
+              }}
               className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 whitespace-nowrap text-sm"
             >
               <Plus className="size-4" />

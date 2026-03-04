@@ -8,6 +8,7 @@ import { ProductLoansModal } from '../modals/ProductLoansModal';
 import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { canCreateInTab, canEditInTab, canDeleteInTab, showPermissionError } from '../../utils/staffPermissions';
 
 export function LoanProductsTab() {
   const { isDark } = useTheme();
@@ -289,6 +290,10 @@ export function LoanProductsTab() {
   };
 
   const handleDeleteProduct = (product: any) => {
+    if (!canDeleteInTab('operations_products')) {
+      showPermissionError();
+      return;
+    }
     const productLoans = validLoans.filter(l => l.productId === product.id);
     if (productLoans.length > 0) {
       alert(`Cannot delete "${product.name}" because it has ${productLoans.length} loan(s) attached to it.`);
@@ -310,7 +315,13 @@ export function LoanProductsTab() {
             </p>
           </div>
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={() => {
+              if (!canCreateInTab('operations_products')) {
+                showPermissionError();
+                return;
+              }
+              setShowAddModal(true);
+            }}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
           >
             + Add Product
@@ -389,7 +400,14 @@ export function LoanProductsTab() {
                       </div>
                       <div className="flex gap-1 ml-2">
                         <button
-                          onClick={(e) => { e.stopPropagation(); setProductToEdit(product); }}
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            if (!canEditInTab('operations_products')) {
+                              showPermissionError();
+                              return;
+                            }
+                            setProductToEdit(product); 
+                          }}
                           className={`p-2 ${isDark ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'} ${isDark ? 'text-gray-300' : 'text-gray-700'} rounded-lg transition-colors`}
                           title="Edit product"
                         >

@@ -5,6 +5,7 @@ export type StaffRole = 'manager' | 'staff' | 'loan_officer' | 'accountant' | 'c
 export interface TabPermission {
   tab_name: string;
   can_view: boolean;
+  can_create: boolean;
   can_edit: boolean;
   can_delete: boolean;
 }
@@ -30,6 +31,7 @@ export interface StaffPermission {
   staff_user_id: string;
   tab_name: string;
   can_view: boolean;
+  can_create: boolean;
   can_edit: boolean;
   can_delete: boolean;
 }

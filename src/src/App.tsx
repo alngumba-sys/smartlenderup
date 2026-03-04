@@ -25,7 +25,9 @@ import {
   Link2, 
   FolderInput, 
   Trash2, 
-  Copy 
+  Copy,
+  User,
+  ChevronDown
 } from 'lucide-react';
 import { runComprehensiveCleanup } from '../utils/databaseCleanup';
 import { getStorageUsage, cleanupAllAutoBackups } from '../utils/dataBackup';
@@ -40,6 +42,7 @@ import logoImage from "figma:asset/8c9a9782f822a04113fd7bff4f68f1bc0ac7a2af.png"
 import { QuickVerify } from '../components/diagnostics/QuickVerify';
 import { JournalEntryFixNotice } from '../components/diagnostics/JournalEntryFixNotice';
 import { PrincipalFixSummary } from '../components/diagnostics/PrincipalFixSummary';
+import { ProfileModal } from '../components/modals/ProfileModal';
 // Disabled temporarily to debug loading issues
 // import '../utils/devMigrationTools'; // Import developer migration tools for data updates
 
@@ -53,8 +56,14 @@ function AppContent() {
   const [hoveredSubmenu, setHoveredSubmenu] = useState<'share' | 'social-media' | string | null>(null);
   const [selectedMenuItem, setSelectedMenuItem] = useState<string>('');
   const [triggerTab, setTriggerTab] = useState<string | null>(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const { currentTheme, isDark } = useTheme();
+  
+  // Debug profile modal state
+  useEffect(() => {
+    console.log('🔵 Profile Modal State:', showProfileModal);
+  }, [showProfileModal]);
   
   const organizationName = getOrganizationName();
   const countryDemonym = getCountryDemonym();
@@ -127,6 +136,14 @@ function AppContent() {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      
+      // Don't close if clicking on a button inside the dropdown
+      if (target.closest('button')?.textContent?.includes('My Profile') || 
+          target.closest('button')?.textContent?.includes('Log Out')) {
+        return;
+      }
+      
       if (headerRef.current && !headerRef.current.contains(event.target as Node)) {
         setOpenHeaderDropdown(null);
       }
@@ -262,7 +279,7 @@ function AppContent() {
     >
       {/* Portal Selector */}
       <div 
-        className="border-b px-4 sm:px-6 md:px-8 py-2 flex-shrink-0 transition-colors backdrop-blur-md"
+        className="border-b px-4 sm:px-6 md:px-8 py-2 flex-shrink-0 transition-colors backdrop-blur-md relative z-[10000]"
         style={{
           backgroundColor: 'rgba(17, 17, 32, 0.85)',
           borderColor: 'rgba(255, 255, 255, 0.1)'
@@ -542,32 +559,81 @@ function AppContent() {
               )}
             </div>
 
-            {/* User Info & Logout */}
-            <div className="flex items-center gap-2 ml-2 pl-2 border-l border-white/20">
-              <div className="text-right hidden sm:block">
-                <p className="text-xs text-white font-bold">
-                  {(() => {
-                    console.log('🔍 Current User:', currentUser);
-                    console.log('🔍 userType:', currentUser?.userType);
-                    console.log('🔍 role:', currentUser?.role);
-                    return currentUser?.userType === 'staff' ? 'Staff' : currentUser?.role;
-                  })()}
-                </p>
-                <p className="text-xs text-white/70 text-[rgba(175,175,182,0.7)]">
-                  {currentUser?.email}
-                </p>
-              </div>
+            {/* User Info & Profile Dropdown */}
+            <div className="relative flex items-center gap-2 ml-2 pl-2 border-l border-white/20">
               <button
-                onClick={handleLogout}
-                className="p-2 rounded-lg transition-colors bg-white/10 hover:bg-white/20 text-white"
-                title="Logout"
+                onClick={() => setOpenHeaderDropdown(openHeaderDropdown === 'profile' ? null : 'profile')}
+                className="flex items-center gap-2 p-2 rounded-lg transition-colors hover:bg-white/10"
               >
-                <LogOut className="size-5" />
+                <div className="text-right hidden sm:block">
+                  <p className="text-xs text-white font-bold">
+                    {currentUser?.name}
+                  </p>
+                  <p className="text-xs text-white/70 text-[rgba(175,175,182,0.7)]">
+                    {currentUser?.email}
+                  </p>
+                </div>
+                <ChevronDown className={`size-4 text-white transition-transform ${openHeaderDropdown === 'profile' ? 'rotate-180' : ''}`} />
               </button>
+
+              {/* Profile Dropdown */}
+              {openHeaderDropdown === 'profile' && (
+                <div 
+                  className="absolute top-full right-0 mt-2 rounded-lg shadow-xl border py-2 min-w-[200px] z-[9999]"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  style={{
+                    backgroundColor: currentTheme.darkColors.menuBackground,
+                    borderColor: currentTheme.darkColors.border
+                  }}
+                >
+                  <button
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('🔵 My Profile clicked, opening modal...');
+                      setShowProfileModal(true);
+                      setOpenHeaderDropdown(null);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors"
+                    style={{
+                      color: currentTheme.darkColors.menuText
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = currentTheme.darkColors.menuHover}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <User className="size-4" />
+                    <span>My Profile</span>
+                  </button>
+
+                  <button
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('🔴 Log Out clicked...');
+                      handleLogout();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors"
+                    style={{
+                      color: currentTheme.darkColors.menuText
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = currentTheme.darkColors.menuHover}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <LogOut className="size-4" />
+                    <span>Log Out</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Profile Modal */}
+      <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />
 
       {/* Main Navigation */}
       {portalView === 'staff' && (
