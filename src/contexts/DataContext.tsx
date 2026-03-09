@@ -14,13 +14,14 @@ import {
 import { initializeAutoBackup } from '../utils/dataBackup';
 // ✅ NEW: Supabase-First Architecture
 import { supabaseDataService } from '../services/supabaseDataService';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseAvailable, isPreviewEnvironment } from '../lib/supabase';
 // ✅ DEPRECATED: Old sync patterns (keeping for backwards compatibility during transition)
 import { saveProjectState, loadProjectState, type ProjectState } from '../utils/singleObjectSync';
 import { ensureSupabaseSync, type SyncResult } from '../utils/ensureSupabaseSync';
 import { migrateClientIds, applyMigration } from '../utils/migrateClientIds';
 import { getCurrencyCode } from '../utils/currencyUtils';
 import { toast } from 'sonner@2.0.3';
+import { showDatabaseError } from '../utils/toastUtils';
 import { 
   autoCheckAndMigrate, 
   showMigrationNotification,
@@ -1519,7 +1520,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('❌ Error loading loan products from Supabase:', error);
-            toast.error('Database not reachable. Check your internet connection.');
+            showDatabaseError('Database not reachable. Check your internet connection.');
             setLoanProducts([]);
           }
           
@@ -1574,7 +1575,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('❌ Error loading bank accounts from Supabase:', error);
-            toast.error('Database not reachable. Check your internet connection.');
+            showDatabaseError('Database not reachable. Check your internet connection.');
             setBankAccounts([]);
           }
           
@@ -1638,13 +1639,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
             if (error?.message?.includes('column') && error?.message?.includes('does not exist')) {
               console.log('⚠️ SCHEMA ERROR: shareholders table is missing columns');
               console.log('📖 See SUPABASE_README.md for setup instructions');
-              toast.error('Shareholders table not set up. See console for instructions.');
+              if (!isPreviewEnvironment()) {
+                toast.error('Shareholders table not set up. See console for instructions.');
+              }
             } else if (error?.code === 'PGRST204' || error?.message?.includes('schema cache')) {
               console.log('⚠️ SCHEMA ERROR: shareholders table not found or has wrong schema');
               console.log('📖 See SUPABASE_README.md for setup instructions');
-              toast.error('Shareholders table not found. See console for setup instructions.');
+              if (!isPreviewEnvironment()) {
+                toast.error('Shareholders table not found. See console for setup instructions.');
+              }
             } else {
-              toast.error('Database not reachable. Check your internet connection.');
+              showDatabaseError('Database not reachable. Check your internet connection.');
             }
             
             setShareholders([]);
@@ -1695,7 +1700,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('❌ Error loading funding transactions from Supabase:', error);
-            toast.error('Database not reachable. Check your internet connection.');
+            showDatabaseError('Database not reachable. Check your internet connection.');
             setFundingTransactions([]);
           }
           
@@ -1739,7 +1744,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('❌ Error loading expenses from Supabase:', error);
-            toast.error('Database not reachable. Check your internet connection.');
+            showDatabaseError('Database not reachable. Check your internet connection.');
             setExpenses([]);
           }
           
@@ -1832,7 +1837,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('❌ Error loading clients from Supabase:', error);
-            toast.error('Database not reachable. Check your internet connection.');
+            showDatabaseError('Database not reachable. Check your internet connection.');
             setClients([]);
             console.log('   ⚠️  Clients state set to empty array due to error');
           }
@@ -2091,7 +2096,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('❌ Error loading loans from Supabase:', error);
-            toast.error('Database not reachable. Check your internet connection.');
+            showDatabaseError('Database not reachable. Check your internet connection.');
             setLoans([]);
             console.log('   ⚠️  Loans state set to empty array due to error');
           }
@@ -2152,7 +2157,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('❌ Error loading approvals from Supabase:', error);
-            toast.error('Database not reachable. Check your internet connection.');
+            showDatabaseError('Database not reachable. Check your internet connection.');
             setApprovals([]);
             console.log('   ⚠️  Approvals state set to empty array due to error');
           }
@@ -2220,7 +2225,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('❌ Error loading repayments from Supabase:', error);
-            toast.error('Database not reachable. Check your internet connection.');
+            showDatabaseError('Database not reachable. Check your internet connection.');
             setRepayments([]);
             console.log('   ⚠️  Repayments state set to empty array due to error');
           }
@@ -2488,8 +2493,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           // Remove toast notification on data load to avoid duplicate notifications on login
         } else {
           // ❌ NO FALLBACK - Supabase connection required
-          console.error('❌ Could not load project state from Supabase');
-          toast.error('Database not reachable. Check your internet connection.');
+          console.log('ℹ️ Could not load project state from Supabase (preview environment)');
+          // Don't show error toast in preview environment
           
           // Set empty arrays - NO mock data, NO localStorage fallback
           setClients([]);
@@ -2521,7 +2526,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error('❌ Error loading data from Supabase:', error);
-        toast.error('Database not reachable. Check your internet connection.');
+        showDatabaseError('Database not reachable. Check your internet connection.');
         
         // ❌ NO FALLBACK - Set empty arrays, NO mock data
         setClients([]);
@@ -3619,7 +3624,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       
       // Show user-facing error notification
       if (error.message?.includes('offline') || error.message?.includes('network')) {
-        toast.error('Database not reachable. Check your internet connection.');
+        showDatabaseError('Database not reachable. Check your internet connection.');
       } else {
         toast.error(`Failed to delete loan: ${error.message}`);
       }
@@ -4496,7 +4501,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       
       // Show user-facing error notification
       if (error.message?.includes('offline') || error.message?.includes('network')) {
-        toast.error('Database not reachable. Check your internet connection.');
+        showDatabaseError('Database not reachable. Check your internet connection.');
       } else {
         toast.error(`Failed to delete loan product: ${error.message}`);
       }
@@ -4723,7 +4728,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       
     } catch (error) {
       console.error('❌ Error creating shareholder:', error);
-      toast.error('Database not reachable. Check your internet connection.');
+      showDatabaseError('Database not reachable. Check your internet connection.');
     }
   };
 
@@ -4785,7 +4790,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
     } catch (error: any) {
       console.error('❌ Error refreshing shareholders:', error);
-      toast.error('Database not reachable. Check your internet connection.');
+      showDatabaseError('Database not reachable. Check your internet connection.');
     }
   };
 
@@ -4954,7 +4959,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       
     } catch (error) {
       console.error('❌ Error creating expense:', error);
-      toast.error('Database not reachable. Check your internet connection.');
+      showDatabaseError('Database not reachable. Check your internet connection.');
       throw error;
     }
   };
@@ -5136,7 +5141,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       
     } catch (error) {
       console.error('❌ Error creating payee:', error);
-      toast.error('Database not reachable. Check your internet connection.');
+      showDatabaseError('Database not reachable. Check your internet connection.');
     }
   };
 
@@ -5205,7 +5210,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       
     } catch (error) {
       console.error('❌ Error creating payroll run:', error);
-      toast.error('Database not reachable. Check your internet connection.');
+      showDatabaseError('Database not reachable. Check your internet connection.');
       throw error;
     }
   };
@@ -5611,7 +5616,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       
     } catch (error) {
       console.error('❌ Error creating bank account:', error);
-      toast.error('Database not reachable. Check your internet connection.');
+      showDatabaseError('Database not reachable. Check your internet connection.');
     }
   };
 
@@ -5687,7 +5692,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       );
     } catch (error) {
       console.error('❌ Error saving funding transaction to Supabase:', error);
-      toast.error('Database not reachable. Check your internet connection.');
+      showDatabaseError('Database not reachable. Check your internet connection.');
       // Revert local state
       setFundingTransactions(fundingTransactions);
     }

@@ -12,6 +12,9 @@ import { safePercentage, safeToFixed } from '../../utils/safeCalculations';
 import { getOrganizationName } from '../../utils/organizationUtils';
 import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
 import { canCreateInTab, canEditInTab, canDeleteInTab, showPermissionError } from '../../utils/staffPermissions';
+import { usePermissions } from '../../contexts/PermissionsContext';
+import { PermissionGate, PermissionButton } from '../PermissionGate';
+import { PERMISSIONS } from '../../utils/permissions';
 
 interface ClientsTabProps {
   onClientSelect: (clientId: string) => void;
@@ -23,6 +26,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
   const navigation = useNavigation();
   const { clients, loans, addClient, calculateClientCreditScore, updateClient, deleteClient } = useData();
   const organizationName = getOrganizationName();
+  const { hasPermission } = usePermissions();
   const [clientTypeTab, setClientTypeTab] = useState<'individual' | 'business'>('individual');
   const [activeSubTab, setActiveSubTab] = useState<'all' | 'send-sms' | 'send-email' | 'invite'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -145,7 +149,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
       staffMemberId: clientData.staffMemberId || undefined
     });
     setShowNewClientModal(false);
-    toast.success(`${clientData.clientType === 'business' ? 'Business' : 'Individual'} borrower added successfully!`);
+    toast.success(`${clientData.clientType === 'business' ? 'Business' : 'Individual'} client added successfully!`);
   };
 
   const handleDeleteClient = (clientId: string, clientName: string, e: React.MouseEvent) => {
@@ -249,19 +253,23 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className={isDark ? 'text-white' : 'text-gray-900'}>Borrower Management</h2>
-          <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Manage all your borrowers and their information</p>
+          <h2 className={isDark ? 'text-white' : 'text-gray-900'}>Client Management</h2>
+          <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Manage all your clients and their information</p>
         </div>
-        <button className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 text-sm" onClick={() => {
-          if (!canCreateInTab('operations_clients')) {
-            showPermissionError();
-            return;
-          }
-          setShowNewClientModal(true);
-        }}>
+        <PermissionButton
+          permission={PERMISSIONS.CLIENTS.ADD_CLIENT}
+          className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 text-sm"
+          onClick={() => {
+            if (!hasPermission(PERMISSIONS.CLIENTS.ADD_CLIENT)) {
+              toast.error('You don\'t have permission to add clients');
+              return;
+            }
+            setShowNewClientModal(true);
+          }}
+        >
           <Plus className="size-4" />
-          Add Borrower
-        </button>
+          Add Client
+        </PermissionButton>
       </div>
 
       {/* Client Type Tabs */}
@@ -304,7 +312,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
               : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          View Borrowers
+          View Clients
         </button>
         <button
           onClick={() => setActiveSubTab('send-sms')}
@@ -314,7 +322,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
               : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          Send SMS to All Borrowers
+          Send SMS to All Clients
         </button>
         <button
           onClick={() => setActiveSubTab('send-email')}
@@ -324,7 +332,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
               : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          Send Email to All Borrowers
+          Send Email to All Clients
         </button>
         <button
           onClick={() => setActiveSubTab('invite')}
@@ -334,7 +342,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
               : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          Invite Borrowers
+          Invite Clients
         </button>
       </div>
 
@@ -693,9 +701,9 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
             <div className="flex items-center gap-3 mb-6">
               <Phone className="size-8 text-blue-600 dark:text-blue-400" />
               <div>
-                <h3 className={isDark ? 'text-white' : 'text-gray-900'}>Send SMS to All Borrowers</h3>
+                <h3 className={isDark ? 'text-white' : 'text-gray-900'}>Send SMS to All Clients</h3>
                 <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Send bulk SMS messages to all active borrowers in your system
+                  Send bulk SMS messages to all active clients in your system
                 </p>
               </div>
             </div>
@@ -708,9 +716,9 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
                 <select className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
                 }`}>
-                  <option>All active borrowers ({clients.filter(c => c.status === 'Active').length})</option>
-                  <option>Borrowers in good standing</option>
-                  <option>Borrowers with active loans</option>
+                  <option>All active clients ({clients.filter(c => c.status === 'Active').length})</option>
+                  <option>Clients in good standing</option>
+                  <option>Clients with active loans</option>
                   <option>Custom selection</option>
                 </select>
               </div>
@@ -742,7 +750,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
 
               <div className={`p-4 rounded-lg ${isDark ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'} border`}>
                 <p className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-800'}`}>
-                  <strong>Recipients:</strong> {clients.filter(c => c.status === 'Active').length} borrowers | 
+                  <strong>Recipients:</strong> {clients.filter(c => c.status === 'Active').length} clients | 
                   <strong> Cost:</strong> KES {clients.filter(c => c.status === 'Active').length * 10} (KES 10 per SMS)
                 </p>
               </div>
@@ -750,7 +758,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
               <button
                 onClick={() => {
                   toast.success('SMS Sent Successfully', {
-                    description: `Messages sent to ${clients.filter(c => c.status === 'Active').length} borrowers`,
+                    description: `Messages sent to ${clients.filter(c => c.status === 'Active').length} clients`,
                     duration: 5000,
                   });
                 }}
@@ -771,9 +779,9 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
             <div className="flex items-center gap-3 mb-6">
               <Mail className="size-8 text-purple-600 dark:text-purple-400" />
               <div>
-                <h3 className={isDark ? 'text-white' : 'text-gray-900'}>Send Email to All Borrowers</h3>
+                <h3 className={isDark ? 'text-white' : 'text-gray-900'}>Send Email to All Clients</h3>
                 <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Send bulk email messages to all active borrowers in your system
+                  Send bulk email messages to all active clients in your system
                 </p>
               </div>
             </div>
@@ -786,9 +794,9 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
                 <select className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${
                   isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
                 }`}>
-                  <option>All active borrowers ({clients.filter(c => c.status === 'Active').length})</option>
-                  <option>Borrowers in good standing</option>
-                  <option>Borrowers with active loans</option>
+                  <option>All active clients ({clients.filter(c => c.status === 'Active').length})</option>
+                  <option>Clients in good standing</option>
+                  <option>Clients with active loans</option>
                   <option>Custom selection</option>
                 </select>
               </div>
@@ -846,7 +854,7 @@ SmartLenderUp Team`}
 
               <div className={`p-4 rounded-lg ${isDark ? 'bg-purple-900/20 border-purple-800' : 'bg-purple-50 border-purple-200'} border`}>
                 <p className={`text-sm ${isDark ? 'text-purple-300' : 'text-purple-800'}`}>
-                  <strong>Recipients:</strong> {clients.filter(c => c.status === 'Active').length} borrowers | 
+                  <strong>Recipients:</strong> {clients.filter(c => c.status === 'Active').length} clients | 
                   <strong> Emails will be sent from:</strong> noreply@bvfunguo.co.ke
                 </p>
               </div>
@@ -854,7 +862,7 @@ SmartLenderUp Team`}
               <button
                 onClick={() => {
                   toast.success('Emails Sent Successfully', {
-                    description: `Messages sent to ${clients.filter(c => c.status === 'Active').length} borrowers`,
+                    description: `Messages sent to ${clients.filter(c => c.status === 'Active').length} clients`,
                     duration: 5000,
                   });
                 }}
@@ -875,9 +883,9 @@ SmartLenderUp Team`}
             <div className="flex items-center gap-3 mb-6">
               <UserPlus className="size-8 text-emerald-600 dark:text-emerald-400" />
               <div>
-                <h3 className={isDark ? 'text-white' : 'text-gray-900'}>Invite Borrowers</h3>
+                <h3 className={isDark ? 'text-white' : 'text-gray-900'}>Invite Clients</h3>
                 <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Send invitations to potential borrowers to join your microfinance platform
+                  Send invitations to potential clients to join your microfinance platform
                 </p>
               </div>
             </div>
@@ -1000,14 +1008,14 @@ For more information, contact us at +254 700 000 000.`}
                   <div className="space-y-3">
                     <h4 className="text-gray-900 dark:text-white">Client Base Overview</h4>
                     <p className="text-gray-600 dark:text-gray-300 text-sm">
-                      Your total client base represents all borrowers who have an active relationship with {organizationName}. 
+                      Your total client base represents all clients who have an active relationship with {organizationName}. 
                       This includes clients with active loans, those in good standing, and those who may need follow-up.
                     </p>
                     
                     <h4 className="text-gray-900 dark:text-white mt-4">Client Breakdown</h4>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <p className="text-gray-600 dark:text-gray-400 text-xs">Active Borrowers</p>
+                        <p className="text-gray-600 dark:text-gray-400 text-xs">Active Clients</p>
                         <p className="text-gray-900 dark:text-white">{totalClients} clients</p>
                       </div>
                       <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
@@ -1079,7 +1087,7 @@ For more information, contact us at +254 700 000 000.`}
                   <div className="space-y-3">
                     <h4 className="text-gray-900 dark:text-white">What is Good Standing?</h4>
                     <p className="text-gray-600 dark:text-gray-300 text-sm">
-                      Clients in Good Standing are borrowers who consistently make their loan payments on time, have no overdue amounts, 
+                      Clients in Good Standing are clients who consistently make their loan payments on time, have no overdue amounts, 
                       and maintain a positive relationship with the institution. These are your most reliable clients.
                     </p>
                     

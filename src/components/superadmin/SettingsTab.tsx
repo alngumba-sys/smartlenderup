@@ -5,6 +5,7 @@ import { SchemaMigrationPanel } from '../SchemaMigrationPanel';
 import { migrateAllOrganizations } from '../../utils/migrateProjectStatesToTables';
 import { toast } from 'sonner@2.0.3';
 import { supabase } from '../../lib/supabase';
+import { showDatabaseError } from '../../utils/toastUtils';
 
 export function SettingsTab() {
   const [platformName, setPlatformName] = useState('SmartLenderUp');
@@ -101,7 +102,7 @@ export function SettingsTab() {
         .limit(1);
 
       if (connectionError) {
-        toast.error('Database not reachable. Check your internet');
+        showDatabaseError('Database not reachable. Check your internet');
         setIsClearing(false);
         return;
       }

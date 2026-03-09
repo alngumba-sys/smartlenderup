@@ -39,6 +39,29 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 });
 
+// Track if Supabase is available
+let supabaseAvailable = false;
+let supabaseCheckComplete = false;
+
+// Helper to check if we're in a preview/sandboxed environment
+export const isPreviewEnvironment = () => {
+  if (typeof window === 'undefined') return false;
+  
+  // Check for Figma iframe preview
+  if (window.location.hostname.includes('figma')) return true;
+  
+  // Check for blob: URLs (common in sandboxed environments)
+  if (window.location.protocol === 'blob:') return true;
+  
+  return false;
+};
+
+// Helper to check if Supabase is available
+export const isSupabaseAvailable = () => supabaseAvailable;
+
+// Helper to check if the availability check is complete
+export const isSupabaseCheckComplete = () => supabaseCheckComplete;
+
 // Test connection on initialization with better error handling
 if (typeof window !== 'undefined') {
   // Add a small delay to avoid immediate test on page load
@@ -48,42 +71,48 @@ if (typeof window !== 'undefined') {
       .select('id')
       .limit(1)
       .then(({ error }) => {
+        supabaseCheckComplete = true;
+        
         if (error) {
-          console.error('🚨 SUPABASE CONNECTION ERROR:', {
-            message: error.message,
-            hint: error.hint,
-            code: error.code
-          });
-          console.error('📋 Possible issues:');
-          console.error('   1. Supabase project is PAUSED (check dashboard)');
-          console.error('   2. Supabase project was DELETED');
-          console.error('   3. Network/CORS configuration issue');
-          console.error('   4. Invalid credentials in /lib/supabase.ts');
-          console.error('');
-          console.error('🔧 How to fix:');
-          console.error('   → Go to https://supabase.com/dashboard');
-          console.error('   → Check if project "yrsnylrcgejnrxphjvtf" exists');
-          console.error('   → If paused, click "Restore project"');
-          console.error('   → If deleted, create a new project and update credentials');
+          // Only log detailed errors if it's NOT a simple fetch failure
+          if (error.message !== 'Failed to fetch') {
+            console.error('🚨 SUPABASE CONNECTION ERROR:', {
+              message: error.message,
+              hint: error.hint,
+              code: error.code
+            });
+            console.error('📋 Possible issues:');
+            console.error('   1. Supabase project is PAUSED (check dashboard)');
+            console.error('   2. Supabase project was DELETED');
+            console.error('   3. Network/CORS configuration issue');
+            console.error('   4. Invalid credentials in /lib/supabase.ts');
+            console.error('');
+            console.error('🔧 How to fix:');
+            console.error('   → Go to https://supabase.com/dashboard');
+            console.error('   → Check if project "yrsnylrcgejnrxphjvtf" exists');
+            console.error('   → If paused, click "Restore project"');
+            console.error('   → If deleted, create a new project and update credentials');
+          } else {
+            // Simple fetch failure - likely preview environment restriction
+            if (!isPreviewEnvironment()) {
+              console.warn('⚠️ Supabase connection failed - check your internet connection');
+            } else {
+              console.log('ℹ️ Preview environment detected - Supabase not available');
+            }
+          }
         } else {
+          supabaseAvailable = true;
           console.log('✅ Supabase connection successful!');
         }
       })
       .catch((err) => {
-        // Only log network errors if we're actually online
-        if (navigator.onLine) {
-          console.error('🚨 NETWORK ERROR:', err);
-          console.error('   This usually means:');
-          console.error('   - Supabase project is paused/deleted');
-          console.error('   - CORS/firewall blocking the request');
-          console.error('   - Running in a restricted preview environment');
-          console.error('');
-          console.error('   ✅ Your Supabase credentials are correctly configured');
-          console.error('   ✅ This may be a temporary network issue in the preview');
-          console.error('   ✅ The app will work normally when deployed to production');
+        supabaseCheckComplete = true;
+        // Suppress noisy network errors in preview environments
+        if (!isPreviewEnvironment()) {
+          console.warn('⚠️ Cannot connect to Supabase - check your internet connection');
         } else {
-          console.warn('⚠️ Browser is offline. Supabase connection test skipped.');
+          console.log('ℹ️ Preview environment detected - Supabase not available');
         }
       });
-  }, 1000); // Wait 1 second before testing connection
+  }, 500); // Wait 0.5 seconds before testing connection
 }

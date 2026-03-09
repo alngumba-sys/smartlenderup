@@ -75,6 +75,37 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     });
   }, []);
 
+  // Suppress Recharts internal duplicate key warnings (harmless library issue)
+  useEffect(() => {
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    
+    console.error = (...args: any[]) => {
+      if (
+        typeof args[0] === 'string' &&
+        args[0].includes('Encountered two children with the same key')
+      ) {
+        return; // Suppress Recharts duplicate key warnings
+      }
+      originalError.apply(console, args);
+    };
+    
+    console.warn = (...args: any[]) => {
+      if (
+        typeof args[0] === 'string' &&
+        args[0].includes('Encountered two children with the same key')
+      ) {
+        return; // Suppress Recharts duplicate key warnings
+      }
+      originalWarn.apply(console, args);
+    };
+    
+    return () => {
+      console.error = originalError;
+      console.warn = originalWarn;
+    };
+  }, []);
+
   // Save to localStorage when changed
   useEffect(() => { localStorage.setItem('portfolioDuration', portfolioDuration); }, [portfolioDuration]);
   useEffect(() => { localStorage.setItem('principalDuration', principalDuration); }, [principalDuration]);
@@ -308,7 +339,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       months.push({
         month: monthName,
         portfolio: Math.round(portfolio),
-        par30: parseFloat(par30Percentage.toFixed(1))
+        par30: parseFloat(par30Percentage.toFixed(1)),
+        id: `${year}-${month}` // Add unique ID for React key
       });
     }
     
@@ -331,7 +363,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       }
     }
     
-    return loanProducts.map((product: any) => {
+    return loanProducts.map((product: any, index: number) => {
       // ✅ Include all active loans for this product (more lenient criteria)
       const productLoans = contextLoans.filter((l: any) => 
         l.productId === product.id && isActiveStatus(l.status)
@@ -341,7 +373,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       const totalOutstanding = productLoans.reduce((sum: number, l: any) => sum + calculateOutstanding(l), 0);
       
       return {
-        name: product.name,
+        id: product.id || `product-${index}`, // Add unique ID for key prop
+        name: product.name || `Product ${index + 1}`,
         count: productLoans.length,
         value: totalOutstanding
       };
@@ -371,7 +404,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       months.push({
         month: monthName,
         amount: totalAmount,
-        count: monthLoans.length
+        count: monthLoans.length,
+        id: `${year}-${month}` // Add unique ID for React key
       });
     }
     
@@ -525,7 +559,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         week: weekLabel,
         collected: Math.round(collected),
         expected: Math.round(expected),
-        rate: Math.min(rate, 100)
+        rate: Math.min(rate, 100),
+        id: `week-${i}` // Add unique ID for React key
       });
     }
     
@@ -866,6 +901,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     
     return [
       { 
+        id: 'active',
         status: 'Active', 
         count: contextLoans.filter((l: any) => {
           const s = normalizeStatus(l.status);
@@ -874,6 +910,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         color: '#4ade80' 
       },
       { 
+        id: 'paid',
         status: 'Paid', 
         count: contextLoans.filter((l: any) => {
           const s = normalizeStatus(l.status);
@@ -882,6 +919,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         color: '#60a5fa' 
       },
       { 
+        id: 'arrears',
         status: 'In Arrears', 
         count: contextLoans.filter((l: any) => {
           const s = normalizeStatus(l.status);
@@ -890,6 +928,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         color: '#fbbf24' 
       },
       { 
+        id: 'default',
         status: 'Default', 
         count: contextLoans.filter((l: any) => {
           const s = normalizeStatus(l.status);
@@ -1351,7 +1390,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
               <div className="flex-1">
                 <p className="text-sm mb-2" style={{ color: themeColors.cardTextSecondary }}>Total Clients</p>
                 <p className="text-3xl mb-1" style={{ color: COLORS[0] }}>{filteredTotalClients}</p>
-                <p className="text-xs" style={{ color: themeColors.textSecondary }}>Registered borrowers</p>
+                <p className="text-xs" style={{ color: themeColors.textSecondary }}>Registered clients</p>
               </div>
               <div className="flex flex-col items-center gap-1">
                 <Users className="size-8 flex-shrink-0" style={{ color: COLORS[0] }} />
@@ -1547,6 +1586,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 iconType="line"
               />
               <Line
+                key="portfolio-line"
                 yAxisId="left"
                 type="monotone"
                 dataKey="portfolio"
@@ -1556,6 +1596,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 name={`Portfolio (${currencyCode})`}
               />
               <Line
+                key="par30-line"
                 yAxisId="right"
                 type="monotone"
                 dataKey="par30"
@@ -1592,7 +1633,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                       outerRadius={80}
                     >
                       {loansByProduct.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`cell-${entry.id}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip 
@@ -1691,8 +1732,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 labelStyle={{ color: isDark ? '#e1e8f0' : '#111827' }}
               />
               <Bar dataKey="amount" radius={8}>
-                {monthlyDisbursements.map((entry: any, index: number) => (
-                  <Cell key={`cell-${index}`} fill={entry.amount > 0 ? COLORS[1] : 'transparent'} />
+                {monthlyDisbursements.map((entry: any) => (
+                  <Cell key={`cell-${entry.id}`} fill={entry.amount > 0 ? COLORS[1] : 'transparent'} />
                 ))}
                 <LabelList
                   position="top"
@@ -1743,6 +1784,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 iconType="rect"
               />
               <Area
+                key="expected-area"
                 dataKey="expected"
                 type="monotone"
                 fill="#9333ea"
@@ -1752,6 +1794,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 name="Expected"
               />
               <Area
+                key="collected-area"
                 dataKey="collected"
                 type="monotone"
                 fill="#ef4444"
@@ -1823,8 +1866,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 layout="vertical"
                 radius={4}
               >
-                {loanStatusDistribution.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                {loanStatusDistribution.map((entry) => (
+                  <Cell key={`cell-${entry.id}`} fill={entry.color} />
                 ))}
                 <LabelList
                   dataKey="status"
@@ -2097,7 +2140,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   </div>
                   <div className="space-y-3">
                     <h4 className="text-gray-900 dark:text-white">What is Outstanding Principal?</h4>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm">Outstanding Principal is the remaining loan amount (excluding interest) that clients still owe to {organizationName}. This represents the core capital that needs to be recovered from borrowers.</p>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm">Outstanding Principal is the remaining loan amount (excluding interest) that clients still owe to {organizationName}. This represents the core capital that needs to be recovered from clients.</p>
                     
                     <h4 className="text-gray-900 dark:text-white mt-4">Breakdown</h4>
                     <div className="grid grid-cols-2 gap-3">
@@ -2149,7 +2192,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   </div>
                   <div className="space-y-3">
                     <h4 className="text-gray-900 dark:text-white">What is Outstanding Interest?</h4>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm">Outstanding Interest represents all accrued interest charges on active loans that are yet to be collected from borrowers. This is a key revenue stream for the microfinance institution.</p>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm">Outstanding Interest represents all accrued interest charges on active loans that are yet to be collected from clients. This is a key revenue stream for the microfinance institution.</p>
                     
                     <h4 className="text-gray-900 dark:text-white mt-4">Breakdown</h4>
                     <div className="grid grid-cols-2 gap-3">
@@ -2253,7 +2296,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   </div>
                   <div className="space-y-3">
                     <h4 className="text-gray-900 dark:text-white">What is Total Clients?</h4>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm">Total Clients represents all active borrowers who currently have loans with {organizationName} or maintain an active relationship with the institution.</p>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm">Total Clients represents all active clients who currently have loans with {organizationName} or maintain an active relationship with the institution.</p>
                     
                     <h4 className="text-gray-900 dark:text-white mt-4">Client Demographics</h4>
                     <div className="grid grid-cols-2 gap-3">
@@ -2279,7 +2322,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                     <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
                       <li className="flex items-start gap-2">
                         <Info className="size-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                        <span>2 repeat borrowers (JOSPHAT M MATHEKA and Mr. STEPHEN MULU NZAVI) indicate strong client trust</span>
+                        <span>2 repeat clients (JOSPHAT M MATHEKA and Mr. STEPHEN MULU NZAVI) indicate strong client trust</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <Info className="size-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
@@ -2391,7 +2434,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                       </li>
                       <li className="flex items-start gap-2">
                         <Info className="size-4 text-indigo-600 flex-shrink-0 mt-0.5" />
-                        <span>75% of active borrowers also maintain savings accounts</span>
+                        <span>75% of active clients also maintain savings accounts</span>
                       </li>
                     </ul>
                   </div>

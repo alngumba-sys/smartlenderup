@@ -457,7 +457,7 @@ export function BankAccountsTab() {
       transactions.push({
         id: `loan-${loan.id}`,
         date: loan.disbursementDate,
-        description: `Loan Disbursement - ${loan.borrowerName} (${loan.loanId})`,
+        description: `Loan Disbursement - ${loan.clientName} (${loan.loanId})`,
         reference: loan.loanId,
         debit: loan.approvedAmount || loan.requestedAmount,
         credit: 0,
@@ -766,7 +766,7 @@ export function BankAccountsTab() {
                     const loanNumber = loan?.loanNumber || loan?.id || '-';
                     const loanId = loan?.id || '-';
                     const clientId = client?.clientId || '-';
-                    const clientName = client?.name || loan?.borrowerName || loan?.clientName || repayment?.clientName || transaction.depositor || '-';
+                    const clientName = client?.name || loan?.clientName || repayment?.clientName || transaction.depositor || '-';
                     const openingBalance = index < filteredArray.length - 1 
                       ? filteredArray[index + 1].balance 
                       : (transaction.balance - transaction.credit);

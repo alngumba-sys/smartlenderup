@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { DollarSign, Users, HardDrive, Save, Settings, ToggleLeft, ToggleRight, Percent, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner@2.0.3';
+import { showDatabaseError } from '../utils/toastUtils';
 
 interface PlanLimits {
   users: number;
@@ -164,7 +165,7 @@ export function PricingControlPanel() {
       
       if (connectionError) {
         console.error('❌ PricingControlPanel: Database not reachable:', connectionError);
-        toast.error('Database not reachable. Check your internet');
+        showDatabaseError('Database not reachable. Check your internet');
         setIsSaving(false);
         return;
       }

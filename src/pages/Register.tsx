@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'sonner@2.0.3';
 import { Building2, Mail, Lock, Globe, DollarSign, Phone, MapPin, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { showDatabaseError } from '../utils/toastUtils';
 
 interface RegisterPageProps {
   onSuccess: () => void;
@@ -111,10 +112,7 @@ export function RegisterPage({ onSuccess, onBackToLogin }: RegisterPageProps) {
 
     // Check Supabase connection BEFORE attempting registration
     if (!isSupabaseConnected) {
-      toast.error('Database not reachable. Check your internet', {
-        description: 'Cannot create organization without database connection',
-        duration: 6000,
-      });
+      showDatabaseError('Database not reachable. Check your internet');
       return;
     }
 
@@ -205,10 +203,7 @@ export function RegisterPage({ onSuccess, onBackToLogin }: RegisterPageProps) {
       if (error.message.includes('Failed to fetch') || 
           error.message.includes('NetworkError') ||
           error.message.includes('Database not reachable')) {
-        toast.error('Database not reachable. Check your internet', {
-          description: 'Please check your internet connection and try again',
-          duration: 6000,
-        });
+        showDatabaseError('Database not reachable. Check your internet');
       } else {
         // Other errors
         toast.error('Registration Failed', {

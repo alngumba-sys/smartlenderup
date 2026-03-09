@@ -80,7 +80,7 @@ export function GroupsTab() {
           className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 text-sm"
         >
           <Plus className="size-4" />
-          Add Borrowers Group
+          Add Client Group
         </button>
       </div>
 

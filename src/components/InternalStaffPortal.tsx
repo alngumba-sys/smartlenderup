@@ -6,6 +6,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '../contexts/NavigationContext';
 import { canViewTab, canEditInTab, canCreateInTab, canDeleteInTab } from '../utils/staffPermissions';
+import { PermissionsDebugPanel } from './PermissionsDebugPanel';
 import { DashboardTab } from './tabs/DashboardTab';
 import { ClientsTab } from './tabs/ClientsTab';
 import { InstitutionsTab } from './tabs/InstitutionsTab';
@@ -308,6 +309,8 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
         
         {activeTab === 'financial-statements' && <FinancialStatementsTab />}
       </div>
+
+      {/* 🔒 DEBUG: Permissions Debug Panel - Remove in production */}
     </div>
   );
 }

@@ -185,7 +185,10 @@ export async function saveProjectState(
         // Table doesn't exist - this is expected, silently skip
         console.log('ℹ️ project_states table not found - skipping centralized state save');
       } else {
-        console.warn('⚠️ Could not save project state (network issue) - will retry later');
+        // Suppress noisy network warnings in preview environments
+        if (error.message !== 'Failed to fetch') {
+          console.warn('⚠️ Could not save project state (network issue) - will retry later');
+        }
         // Don't show toast - this is a background operation
       }
       return false;
@@ -229,7 +232,6 @@ export async function loadProjectState(
     // Check network connectivity first
     if (!navigator.onLine) {
       console.warn('⚠️ No internet connection. Cannot load from Supabase.');
-      toast.error('No internet connection. Cannot load data from cloud.');
       return null;
     }
 
@@ -256,7 +258,10 @@ export async function loadProjectState(
         console.error('   Add to .env: VITE_SUPABASE_SERVICE_KEY=your_key_here');
         console.error('   Then restart: npm run dev');
       } else {
-        console.error('❌ Error loading project state:', error);
+        // Suppress error logging for common network issues
+        if (error.message !== 'Failed to fetch') {
+          console.error('❌ Error loading project state:', error);
+        }
       }
       return null;
     }

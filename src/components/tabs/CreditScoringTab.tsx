@@ -799,7 +799,7 @@ export function CreditScoringTab() {
               <div>
                 <p className={`text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Excellent (761-850)</p>
                 <p className={`text-xl mt-0.5 ${isDark ? 'text-white' : 'text-gray-900'}`}>{individualStats.excellent}</p>
-                <p className={`text-[9px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Premium borrowers</p>
+                <p className={`text-[9px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Premium clients</p>
               </div>
               <Award className={`size-7 text-emerald-500`} />
             </div>
@@ -811,7 +811,7 @@ export function CreditScoringTab() {
               <div>
                 <p className={`text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Good (701-760)</p>
                 <p className={`text-xl mt-0.5 ${isDark ? 'text-white' : 'text-gray-900'}`}>{individualStats.good}</p>
-                <p className={`text-[9px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Low risk borrowers</p>
+                <p className={`text-[9px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Low risk clients</p>
               </div>
               <CheckCircle className={`size-7 text-blue-500`} />
             </div>
@@ -856,7 +856,7 @@ export function CreditScoringTab() {
               <div>
                 <p className={`text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Excellent (761-850)</p>
                 <p className={`text-xl mt-0.5 ${isDark ? 'text-white' : 'text-gray-900'}`}>{businessStats.excellent}</p>
-                <p className={`text-[9px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Premium borrowers</p>
+                <p className={`text-[9px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Premium clients</p>
               </div>
               <Award className={`size-7 text-emerald-500`} />
             </div>
@@ -868,7 +868,7 @@ export function CreditScoringTab() {
               <div>
                 <p className={`text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Good (701-760)</p>
                 <p className={`text-xl mt-0.5 ${isDark ? 'text-white' : 'text-gray-900'}`}>{businessStats.good}</p>
-                <p className={`text-[9px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Low risk borrowers</p>
+                <p className={`text-[9px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Low risk clients</p>
               </div>
               <CheckCircle className={`size-7 text-blue-500`} />
             </div>

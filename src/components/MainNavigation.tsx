@@ -48,10 +48,10 @@ const navItems: NavItem[] = [
     hasDropdown: true,
     dropdownItems: [
       { label: 'Clients', icon: <Users className="size-4" />, value: 'clients', tabKey: 'operations_clients' },
-      { label: 'Institutions', icon: <Building2 className="size-4" />, value: 'institutions', tabKey: 'operations_clients' },
+      { label: 'Institutions', icon: <Building2 className="size-4" />, value: 'institutions', tabKey: 'operations_institutions' },
       { label: 'Loans', icon: <DollarSign className="size-4" />, value: 'loans', tabKey: 'operations_loans' },
-      { label: 'Loan Calculator', icon: <Calculator className="size-4" />, value: 'loan-calculator', tabKey: 'operations_loans' },
-      { label: 'Approval', icon: <GitBranch className="size-4" />, value: 'approval1', tabKey: 'operations_loans' },
+      { label: 'Loan Calculator', icon: <Calculator className="size-4" />, value: 'loan-calculator', tabKey: 'operations_calculator' },
+      { label: 'Approval', icon: <GitBranch className="size-4" />, value: 'approval1', tabKey: 'operations_approval' },
     ]
   },
   { 
@@ -60,7 +60,7 @@ const navItems: NavItem[] = [
     icon: <FileText className="size-4" />, 
     hasDropdown: true,
     dropdownItems: [
-      { label: 'Payments', icon: <CreditCard className="size-4" />, value: 'payments', tabKey: 'operations_loans' },
+      { label: 'Payments', icon: <CreditCard className="size-4" />, value: 'payments', tabKey: 'transactions_payments' },
       { label: 'Collection Sheets', icon: <FileText className="size-4" />, value: 'collection-sheets', tabKey: 'reports_collections' },
       { label: 'Loan Reconciliation', icon: <FileCheck className="size-4" />, value: 'loan-reconciliation', tabKey: 'accounting_journal' },
     ]
@@ -129,14 +129,30 @@ export function MainNavigation({ defaultValue = 'dashboard' }: MainNavigationPro
   // Filter navigation items based on staff permissions
   const filterNavItems = (items: NavItem[]): NavItem[] => {
     const isManagerUser = isManager();
-    console.log('🔍 Filtering navigation items. Is Manager?', isManagerUser);
+    console.log('🔍 [MainNavigation] Filtering navigation items. Is Manager?', isManagerUser);
+    
+    // Log localStorage data for debugging
+    try {
+      const userData = localStorage.getItem('bvfunguo_user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        console.log('🔍 [MainNavigation] User from localStorage:', {
+          name: user.name,
+          role: user.role,
+          hasGranularPermissions: !!user.granular_permissions,
+          hasGranularPermissionsCamel: !!user.granularPermissions
+        });
+      }
+    } catch (e) {
+      console.error('Error reading user data:', e);
+    }
     
     if (isManagerUser) {
-      console.log('✅ User is Manager - showing all navigation items');
+      console.log('✅ [MainNavigation] User is Manager - showing all navigation items');
       return items; // Managers see all navigation items
     }
 
-    console.log('👤 User is Staff - filtering based on permissions');
+    console.log('👤 [MainNavigation] User is Staff - filtering based on permissions');
     
     return items
       .map(item => ({ ...item })) // Create a shallow copy to avoid mutation

@@ -37,14 +37,18 @@ import { ThemeProvider } from '../contexts/ThemeContext';
 import { AuthProvider } from '../contexts/AuthContext';
 import { DataProvider } from '../contexts/DataContext';
 import { NavigationProvider } from '../contexts/NavigationContext';
+import { PermissionsProvider } from '../contexts/PermissionsContext';
 import { BV_FUNGUO_LOGO } from '../assets/BVFunguoLogo';
 import logoImage from "figma:asset/8c9a9782f822a04113fd7bff4f68f1bc0ac7a2af.png";
 import { QuickVerify } from '../components/diagnostics/QuickVerify';
 import { JournalEntryFixNotice } from '../components/diagnostics/JournalEntryFixNotice';
 import { PrincipalFixSummary } from '../components/diagnostics/PrincipalFixSummary';
 import { ProfileModal } from '../components/modals/ProfileModal';
+import PermissionsDiagnostic from '../components/PermissionsDiagnostic';
+import { DebugPermissions } from '../components/DebugPermissions';
 // Disabled temporarily to debug loading issues
 // import '../utils/devMigrationTools'; // Import developer migration tools for data updates
+import '../utils/localStorageMonitor'; // Monitor all localStorage operations for debugging
 
 function AppContent() {
   const { currentUser, isAuthenticated, isLoading, logout, login } = useAuth();
@@ -53,6 +57,11 @@ function AppContent() {
   const [portalView, setPortalView] = useState<'staff' | 'client'>('staff');
   const [selectedClientId, setSelectedClientId] = useState('CL001'); // Default client ID
   const [openHeaderDropdown, setOpenHeaderDropdown] = useState<string | null>(null);
+  
+  // Debug: Track dropdown state changes
+  useEffect(() => {
+    console.log('🎯 [DROPDOWN] State changed to:', openHeaderDropdown);
+  }, [openHeaderDropdown]);
   const [hoveredSubmenu, setHoveredSubmenu] = useState<'share' | 'social-media' | string | null>(null);
   const [selectedMenuItem, setSelectedMenuItem] = useState<string>('');
   const [triggerTab, setTriggerTab] = useState<string | null>(null);
@@ -206,15 +215,57 @@ function AppContent() {
       return count;
     };
     
+    // Debug authentication state
+    (window as any).debugAuthState = () => {
+      console.log('🔐 ===== AUTHENTICATION STATE =====');
+      console.log('Is Authenticated:', isAuthenticated);
+      console.log('Is Loading:', isLoading);
+      console.log('Current User:', currentUser);
+      console.log('');
+      
+      // Check localStorage
+      const userData = localStorage.getItem('bv_funguo_user');
+      const credentials = localStorage.getItem('bv_funguo_credentials');
+      const orgData = localStorage.getItem('current_organization');
+      
+      console.log('📦 ===== LOCALSTORAGE DATA =====');
+      console.log('User Data:', userData ? JSON.parse(userData) : null);
+      console.log('Credentials:', credentials ? JSON.parse(credentials) : null);
+      console.log('Organization:', orgData ? JSON.parse(orgData) : null);
+      console.log('');
+      
+      // Check permissions
+      if (currentUser?.permissions) {
+        console.log('🔑 ===== PERMISSIONS =====');
+        console.log('User Permissions:', currentUser.permissions);
+      }
+      
+      console.log('================================');
+      return {
+        isAuthenticated,
+        isLoading,
+        currentUser,
+        localStorage: {
+          user: userData ? JSON.parse(userData) : null,
+          credentials: credentials ? JSON.parse(credentials) : null,
+          organization: orgData ? JSON.parse(orgData) : null
+        }
+      };
+    };
+    
     console.log('💡 Debug ready! Type: window.debugOrgs()');
     console.log('💡 Manual cleanup: window.cleanupDatabase()');
     console.log('💡 Check storage: window.checkStorage()');
     console.log('💡 Clean backups: window.cleanupBackups()');
+    console.log('💡 Check auth: window.debugAuthState()');
     console.log('💡 Go to register: window.location.href = "/register"');
-  }, []);
+  }, [isAuthenticated, isLoading, currentUser]);
 
-  const handleLogin = (userType: 'admin' | 'employee', userData: any) => {
+  const handleLogin = (userType: 'admin' | 'employee' | 'staff', userData: any) => {
     login(userData);
+    
+    // Close any open dropdowns
+    setOpenHeaderDropdown(null);
     
     // Check if this is a client logging in
     if (userData.userType === 'client' && userData.clientId) {
@@ -226,6 +277,8 @@ function AppContent() {
   const handleLogout = () => {
     logout();
     localStorage.removeItem('bv_funguo_credentials');
+    // Close any open dropdowns
+    setOpenHeaderDropdown(null);
   };
 
   const handleHeaderMenuClick = (tabId: string) => {
@@ -243,9 +296,21 @@ function AppContent() {
     console.log('Clicked item:', itemText);
   };
 
-  // Show landing page if no platform selected
-  if (!currentPlatform) {
-    return <MotherCompanyHome onSelectPlatform={setCurrentPlatform} />;
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#111120]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">Loading SmartLenderUp...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show permissions diagnostic (accessible without login)
+  if (currentRoute === '/permissions-diagnostic') {
+    return <PermissionsDiagnostic />;
   }
 
   // Show register page if route is /register
@@ -263,9 +328,8 @@ function AppContent() {
     return (
       <LoginPage 
         onLogin={handleLogin}
-        onBack={() => setCurrentPlatform(null)}
         onGoToRegister={handleGoToRegister}
-        platformName={currentPlatform === 'smartlenderup' ? 'SmartLenderUp' : currentPlatform === 'scissorup' ? 'ScissorUp' : 'SalesUp'}
+        platformName="SmartLenderUp"
       />
     );
   }
@@ -666,6 +730,9 @@ function AppContent() {
           </p>
         </div>
       </footer>
+      
+      {/* Debug Permissions Tool */}
+      <DebugPermissions />
     </div>
   );
 }
@@ -677,11 +744,13 @@ export default function App() {
         <AuthProvider>
           <DataProvider>
             <NavigationProvider>
-              <AppContent />
-              <Toaster position="top-right" theme="dark" richColors />
-              <DatabaseSetupNotice />
-              {/* DatabaseErrorOverlay disabled - database is properly configured */}
-              {/* <DatabaseErrorOverlay /> */}
+              <PermissionsProvider>
+                <AppContent />
+                <Toaster position="top-right" theme="dark" richColors />
+                <DatabaseSetupNotice />
+                {/* DatabaseErrorOverlay disabled - database is properly configured */}
+                {/* <DatabaseErrorOverlay /> */}
+              </PermissionsProvider>
             </NavigationProvider>
           </DataProvider>
         </AuthProvider>

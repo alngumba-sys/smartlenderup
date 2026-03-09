@@ -3821,7 +3821,7 @@ export function AccountingTab() {
                               return (
                                 <tr key={loan.id} className="border-b border-gray-100 hover:bg-gray-50">
                                   <td className="py-3 px-4 text-gray-900 font-mono text-sm">{loan.loanNumber || loan.loanId}</td>
-                                  <td className="py-3 px-4 text-gray-900">{loan.clientName || loan.borrowerName || 'Unknown Client'}</td>
+                                  <td className="py-3 px-4 text-gray-900">{loan.clientName || 'Unknown Client'}</td>
                                   <td className="py-3 px-4 text-gray-600">
                                     {loan.disbursementDate ? new Date(loan.disbursementDate).toLocaleDateString('en-GB', {
                                       day: '2-digit',

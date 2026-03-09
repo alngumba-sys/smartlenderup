@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit2, Trash2, Shield, Eye, EyeOff, Key, Phone } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, Shield, Eye, EyeOff, Key, Phone, Sparkles } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { StaffUser, AVAILABLE_TABS, TabPermission, StaffRole } from '../types/staff';
 import { getOrganizationId } from '../utils/organizationUtils';
 import { toast } from 'sonner@2.0.3';
 import { canCreateInTab, canEditInTab, canDeleteInTab, showPermissionError } from '../utils/staffPermissions';
+import { showDatabaseError } from '../utils/toastUtils';
+import { GranularPermissionsEditor } from './GranularPermissionsEditor';
+import { type Role, type Permission } from '../utils/permissions';
 
 export function StaffManagement() {
   const [staffList, setStaffList] = useState<StaffUser[]>([]);
@@ -21,9 +24,31 @@ export function StaffManagement() {
     role: 'staff' as StaffRole,
   });
   const [selectedPermissions, setSelectedPermissions] = useState<{[key: string]: {view: boolean, create: boolean, edit: boolean, delete: boolean}}>({});
+  
+  // Granular permissions state (for create)
+  const [permissionMode, setPermissionMode] = useState<'tab-based' | 'granular'>('granular');
+  const [granularRole, setGranularRole] = useState<Role | null>('Loan Officer');
+  const [customGranularPermissions, setCustomGranularPermissions] = useState<Permission[]>([]);
+
+  // Granular permissions state (for edit)
+  const [editPermissionMode, setEditPermissionMode] = useState<'tab-based' | 'granular'>('granular');
+  const [editGranularRole, setEditGranularRole] = useState<Role | null>(null);
+  const [editCustomGranularPermissions, setEditCustomGranularPermissions] = useState<Permission[]>([]);
 
   useEffect(() => {
-    loadStaffMembers();
+    let isMounted = true;
+    
+    const load = async () => {
+      if (isMounted) {
+        await loadStaffMembers();
+      }
+    };
+    
+    load();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const loadStaffMembers = async () => {
@@ -46,28 +71,51 @@ export function StaffManagement() {
 
       if (staffError) throw staffError;
 
+      // Debug: Log granular_permissions for all staff
+      console.log('📋 [STAFF LIST] Loaded staff from database:');
+      staffData?.forEach(staff => {
+        console.log(`  - ${staff.full_name} (ID: ${staff.id})`);
+        console.log(`    granular_permissions:`, staff.granular_permissions);
+      });
+
       // Fetch permissions for each staff
       const staffWithPermissions = await Promise.all(
         (staffData || []).map(async (staff) => {
-          const { data: permissions, error: permError } = await supabase
-            .from('staff_permissions')
-            .select('*')
-            .eq('staff_user_id', staff.id);
+          try {
+            const { data: permissions, error: permError } = await supabase
+              .from('staff_permissions')
+              .select('*')
+              .eq('staff_user_id', staff.id);
 
-          if (permError) console.error('Error loading permissions:', permError);
+            if (permError && permError.name !== 'AbortError') {
+              console.error('Error loading permissions:', permError);
+            }
 
-          return {
-            ...staff,
-            permissions: permissions || [],
-          };
+            return {
+              ...staff,
+              permissions: permissions || [],
+            };
+          } catch (err: any) {
+            if (err.name !== 'AbortError') {
+              console.error('Error in permission fetch:', err);
+            }
+            return {
+              ...staff,
+              permissions: [],
+            };
+          }
         })
       );
 
       setStaffList(staffWithPermissions);
     } catch (error: any) {
       console.error('Error loading staff:', error);
+      // Ignore AbortError as it's expected when component unmounts
+      if (error.name === 'AbortError') {
+        return;
+      }
       if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
-        toast.error('Database not reachable. Check your internet');
+        showDatabaseError('Database not reachable. Check your internet');
       } else {
         toast.error('Failed to load staff members');
       }
@@ -110,6 +158,31 @@ export function StaffManagement() {
       // Get last 4 digits of phone number for default password
       const last4Digits = formData.phone_number.slice(-4);
       
+      // Determine granular role to save
+      let roleToSave = formData.role;
+      let granularPermissionsToSave = null;
+      
+      if (permissionMode === 'granular') {
+        // Map granular roles to legacy database roles for backward compatibility
+        const roleMapping: Record<string, StaffRole> = {
+          'Super Admin': 'manager',
+          'Admin': 'manager',
+          'Manager': 'manager',
+          'Loan Officer': 'loan_officer',
+          'Accountant': 'accountant',
+          'Cashier': 'staff',
+          'Auditor': 'staff',
+          'Viewer': 'staff',
+        };
+        
+        roleToSave = granularRole ? (roleMapping[granularRole] || 'staff') : 'staff';
+        granularPermissionsToSave = JSON.stringify({
+          useGranularPermissions: true,
+          role: granularRole,
+          customPermissions: granularRole ? [] : customGranularPermissions,
+        });
+      }
+
       // Create staff user
       const { data: newStaff, error: staffError } = await supabase
         .from('staff_users')
@@ -119,7 +192,8 @@ export function StaffManagement() {
           phone_number: formData.phone_number,
           email: formData.email, // Email is now required
           password_hash: last4Digits, // Default password is last 4 digits
-          role: formData.role,
+          role: roleToSave,
+          granular_permissions: granularPermissionsToSave, // Store granular permissions as JSON
           is_first_login: true,
           is_active: true,
           created_by: createdBy,
@@ -129,24 +203,26 @@ export function StaffManagement() {
 
       if (staffError) throw staffError;
 
-      // Create permissions
-      const permissionsToInsert = Object.entries(selectedPermissions)
-        .filter(([_, perms]) => perms.view) // Only insert if view is enabled
-        .map(([tabKey, perms]) => ({
-          staff_user_id: newStaff.id,
-          tab_name: tabKey,
-          can_view: perms.view,
-          can_create: perms.create,
-          can_edit: perms.edit,
-          can_delete: perms.delete,
-        }));
+      // Create tab-based permissions (for backward compatibility)
+      if (permissionMode === 'tab-based') {
+        const permissionsToInsert = Object.entries(selectedPermissions)
+          .filter(([_, perms]) => perms.view) // Only insert if view is enabled
+          .map(([tabKey, perms]) => ({
+            staff_user_id: newStaff.id,
+            tab_name: tabKey,
+            can_view: perms.view,
+            can_create: perms.create,
+            can_edit: perms.edit,
+            can_delete: perms.delete,
+          }));
 
-      if (permissionsToInsert.length > 0) {
-        const { error: permError } = await supabase
-          .from('staff_permissions')
-          .insert(permissionsToInsert);
+        if (permissionsToInsert.length > 0) {
+          const { error: permError } = await supabase
+            .from('staff_permissions')
+            .insert(permissionsToInsert);
 
-        if (permError) throw permError;
+          if (permError) throw permError;
+        }
       }
 
       toast.success(`Staff member created! Default password: ${last4Digits}`);
@@ -156,9 +232,19 @@ export function StaffManagement() {
     } catch (error: any) {
       console.error('Error creating staff:', error);
       if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
-        toast.error('Database not reachable. Check your internet');
+        showDatabaseError('Database not reachable. Check your internet');
+      } else if (error.code === '23505' || error.message?.includes('duplicate key')) {
+        if (error.details?.includes('phone_number')) {
+          toast.error('This phone number is already registered to another staff member');
+        } else if (error.details?.includes('email')) {
+          toast.error('This email is already registered to another staff member');
+        } else {
+          toast.error('A staff member with these details already exists');
+        }
+      } else if (error.code === '23514') {
+        toast.error('Invalid role selected. Please choose a valid role.');
       } else {
-        toast.error('Failed to create staff member');
+        toast.error(error.message || 'Failed to create staff member');
       }
     }
   };
@@ -172,42 +258,80 @@ export function StaffManagement() {
     }
 
     try {
-      // Delete existing permissions
-      const { error: deleteError } = await supabase
-        .from('staff_permissions')
-        .delete()
-        .eq('staff_user_id', selectedStaff.id);
+      if (editPermissionMode === 'granular') {
+        // Update granular permissions in staff_users table
+        const granularPermissionsToSave = JSON.stringify({
+          useGranularPermissions: true,
+          role: editGranularRole,
+          customPermissions: editGranularRole ? [] : editCustomGranularPermissions,
+        });
 
-      if (deleteError) throw deleteError;
+        console.log('🔄 [UPDATE] Saving granular permissions for:', selectedStaff.full_name);
+        console.log('🔄 [UPDATE] Staff ID:', selectedStaff.id);
+        console.log('🔄 [UPDATE] Role:', editGranularRole);
+        console.log('🔄 [UPDATE] Custom Permissions:', editCustomGranularPermissions);
+        console.log('🔄 [UPDATE] JSON to save:', granularPermissionsToSave);
 
-      // Insert new permissions
-      const permissionsToInsert = Object.entries(selectedPermissions)
-        .filter(([_, perms]) => perms.view)
-        .map(([tabKey, perms]) => ({
-          staff_user_id: selectedStaff.id,
-          tab_name: tabKey,
-          can_view: perms.view,
-          can_create: perms.create,
-          can_edit: perms.edit,
-          can_delete: perms.delete,
-        }));
+        const { data: updateData, error: updateError } = await supabase
+          .from('staff_users')
+          .update({ granular_permissions: granularPermissionsToSave })
+          .eq('id', selectedStaff.id)
+          .select();
 
-      if (permissionsToInsert.length > 0) {
-        const { error: insertError } = await supabase
+        console.log('✅ [UPDATE] Update response:', updateData);
+        console.log('❌ [UPDATE] Update error:', updateError);
+
+        if (updateError) throw updateError;
+
+        toast.success('Granular permissions updated successfully');
+      } else {
+        // Update tab-based permissions (legacy mode)
+        // Delete existing permissions
+        const { error: deleteError } = await supabase
           .from('staff_permissions')
-          .insert(permissionsToInsert);
+          .delete()
+          .eq('staff_user_id', selectedStaff.id);
 
-        if (insertError) throw insertError;
+        if (deleteError) throw deleteError;
+
+        // Insert new permissions
+        const permissionsToInsert = Object.entries(selectedPermissions)
+          .filter(([_, perms]) => perms.view)
+          .map(([tabKey, perms]) => ({
+            staff_user_id: selectedStaff.id,
+            tab_name: tabKey,
+            can_view: perms.view,
+            can_create: perms.create,
+            can_edit: perms.edit,
+            can_delete: perms.delete,
+          }));
+
+        if (permissionsToInsert.length > 0) {
+          const { error: insertError } = await supabase
+            .from('staff_permissions')
+            .insert(permissionsToInsert);
+
+          if (insertError) throw insertError;
+        }
+
+        // Clear granular permissions when switching to tab-based
+        const { error: clearGranularError } = await supabase
+          .from('staff_users')
+          .update({ granular_permissions: null })
+          .eq('id', selectedStaff.id);
+
+        if (clearGranularError) throw clearGranularError;
+
+        toast.success('Permissions updated successfully');
       }
 
-      toast.success('Permissions updated successfully');
       setShowEditModal(false);
       setSelectedStaff(null);
       loadStaffMembers();
     } catch (error: any) {
       console.error('Error updating permissions:', error);
       if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
-        toast.error('Database not reachable. Check your internet');
+        showDatabaseError('Database not reachable. Check your internet');
       } else {
         toast.error('Failed to update permissions');
       }
@@ -230,7 +354,7 @@ export function StaffManagement() {
     } catch (error: any) {
       console.error('Error deactivating staff:', error);
       if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
-        toast.error('Database not reachable. Check your internet');
+        showDatabaseError('Database not reachable. Check your internet');
       } else {
         toast.error('Failed to deactivate staff member');
       }
@@ -268,7 +392,7 @@ export function StaffManagement() {
     } catch (error: any) {
       console.error('Error resetting password:', error);
       if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
-        toast.error('Database not reachable. Check your internet');
+        showDatabaseError('Database not reachable. Check your internet');
       } else {
         toast.error('Failed to reset password');
       }
@@ -278,7 +402,7 @@ export function StaffManagement() {
   const openEditModal = (staff: StaffUser) => {
     setSelectedStaff(staff);
     
-    // Initialize permissions
+    // Initialize tab-based permissions
     const perms: {[key: string]: {view: boolean, create: boolean, edit: boolean, delete: boolean}} = {};
     AVAILABLE_TABS.forEach(tab => {
       const existing = staff.permissions?.find(p => p.tab_name === tab.key);
@@ -289,8 +413,33 @@ export function StaffManagement() {
         delete: existing?.can_delete || false,
       };
     });
-    
     setSelectedPermissions(perms);
+    
+    // Initialize granular permissions if they exist
+    try {
+      let granularPerms = staff.granular_permissions as any;
+      
+      // Parse if it's a string
+      if (typeof granularPerms === 'string') {
+        granularPerms = JSON.parse(granularPerms);
+      }
+      
+      if (granularPerms && granularPerms.useGranularPermissions) {
+        setEditPermissionMode('granular');
+        setEditGranularRole(granularPerms.role || null);
+        setEditCustomGranularPermissions(granularPerms.customPermissions || []);
+      } else {
+        setEditPermissionMode('tab-based');
+        setEditGranularRole(null);
+        setEditCustomGranularPermissions([]);
+      }
+    } catch (e) {
+      console.error('Error parsing granular permissions in edit modal:', e, staff.granular_permissions);
+      setEditPermissionMode('tab-based');
+      setEditGranularRole(null);
+      setEditCustomGranularPermissions([]);
+    }
+    
     setShowEditModal(true);
   };
 
@@ -401,23 +550,61 @@ export function StaffManagement() {
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {staff.permissions && staff.permissions.length > 0 ? (
-                      staff.permissions.map((perm, idx) => {
-                        const tab = AVAILABLE_TABS.find(t => t.key === perm.tab_name);
-                        return (
-                          <span
-                            key={idx}
-                            className="px-2 py-0.5 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded"
-                          >
-                            {tab?.name || perm.tab_name}
-                            {perm.can_edit && ' (Edit)'}
-                            {perm.can_delete && ' (Delete)'}
-                          </span>
-                        );
-                      })
-                    ) : (
-                      <span className="text-xs text-gray-500 italic">No permissions assigned</span>
-                    )}
+                    {(() => {
+                      // Check for granular permissions first
+                      try {
+                        let granularPerms = staff.granular_permissions as any;
+                        
+                        // Parse if it's a string
+                        if (typeof granularPerms === 'string') {
+                          granularPerms = JSON.parse(granularPerms);
+                        }
+                        
+                        if (granularPerms && granularPerms.useGranularPermissions) {
+                          if (granularPerms.role) {
+                            // User has a preset role
+                            return (
+                              <span className="px-2 py-1 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded flex items-center gap-1">
+                                <Sparkles className="w-3 h-3" />
+                                Role: {granularPerms.role}
+                              </span>
+                            );
+                          } else if (granularPerms.customPermissions && granularPerms.customPermissions.length > 0) {
+                            // User has custom permissions
+                            return (
+                              <span className="px-2 py-1 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded flex items-center gap-1">
+                                <Sparkles className="w-3 h-3" />
+                                {granularPerms.customPermissions.length} Custom Permissions
+                              </span>
+                            );
+                          }
+                        }
+                      } catch (e) {
+                        console.error('Error parsing granular permissions:', e, staff.granular_permissions);
+                      }
+                      
+                      // Fall back to tab-based permissions
+                      if (staff.permissions && staff.permissions.length > 0) {
+                        return staff.permissions.map((perm, idx) => {
+                          const tab = AVAILABLE_TABS.find(t => t.key === perm.tab_name);
+                          return (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded"
+                            >
+                              {tab?.name || perm.tab_name}
+                              {perm.can_edit && ' (Edit)'}
+                              {perm.can_delete && ' (Delete)'}
+                            </span>
+                          );
+                        });
+                      }
+                      
+                      // No permissions at all
+                      return (
+                        <span className="text-xs text-gray-500 italic">No permissions assigned</span>
+                      );
+                    })()}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -527,10 +714,174 @@ export function StaffManagement() {
               <div className="space-y-4">
                 <h3 className="font-medium text-gray-900 flex items-center gap-2">
                   <Shield className="w-4 h-4" />
-                  Tab Permissions
+                  Permissions Setup
                 </h3>
-                <p className="text-sm text-gray-600">Select which tabs this staff member can access</p>
                 
+                {/* Permission Mode Selector */}
+                <div className="flex gap-2 p-1 bg-gray-100 rounded-lg w-fit">
+                  <button
+                    type="button"
+                    onClick={() => setPermissionMode('granular')}
+                    className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                      permissionMode === 'granular'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    ✨ Granular (300+ Permissions)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPermissionMode('tab-based')}
+                    className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                      permissionMode === 'tab-based'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Tab-Based (Legacy)
+                  </button>
+                </div>
+
+                {/* Granular Permissions */}
+                {permissionMode === 'granular' && (
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <GranularPermissionsEditor
+                      selectedRole={granularRole}
+                      customPermissions={customGranularPermissions}
+                      onRoleChange={setGranularRole}
+                      onPermissionsChange={setCustomGranularPermissions}
+                    />
+                  </div>
+                )}
+
+                {/* Tab-Based Permissions */}
+                {permissionMode === 'tab-based' && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-600 mb-3">
+                      Select which tabs this staff member can access (Legacy mode)
+                    </p>
+                    {AVAILABLE_TABS.map(tab => {
+                      const perms = selectedPermissions[tab.key] || { view: false, create: false, edit: false, delete: false };
+                      return (
+                        <div key={tab.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <span className="font-medium text-gray-900">{tab.name}</span>
+                          <div className="flex items-center gap-4">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={perms.view}
+                                onChange={() => togglePermission(tab.key, 'view')}
+                                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                              />
+                              <span className="text-sm text-gray-700">View</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={perms.create}
+                                onChange={() => togglePermission(tab.key, 'create')}
+                                disabled={!perms.view}
+                                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 disabled:opacity-50"
+                              />
+                              <span className="text-sm text-gray-700">Create</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={perms.edit}
+                                onChange={() => togglePermission(tab.key, 'edit')}
+                                disabled={!perms.view}
+                                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 disabled:opacity-50"
+                              />
+                              <span className="text-sm text-gray-700">Edit</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={perms.delete}
+                                onChange={() => togglePermission(tab.key, 'delete')}
+                                disabled={!perms.view}
+                                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 disabled:opacity-50"
+                              />
+                              <span className="text-sm text-gray-700">Delete</span>
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  resetForm();
+                }}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateStaff}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Create Staff Member
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Permissions Modal */}
+      {showEditModal && selectedStaff && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Edit Permissions - {selectedStaff.full_name}
+              </h2>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Permission System Toggle */}
+              <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg w-fit">
+                <button
+                  onClick={() => setEditPermissionMode('granular')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    editPermissionMode === 'granular'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <Sparkles className="size-4" />
+                  Granular (300+ Permissions)
+                </button>
+                <button
+                  onClick={() => setEditPermissionMode('tab-based')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    editPermissionMode === 'tab-based'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Tab-Based (Legacy)
+                </button>
+              </div>
+
+              {/* Granular Permissions Editor */}
+              {editPermissionMode === 'granular' ? (
+                <GranularPermissionsEditor
+                  selectedRole={editGranularRole}
+                  onRoleChange={setEditGranularRole}
+                  customPermissions={editCustomGranularPermissions}
+                  onPermissionsChange={setEditCustomGranularPermissions}
+                />
+              ) : (
+                /* Tab-Based Permissions */
                 <div className="space-y-2">
                   {AVAILABLE_TABS.map(tab => {
                     const perms = selectedPermissions[tab.key] || { view: false, create: false, edit: false, delete: false };
@@ -582,92 +933,7 @@ export function StaffManagement() {
                     );
                   })}
                 </div>
-              </div>
-            </div>
-
-            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  resetForm();
-                }}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateStaff}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Create Staff Member
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Permissions Modal */}
-      {showEditModal && selectedStaff && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Edit Permissions - {selectedStaff.full_name}
-              </h2>
-            </div>
-            
-            <div className="p-6 space-y-4">
-              <div className="space-y-2">
-                {AVAILABLE_TABS.map(tab => {
-                  const perms = selectedPermissions[tab.key] || { view: false, create: false, edit: false, delete: false };
-                  return (
-                    <div key={tab.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <span className="font-medium text-gray-900">{tab.name}</span>
-                      <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={perms.view}
-                            onChange={() => togglePermission(tab.key, 'view')}
-                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-gray-700">View</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={perms.create}
-                            onChange={() => togglePermission(tab.key, 'create')}
-                            disabled={!perms.view}
-                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 disabled:opacity-50"
-                          />
-                          <span className="text-sm text-gray-700">Create</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={perms.edit}
-                            onChange={() => togglePermission(tab.key, 'edit')}
-                            disabled={!perms.view}
-                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 disabled:opacity-50"
-                          />
-                          <span className="text-sm text-gray-700">Edit</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={perms.delete}
-                            onChange={() => togglePermission(tab.key, 'delete')}
-                            disabled={!perms.view}
-                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 disabled:opacity-50"
-                          />
-                          <span className="text-sm text-gray-700">Delete</span>
-                        </label>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              )}
             </div>
 
             <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end gap-3">

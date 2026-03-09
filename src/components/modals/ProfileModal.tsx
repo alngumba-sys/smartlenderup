@@ -3,6 +3,7 @@ import { X, Eye, EyeOff, User, Mail, Phone, Lock, Check } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner@2.0.3';
+import { showDatabaseError } from '../../utils/toastUtils';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -137,7 +138,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     } catch (error: any) {
       console.error('Error changing password:', error);
       if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
-        toast.error('Database not reachable. Check your internet');
+        showDatabaseError('Database not reachable. Check your internet');
       } else {
         toast.error('Failed to change password. Please try again.');
       }

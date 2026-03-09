@@ -131,7 +131,7 @@ Best regards,
           <button
             onClick={() => setActiveSection('payment')}
             data-settings-payment
-            className={`px-4 py-2 flex items-center gap-2 ${
+            className={`px-4 py-2 flex items-center gap-2 text-sm ${
               activeSection === 'payment'
                 ? 'border-b-2 border-blue-600 text-blue-700'
                 : 'text-gray-600 hover:text-gray-900'
@@ -148,11 +148,7 @@ Best regards,
         )}
         <button
           onClick={() => !isNonPaymentSectionLocked && setActiveSection('general')}
-          className={`px-4 py-2 flex items-center gap-2 ${
-            activeSection === 'general'
-              ? 'border-b-2 border-emerald-600 text-emerald-700'
-              : 'text-gray-600 hover:text-gray-900'
-          } ${isNonPaymentSectionLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`px-4 py-2 flex items-center gap-2 ${ activeSection === 'general' ? 'border-b-2 border-emerald-600 text-emerald-700' : 'text-gray-600 hover:text-gray-900' } ${isNonPaymentSectionLocked ? 'opacity-50 cursor-not-allowed' : ''} text-[14px]`}
           disabled={isNonPaymentSectionLocked}
         >
           General Settings
@@ -160,7 +156,7 @@ Best regards,
         </button>
         <button
           onClick={() => !isNonPaymentSectionLocked && setActiveSection('theme')}
-          className={`px-4 py-2 flex items-center gap-2 ${
+          className={`px-4 py-2 flex items-center gap-2 text-sm ${
             activeSection === 'theme'
               ? 'border-b-2 border-emerald-600 text-emerald-700'
               : 'text-gray-600 hover:text-gray-900'
@@ -172,7 +168,7 @@ Best regards,
         </button>
         <button
           onClick={() => !isNonPaymentSectionLocked && setActiveSection('notifications')}
-          className={`px-4 py-2 flex items-center gap-2 ${
+          className={`px-4 py-2 flex items-center gap-2 text-sm ${
             activeSection === 'notifications'
               ? 'border-b-2 border-emerald-600 text-emerald-700'
               : 'text-gray-600 hover:text-gray-900'
@@ -184,7 +180,7 @@ Best regards,
         </button>
         <button
           onClick={() => !isNonPaymentSectionLocked && setActiveSection('security')}
-          className={`px-4 py-2 flex items-center gap-2 ${
+          className={`px-4 py-2 flex items-center gap-2 text-sm ${
             activeSection === 'security'
               ? 'border-b-2 border-emerald-600 text-emerald-700'
               : 'text-gray-600 hover:text-gray-900'
@@ -196,7 +192,7 @@ Best regards,
         </button>
         <button
           onClick={() => !isNonPaymentSectionLocked && setActiveSection('subscription')}
-          className={`px-4 py-2 flex items-center gap-2 ${
+          className={`px-4 py-2 flex items-center gap-2 text-sm ${
             activeSection === 'subscription'
               ? 'border-b-2 border-emerald-600 text-emerald-700'
               : 'text-gray-600 hover:text-gray-900'
@@ -208,7 +204,7 @@ Best regards,
         </button>
         <button
           onClick={() => !isNonPaymentSectionLocked && setActiveSection('staff')}
-          className={`px-4 py-2 flex items-center gap-2 ${
+          className={`px-4 py-2 flex items-center gap-2 text-sm ${
             activeSection === 'staff'
               ? 'border-b-2 border-emerald-600 text-emerald-700'
               : 'text-gray-600 hover:text-gray-900'
@@ -220,7 +216,7 @@ Best regards,
         </button>
         <button
           onClick={() => !isNonPaymentSectionLocked && setActiveSection('data')}
-          className={`px-4 py-2 flex items-center gap-2 ${
+          className={`px-4 py-2 flex items-center gap-2 text-sm ${
             activeSection === 'data'
               ? 'border-b-2 border-emerald-600 text-emerald-700'
               : 'text-gray-600 hover:text-gray-900'

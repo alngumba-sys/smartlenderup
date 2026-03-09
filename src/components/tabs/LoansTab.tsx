@@ -1885,7 +1885,13 @@ export function LoansTab() {
                           const principalAmt = loan.principalAmount || 0;
                           const paidAmt = loan.paidAmount || 0;
                           const correctInterest = calculateCorrectInterest(loan);
-                          const outstandingAmt = principalAmt + correctInterest - paidAmt;
+                          // ✅ Apply SAME logic as individual rows: use DB total if it has discount
+                          const calculatedTotal = principalAmt + correctInterest;
+                          const dbTotal = loan.totalRepayable || loan.totalRepayment || 0;
+                          const tolerance = calculatedTotal * 0.01;
+                          const hasDiscount = dbTotal > 0 && dbTotal < (calculatedTotal - tolerance);
+                          const totalRepayable = hasDiscount ? dbTotal : calculatedTotal;
+                          const outstandingAmt = Math.max(0, totalRepayable - paidAmt);
                           return sum + outstandingAmt;
                         }, 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                       </td>
@@ -1956,7 +1962,7 @@ export function LoansTab() {
                   <thead className={isDark ? 'bg-gray-700' : 'bg-gray-50'}>
                     <tr>
                       <th className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Loan ID</th>
-                      <th className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Borrower</th>
+                      <th className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Client</th>
                       <th className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Loan Amount</th>
                       <th className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Guarantor Name</th>
                       <th className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Phone</th>
@@ -2167,7 +2173,7 @@ export function LoansTab() {
                 <thead className={`sticky top-0 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
                   <tr>
                     <th className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Payment Date</th>
-                    <th className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Borrower</th>
+                    <th className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Client</th>
                     <th className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Loan ID</th>
                     <th className={`px-4 py-2 text-center text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Inst. #</th>
                     <th className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Amount</th>

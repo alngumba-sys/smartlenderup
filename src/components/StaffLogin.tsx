@@ -3,6 +3,7 @@ import { Key, Phone, Eye, EyeOff, Shield } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { toast } from 'sonner@2.0.3';
 import { getOrganizationId } from '../utils/organizationUtils';
+import { showDatabaseError } from '../utils/toastUtils';
 
 interface StaffLoginProps {
   onLoginSuccess: (userData: any) => void;
@@ -86,21 +87,175 @@ export function StaffLogin({ onLoginSuccess, onBackToMain }: StaffLoginProps) {
         return;
       }
 
-      // Load permissions
-      const { data: permissions, error: permError } = await supabase
-        .from('staff_permissions')
-        .select('*')
-        .eq('staff_user_id', staffUser.id);
+      // Load permissions - check granular permissions first
+      let permissionsToStore: any = [];
+      
+      console.log('🔍 [LOGIN] Loading permissions for:', staffUser.full_name);
+      console.log('🔍 [LOGIN] Raw granular_permissions:', staffUser.granular_permissions);
+      
+      try {
+        let granularPerms = staffUser.granular_permissions as any;
+        
+        console.log('🔍 [LOGIN] Initial granularPerms type:', typeof granularPerms);
+        
+        // Parse if it's a string
+        if (typeof granularPerms === 'string') {
+          console.log('🔍 [LOGIN] Parsing JSON string...');
+          granularPerms = JSON.parse(granularPerms);
+          console.log('🔍 [LOGIN] Parsed granularPerms:', granularPerms);
+          // Update staffUser with parsed granular_permissions
+          staffUser.granular_permissions = granularPerms;
+        }
+        
+        // If user has granular permissions, convert them to permission object
+        if (granularPerms && granularPerms.useGranularPermissions) {
+          console.log('✅ [LOGIN] User has granular permissions enabled!');
+          if (granularPerms.role) {
+            // User has a preset role - load permissions from role
+            const { getRolePermissions } = await import('../config/rolePermissions');
+            permissionsToStore = getRolePermissions(granularPerms.role);
+            console.log(`✅ Loaded granular role permissions for: ${granularPerms.role}`, permissionsToStore);
+          } else if (granularPerms.customPermissions && Array.isArray(granularPerms.customPermissions)) {
+            // User has custom permissions - convert array to permission object
+            const permObj: any = {};
+            
+            // Mapping from granular permission strings to role permission flags
+            const permissionMap: Record<string, string[]> = {
+              // Dashboard
+              'dashboard.view': ['viewDashboard'],
+              'dashboard.export': ['exportData'],
+              
+              // Clients
+              'clients.view': ['viewClients', 'canAccessOperations'],
+              'clients.add': ['addClients'],
+              'clients.edit': ['editClients'],
+              'clients.delete': ['deleteClients'],
+              'clients.export': ['exportData'],
+              
+              // Loans
+              'loans.view': ['viewLoans', 'canAccessOperations'],
+              'loans.create': ['addLoans'],
+              'loans.edit': ['editLoans'],
+              'loans.disburse': ['approveLoans'],
+              'loans.export': ['exportData'],
+              
+              // Approvals
+              'approvals.view': ['approveLoans'],
+              'approvals.approve_phase_1': ['approveLoans'],
+              'approvals.approve_phase_2': ['approveLoans'],
+              'approvals.approve_phase_3': ['approveLoans'],
+              'approvals.approve_phase_4': ['approveLoans'],
+              'approvals.approve_phase_5': ['approveLoans'],
+              
+              // Products
+              'products.view': ['manageProducts', 'canAccessOperations'],
+              'products.create': ['manageProducts'],
+              'products.edit': ['manageProducts'],
+              
+              // Repayments
+              'repayments.view': ['viewTransactions'],
+              'repayments.record': ['addRepayments'],
+              
+              // Transactions
+              'transactions.view': ['viewTransactions', 'canAccessTransactions'],
+              'transactions.create': ['canAccessTransactions'],
+              
+              // Reports
+              'reports.view_portfolio': ['viewPortfolioReport'],
+              'reports.view_loan_performance': ['viewLoanPerformanceReport'],
+              'reports.view_collection': ['viewCollectionReport'],
+              'reports.view_client': ['viewClientReport'],
+              'reports.view_financial': ['viewFinancialReport'],
+              'reports.view_arrears': ['viewArrearsReport'],
+              'reports.view_disbursement': ['viewDisbursementReport'],
+              
+              // Settings/Admin
+              'settings.view': ['canAccessAdmin'],
+              'settings.manage_staff': ['manageStaff', 'canAccessAdmin'],
+              'settings.manage_branches': ['manageBranches', 'canAccessAdmin'],
+              
+              // Credit Scoring
+              'credit_scoring.view': ['viewRiskInsights', 'canAccessRiskAI'],
+              'credit_scoring.view_details': ['viewRiskInsights', 'canAccessRiskAI'],
+              'credit_scoring.view_factors': ['viewRiskInsights', 'canAccessRiskAI'],
+              'credit_scoring.configure_parameters': ['viewRiskInsights', 'canAccessRiskAI'],
+              'credit_scoring.recalculate': ['viewRiskInsights', 'canAccessRiskAI'],
+              'credit_scoring.export': ['exportData'],
+              
+              // AI Insights
+              'ai_insights.view': ['viewRiskInsights', 'canAccessRiskAI'],
+              'ai_insights.view_predictions': ['viewRiskInsights', 'canAccessRiskAI'],
+              'ai_insights.view_recommendations': ['viewRiskInsights', 'canAccessRiskAI'],
+            };
+            
+            granularPerms.customPermissions.forEach((perm: string) => {
+              const mappedPerms = permissionMap[perm];
+              if (mappedPerms) {
+                mappedPerms.forEach(p => {
+                  permObj[p] = true;
+                });
+              }
+            });
+            
+            permissionsToStore = permObj;
+            console.log(`✅ Loaded ${granularPerms.customPermissions.length} custom granular permissions`, permissionsToStore);
+          }
+        } else {
+          console.log('⚠️ [LOGIN] No granular permissions found - falling back to tab-based');
+          console.log('⚠️ [LOGIN] granularPerms:', granularPerms);
+          console.log('⚠️ [LOGIN] useGranularPermissions:', granularPerms?.useGranularPermissions);
+          
+          // Fall back to tab-based permissions (legacy)
+          const { data: permissions, error: permError } = await supabase
+            .from('staff_permissions')
+            .select('*')
+            .eq('staff_user_id', staffUser.id);
 
-      if (permError) {
-        console.error('Error loading permissions:', permError);
+          if (permError) {
+            console.error('Error loading tab-based permissions:', permError);
+          }
+          
+          permissionsToStore = permissions || [];
+          console.log(`✅ [LOGIN] Loaded ${permissions?.length || 0} tab-based permissions`, permissionsToStore);
+        }
+      } catch (error) {
+        console.error('❌ [LOGIN] Error processing permissions:', error);
+        // Fall back to tab-based permissions
+        const { data: permissions, error: permError } = await supabase
+          .from('staff_permissions')
+          .select('*')
+          .eq('staff_user_id', staffUser.id);
+
+          if (permError) {
+            console.error('Error loading tab-based permissions:', permError);
+          }
+        
+          permissionsToStore = permissions || [];
+          console.log(`⚠️ [LOGIN] Loaded ${permissions?.length || 0} tab-based permissions (fallback)`, permissionsToStore);
       }
+      
+      console.log('📦 [LOGIN] Final permissions to store:', permissionsToStore);
+      console.log('📦 [LOGIN] Permissions type:', Array.isArray(permissionsToStore) ? 'array' : typeof permissionsToStore);
 
       // Store user data with permissions
+      // Map staff user fields to the User interface expected by AuthContext
       const userDataWithPermissions = {
-        ...staffUser,
-        permissions: permissions || [],
-        userType: 'staff', // Changed from user_type to userType to match AuthContext
+        id: staffUser.id,
+        name: staffUser.full_name,
+        email: staffUser.email,
+        phone: staffUser.phone_number,
+        role: staffUser.role || 'Loan Officer', // Default role if not set
+        userType: 'staff' as const,
+        branch: staffUser.branch_id,
+        permissions: permissionsToStore,
+        organizationId: staffUser.organization_id,
+        // Keep original staff fields for reference
+        full_name: staffUser.full_name,
+        phone_number: staffUser.phone_number,
+        branch_id: staffUser.branch_id,
+        organization_id: staffUser.organization_id,
+        is_active: staffUser.is_active,
+        granular_permissions: staffUser.granular_permissions,
       };
 
       // Save credentials if remember me is checked
@@ -113,15 +268,18 @@ export function StaffLogin({ onLoginSuccess, onBackToMain }: StaffLoginProps) {
         localStorage.removeItem('staff_remember_credentials');
       }
 
-      localStorage.setItem('bvfunguo_user', JSON.stringify(userDataWithPermissions)); // Use bvfunguo_user key
+      // ❌ REMOVED: Don't set localStorage directly - let AuthContext handle it
+      // localStorage.setItem('bvfunguo_user', JSON.stringify(userDataWithPermissions)); // Use bvfunguo_user key
       localStorage.setItem('is_authenticated', 'true');
       
+      console.log('🟢 [LOGIN] Calling onLoginSuccess with user data:', userDataWithPermissions.name);
+      console.log('🟢 [LOGIN] User permissions:', userDataWithPermissions.permissions);
       toast.success(`Welcome back, ${staffUser.full_name}!`);
       onLoginSuccess(userDataWithPermissions);
     } catch (error: any) {
       console.error('Error during staff login:', error);
       if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
-        toast.error('Database not reachable. Check your internet');
+        showDatabaseError('Database not reachable. Check your internet');
       } else {
         toast.error('Login failed. Please try again.');
       }
@@ -164,34 +322,173 @@ export function StaffLogin({ onLoginSuccess, onBackToMain }: StaffLoginProps) {
 
       if (updateError) throw updateError;
 
-      // Load permissions
-      const { data: permissions, error: permError } = await supabase
-        .from('staff_permissions')
-        .select('*')
-        .eq('staff_user_id', staffData.id);
+      // Load permissions - check granular permissions first
+      let permissionsToStore: any = [];
+      
+      try {
+        let granularPerms = staffData.granular_permissions as any;
+        
+        // Parse if it's a string
+        if (typeof granularPerms === 'string') {
+          granularPerms = JSON.parse(granularPerms);
+          // Update staffData with parsed granular_permissions
+          staffData.granular_permissions = granularPerms;
+        }
+        
+        // If user has granular permissions, convert them to permission object
+        if (granularPerms && granularPerms.useGranularPermissions) {
+          if (granularPerms.role) {
+            // User has a preset role - load permissions from role
+            const { getRolePermissions } = await import('../config/rolePermissions');
+            permissionsToStore = getRolePermissions(granularPerms.role);
+            console.log(`✅ Loaded granular role permissions for: ${granularPerms.role}`, permissionsToStore);
+          } else if (granularPerms.customPermissions && Array.isArray(granularPerms.customPermissions)) {
+            // User has custom permissions - convert array to permission object
+            const permObj: any = {};
+            
+            // Mapping from granular permission strings to role permission flags
+            const permissionMap: Record<string, string[]> = {
+              // Dashboard
+              'dashboard.view': ['viewDashboard'],
+              'dashboard.export': ['exportData'],
+              
+              // Clients
+              'clients.view': ['viewClients', 'canAccessOperations'],
+              'clients.add': ['addClients'],
+              'clients.edit': ['editClients'],
+              'clients.delete': ['deleteClients'],
+              'clients.export': ['exportData'],
+              
+              // Loans
+              'loans.view': ['viewLoans', 'canAccessOperations'],
+              'loans.create': ['addLoans'],
+              'loans.edit': ['editLoans'],
+              'loans.disburse': ['approveLoans'],
+              'loans.export': ['exportData'],
+              
+              // Approvals
+              'approvals.view': ['approveLoans'],
+              'approvals.approve_phase_1': ['approveLoans'],
+              'approvals.approve_phase_2': ['approveLoans'],
+              'approvals.approve_phase_3': ['approveLoans'],
+              'approvals.approve_phase_4': ['approveLoans'],
+              'approvals.approve_phase_5': ['approveLoans'],
+              
+              // Products
+              'products.view': ['manageProducts', 'canAccessOperations'],
+              'products.create': ['manageProducts'],
+              'products.edit': ['manageProducts'],
+              
+              // Repayments
+              'repayments.view': ['viewTransactions'],
+              'repayments.record': ['addRepayments'],
+              
+              // Transactions
+              'transactions.view': ['viewTransactions', 'canAccessTransactions'],
+              'transactions.create': ['canAccessTransactions'],
+              
+              // Reports
+              'reports.view_portfolio': ['viewPortfolioReport'],
+              'reports.view_loan_performance': ['viewLoanPerformanceReport'],
+              'reports.view_collection': ['viewCollectionReport'],
+              'reports.view_client': ['viewClientReport'],
+              'reports.view_financial': ['viewFinancialReport'],
+              'reports.view_arrears': ['viewArrearsReport'],
+              'reports.view_disbursement': ['viewDisbursementReport'],
+              
+              // Settings/Admin
+              'settings.view': ['canAccessAdmin'],
+              'settings.manage_staff': ['manageStaff', 'canAccessAdmin'],
+              'settings.manage_branches': ['manageBranches', 'canAccessAdmin'],
+              
+              // Credit Scoring
+              'credit_scoring.view': ['viewRiskInsights', 'canAccessRiskAI'],
+              'credit_scoring.view_details': ['viewRiskInsights', 'canAccessRiskAI'],
+              'credit_scoring.view_factors': ['viewRiskInsights', 'canAccessRiskAI'],
+              'credit_scoring.configure_parameters': ['viewRiskInsights', 'canAccessRiskAI'],
+              'credit_scoring.recalculate': ['viewRiskInsights', 'canAccessRiskAI'],
+              'credit_scoring.export': ['exportData'],
+              
+              // AI Insights
+              'ai_insights.view': ['viewRiskInsights', 'canAccessRiskAI'],
+              'ai_insights.view_predictions': ['viewRiskInsights', 'canAccessRiskAI'],
+              'ai_insights.view_recommendations': ['viewRiskInsights', 'canAccessRiskAI'],
+            };
+            
+            granularPerms.customPermissions.forEach((perm: string) => {
+              const mappedPerms = permissionMap[perm];
+              if (mappedPerms) {
+                mappedPerms.forEach(p => {
+                  permObj[p] = true;
+                });
+              }
+            });
+            
+            permissionsToStore = permObj;
+            console.log(`✅ Loaded ${granularPerms.customPermissions.length} custom granular permissions`, permissionsToStore);
+          }
+        } else {
+          // Fall back to tab-based permissions (legacy)
+          const { data: permissions, error: permError } = await supabase
+            .from('staff_permissions')
+            .select('*')
+            .eq('staff_user_id', staffData.id);
 
-      if (permError) {
-        console.error('Error loading permissions:', permError);
+          if (permError) {
+            console.error('Error loading tab-based permissions:', permError);
+          }
+          
+          permissionsToStore = permissions || [];
+          console.log(`✅ Loaded ${permissions?.length || 0} tab-based permissions`, permissionsToStore);
+        }
+      } catch (error) {
+        console.error('Error processing permissions:', error);
+        // Fall back to tab-based permissions
+        const { data: permissions, error: permError } = await supabase
+          .from('staff_permissions')
+          .select('*')
+          .eq('staff_user_id', staffData.id);
+
+        if (permError) {
+          console.error('Error loading tab-based permissions:', permError);
+        }
+        
+        permissionsToStore = permissions || [];
       }
 
       // Store user data with permissions
       const userDataWithPermissions = {
-        ...staffData,
-        password_hash: newPassword,
+        id: staffData.id,
+        name: staffData.full_name,
+        email: staffData.email,
+        phone: staffData.phone_number,
+        role: staffData.role || 'Loan Officer', // Default role if not set
+        userType: 'staff' as const,
+        branch: staffData.branch_id,
+        permissions: permissionsToStore,
+        organizationId: staffData.organization_id,
+        // Keep original staff fields for reference
+        full_name: staffData.full_name,
+        phone_number: staffData.phone_number,
+        branch_id: staffData.branch_id,
+        organization_id: staffData.organization_id,
+        is_active: staffData.is_active,
         is_first_login: false,
-        permissions: permissions || [],
-        userType: 'staff', // Changed from user_type to userType to match AuthContext
+        password_hash: newPassword,
+        granular_permissions: staffData.granular_permissions,
       };
 
-      localStorage.setItem('bvfunguo_user', JSON.stringify(userDataWithPermissions)); // Use bvfunguo_user key
+      // ❌ REMOVED: Don't set localStorage directly - let AuthContext handle it
+      // localStorage.setItem('bvfunguo_user', JSON.stringify(userDataWithPermissions)); // Use bvfunguo_user key
       localStorage.setItem('is_authenticated', 'true');
       
+      console.log('🟢 [PASSWORD_CHANGE] Calling onLoginSuccess after password change');
       toast.success('Password changed successfully! Welcome!');
       onLoginSuccess(userDataWithPermissions);
     } catch (error: any) {
       console.error('Error changing password:', error);
       if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
-        toast.error('Database not reachable. Check your internet');
+        showDatabaseError('Database not reachable. Check your internet');
       } else {
         toast.error('Failed to change password');
       }

@@ -915,19 +915,40 @@ export const loanService = {
       'nextPaymentAmount': 'next_payment_amount'
     };
     
-    // Fields to exclude from database updates (frontend-only fields)
-    const excludeFields = ['paymentSource', 'clientName', 'productName', 'lastPaymentDate', 'lastPaymentAmount', 'nextPaymentDate', 'nextPaymentAmount', 'discountType', 'discountValue', 'discountAppliedTo', 'discountAmount'];
+    // ✅ Fields to exclude from database updates (frontend-only fields OR missing columns in DB)
+    // These columns don't exist in the Supabase loans table schema yet
+    const excludeFields = [
+      'paymentSource', 
+      'clientName', 
+      'productName', 
+      'discountType', 
+      'discountValue', 
+      'discountAppliedTo', 
+      'discountAmount',
+      // ⚠️ MISSING COLUMNS IN DATABASE - exclude to prevent errors
+      'lastPaymentDate',      // DB doesn't have last_payment_date
+      'lastPaymentAmount',    // DB doesn't have last_payment_amount
+      'nextPaymentDate',      // DB doesn't have next_payment_date
+      'nextPaymentAmount',    // DB doesn't have next_payment_amount
+      'paidAmount',           // DB doesn't have amount_paid yet
+      'principalPaid',        // DB doesn't have principal_paid yet
+      'interestPaid',         // DB doesn't have interest_paid yet
+      'outstandingBalance'    // DB doesn't have balance yet
+    ];
     
     // Transform updates to match database schema
     const transformedUpdates: any = {};
     Object.keys(updates).forEach(key => {
       // Skip excluded fields
       if (excludeFields.includes(key)) {
+        console.log(`⚠️ Skipping field '${key}' - not in database schema`);
         return;
       }
       const mappedKey = fieldMap[key] || key;
       transformedUpdates[mappedKey] = updates[key];
     });
+    
+    console.log('📝 Transformed updates for database:', transformedUpdates);
     
     // ✅ Check if loanId is a loan_number (LN001) or UUID
     const isLoanNumber = loanId.startsWith('LN');

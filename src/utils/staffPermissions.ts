@@ -5,7 +5,11 @@ export type TabKey =
   | 'operations_loans'
   | 'operations_products'
   | 'operations_clients'
+  | 'operations_institutions'
+  | 'operations_calculator'
+  | 'operations_approval'
   | 'operations_groups'
+  | 'transactions_payments'
   | 'accounting_chart'
   | 'accounting_journal'
   | 'accounting_trial'
@@ -58,6 +62,7 @@ export function getCurrentUserPermissions(): TabPermission[] {
 export function canViewTab(tabKey: TabKey): boolean {
   // Check if user is manager (full access)
   if (isManager()) {
+    console.log(`[canViewTab] ${tabKey}: ✅ User is manager`);
     return true;
   }
   
@@ -66,8 +71,75 @@ export function canViewTab(tabKey: TabKey): boolean {
     if (userData) {
       const user = JSON.parse(userData);
       
-      // Check staff permissions
+      // Check for GRANULAR PERMISSIONS first
+      let granularPermissions = user.granular_permissions;
+      
+      // Parse if it's a string (for backwards compatibility with already-logged-in users)
+      if (typeof granularPermissions === 'string') {
+        try {
+          granularPermissions = JSON.parse(granularPermissions);
+        } catch (e) {
+          console.error('[canViewTab] Failed to parse granular_permissions:', e);
+          granularPermissions = null;
+        }
+      }
+      
+      if (granularPermissions && granularPermissions.useGranularPermissions === true) {
+        console.log(`[canViewTab] ${tabKey}: Using GRANULAR permissions`, granularPermissions);
+        console.log(`[canViewTab] ${tabKey}: Full granularPermissions object:`, JSON.stringify(granularPermissions, null, 2));
+        
+        // Get the custom permissions array
+        const customPermissions: string[] = granularPermissions.customPermissions || [];
+        console.log(`[canViewTab] ${tabKey}: Custom permissions array:`, customPermissions);
+        console.log(`[canViewTab] ${tabKey}: Custom permissions count:`, customPermissions.length);
+        
+        // Map tab keys to required granular permissions
+        const tabToGranularMap: Record<TabKey, string[]> = {
+          'dashboard': ['dashboard.view'],
+          'operations_loans': ['loans.view'],
+          'operations_products': ['loan_products.view'],
+          'operations_clients': ['clients.view'],
+          'operations_institutions': ['institutions.view'],
+          'operations_calculator': ['loans.view'], // Calculator requires loans view
+          'operations_approval': ['approvals.view'],
+          'operations_groups': ['groups.view'], // Groups have their own permissions
+          'transactions_payments': ['payments.view', 'repayments.view'], // Payments OR Repayments
+          'accounting_chart': ['accounting.view'],
+          'accounting_journal': ['accounting.view'],
+          'accounting_trial': ['accounting.view'],
+          'reports_par': ['reports.view'],
+          'reports_collections': ['collection_sheets.view'],
+          'reports_management': ['reports.view'],
+          'payroll': ['payroll.view'],
+          'ai_tools': ['credit_scoring.view', 'ai_insights.view'], // Credit Scoring OR AI Insights
+          'settings': ['settings.view'],
+        };
+        
+        // Check if user has any of the required permissions
+        const requiredPerms = tabToGranularMap[tabKey] || [];
+        const hasPermission = requiredPerms.some(perm => {
+          const has = customPermissions.includes(perm);
+          console.log(`[canViewTab] ${tabKey}: Checking '${perm}': ${has ? '✅' : '❌'}`);
+          return has;
+        });
+        
+        console.log(`[canViewTab] ${tabKey}: ${hasPermission ? '✅ GRANTED' : '❌ DENIED'} (granular)`, {
+          requiredPerms,
+          customPermissions,
+          hasPermission
+        });
+        
+        return hasPermission;
+      }
+      
+      // Check staff permissions (fallback to old system)
       const permissions = user.permissions || [];
+      
+      console.log(`[canViewTab] ${tabKey}: Checking permissions`, {
+        isArray: Array.isArray(permissions),
+        isObject: !Array.isArray(permissions) && typeof permissions === 'object',
+        permissions
+      });
       
       // Handle object-based permissions (new format)
       if (!Array.isArray(permissions) && typeof permissions === 'object') {
@@ -77,7 +149,11 @@ export function canViewTab(tabKey: TabKey): boolean {
           'operations_loans': permissions.viewLoans || permissions.canAccessOperations || false,
           'operations_products': permissions.manageProducts || permissions.canAccessOperations || false,
           'operations_clients': permissions.viewClients || permissions.canAccessOperations || false,
+          'operations_institutions': permissions.viewClients || permissions.canAccessOperations || false,
+          'operations_calculator': permissions.viewLoans || permissions.canAccessOperations || false,
+          'operations_approval': permissions.approveLoans || permissions.canAccessOperations || false,
           'operations_groups': permissions.canAccessOperations || false,
+          'transactions_payments': permissions.viewTransactions || permissions.canAccessTransactions || false,
           'accounting_chart': permissions.viewTransactions || permissions.canAccessTransactions || false,
           'accounting_journal': permissions.viewTransactions || permissions.canAccessTransactions || false,
           'accounting_trial': permissions.viewTransactions || permissions.canAccessTransactions || false,
@@ -89,16 +165,26 @@ export function canViewTab(tabKey: TabKey): boolean {
           'settings': permissions.canAccessAdmin || false,
         };
         
-        return tabPermissionMap[tabKey] || false;
+        const result = tabPermissionMap[tabKey] || false;
+        console.log(`[canViewTab] ${tabKey}: ${result ? '✅' : '❌'}`, {
+          viewDashboard: permissions.viewDashboard,
+          viewLoans: permissions.viewLoans,
+          canAccessOperations: permissions.canAccessOperations,
+          addLoans: permissions.addLoans
+        });
+        return result;
       }
       
       // Handle array-based permissions (old format)
       if (Array.isArray(permissions)) {
         const tabPermission = permissions.find((p: TabPermission) => p.tab_name === tabKey);
-        return tabPermission ? tabPermission.can_view : false;
+        const result = tabPermission ? tabPermission.can_view : false;
+        console.log(`[canViewTab] ${tabKey}: ${result ? '✅' : '❌'} (array format)`);
+        return result;
       }
       
       // Unknown format
+      console.log(`[canViewTab] ${tabKey}: ❌ Unknown format`);
       return false;
     }
   } catch (error) {
@@ -129,7 +215,11 @@ export function canEditInTab(tabKey: TabKey): boolean {
           'operations_loans': permissions.addLoans || permissions.approveLoans || false,
           'operations_products': permissions.manageProducts || false,
           'operations_clients': permissions.editClients || permissions.addClients || false,
+          'operations_institutions': permissions.editClients || permissions.addClients || false,
+          'operations_calculator': false, // Calculator is view-only
+          'operations_approval': permissions.approveLoans || false,
           'operations_groups': permissions.canAccessOperations || false,
+          'transactions_payments': permissions.canAccessTransactions || false,
           'accounting_chart': permissions.canAccessTransactions || false,
           'accounting_journal': permissions.canAccessTransactions || false,
           'accounting_trial': false, // Trial balance is view-only
@@ -270,12 +360,37 @@ export function isManager(): boolean {
     if (userData) {
       const user = JSON.parse(userData);
       
+      // IMPORTANT: If user has granular permissions enabled, they are NOT a manager
+      // (even if their role field says "Manager") - custom permissions take precedence
+      let granularPerms = user.granular_permissions || user.granularPermissions;
+      if (typeof granularPerms === 'string') {
+        try {
+          granularPerms = JSON.parse(granularPerms);
+        } catch (e) {
+          granularPerms = null;
+        }
+      }
+      
+      if (granularPerms && granularPerms.useGranularPermissions === true) {
+        console.log('[isManager] ❌ User has custom granular permissions - NOT treated as manager');
+        return false; // Custom permissions override manager status
+      }
+      
       // Check various role formats: Manager, manager, admin, organization_admin, etc.
       const role = (user.role || '').toLowerCase();
       const userType = (user.userType || '').toLowerCase();
       
+      console.log('[isManager] Checking manager status:', {
+        role,
+        userType,
+        hasPermissions: !!user.permissions,
+        permissionsType: Array.isArray(user.permissions) ? 'array' : typeof user.permissions,
+        permissionsCount: Array.isArray(user.permissions) ? user.permissions.length : (user.permissions ? Object.keys(user.permissions).length : 0)
+      });
+      
       // Check for client role
       if (role === 'client' || userType === 'client') {
+        console.log('[isManager] ❌ User is client');
         return false; // Clients are never managers
       }
       
@@ -284,11 +399,13 @@ export function isManager(): boolean {
           role.includes('admin') || 
           userType.includes('manager') || 
           userType.includes('admin')) {
+        console.log('[isManager] ✅ User has manager/admin role');
         return true;
       }
       
       // If userType is explicitly 'staff', they're not a manager
       if (userType === 'staff') {
+        console.log('[isManager] ❌ User is staff (not manager)');
         return false;
       }
       
@@ -296,22 +413,28 @@ export function isManager(): boolean {
       // unless their permissions object is empty
       if (user.permissions && typeof user.permissions === 'object' && !Array.isArray(user.permissions)) {
         const hasAnyPermission = Object.keys(user.permissions).length > 0;
-        return !hasAnyPermission; // Empty permissions object = manager
+        const result = !hasAnyPermission; // Empty permissions object = manager
+        console.log(`[isManager] ${result ? '✅' : '❌'} Object permissions (${Object.keys(user.permissions).length} keys)`);
+        return result;
       }
       
       // If user has array-based permissions (staff member), they're not a manager
       // unless the array is empty
       if (Array.isArray(user.permissions)) {
-        return user.permissions.length === 0; // Empty array = manager
+        const result = user.permissions.length === 0; // Empty array = manager
+        console.log(`[isManager] ${result ? '✅' : '❌'} Array permissions (${user.permissions.length} items)`);
+        return result;
       }
       
       // Default to manager if no permissions defined at all
+      console.log('[isManager] ⚠️ No permissions defined - defaulting to manager');
       return !user.permissions;
     }
   } catch (error) {
     console.error('Error checking manager status:', error);
   }
   
+  console.log('[isManager] ⚠️ No user data - defaulting to manager (true)');
   return true; // Default to true to avoid locking out users
 }
 
@@ -339,6 +462,59 @@ export function getVisibleTabs(): TabKey[] {
           'ai_tools',
           'settings',
         ];
+      }
+      
+      // ✅ CHECK FOR GRANULAR PERMISSIONS FIRST (same logic as canViewTab)
+      let granularPermissions = user.granular_permissions;
+      
+      // Parse if it's a string
+      if (typeof granularPermissions === 'string') {
+        try {
+          granularPermissions = JSON.parse(granularPermissions);
+        } catch (e) {
+          console.error('[getVisibleTabs] Failed to parse granular_permissions:', e);
+          granularPermissions = null;
+        }
+      }
+      
+      if (granularPermissions && granularPermissions.useGranularPermissions === true) {
+        console.log('[getVisibleTabs] Using GRANULAR permissions system');
+        
+        const customPermissions: string[] = granularPermissions.customPermissions || [];
+        const visibleTabs: TabKey[] = [];
+        
+        // Map tab keys to required granular permissions (same as canViewTab)
+        const tabToGranularMap: Record<TabKey, string[]> = {
+          'dashboard': ['dashboard.view'],
+          'operations_loans': ['loans.view'],
+          'operations_products': ['loan_products.view'],
+          'operations_clients': ['clients.view'],
+          'operations_institutions': ['institutions.view'],
+          'operations_calculator': ['loans.view'],
+          'operations_approval': ['approvals.view'],
+          'operations_groups': ['groups.view'],
+          'transactions_payments': ['payments.view', 'repayments.view'],
+          'accounting_chart': ['accounting.view'],
+          'accounting_journal': ['accounting.view'],
+          'accounting_trial': ['accounting.view'],
+          'reports_par': ['reports.view'],
+          'reports_collections': ['collection_sheets.view'],
+          'reports_management': ['reports.view'],
+          'payroll': ['payroll.view'],
+          'ai_tools': ['credit_scoring.view', 'ai_insights.view'],
+          'settings': ['settings.view'],
+        };
+        
+        // Check each tab
+        for (const [tabKey, requiredPerms] of Object.entries(tabToGranularMap)) {
+          const hasPermission = requiredPerms.some(perm => customPermissions.includes(perm));
+          if (hasPermission) {
+            visibleTabs.push(tabKey as TabKey);
+          }
+        }
+        
+        console.log('[getVisibleTabs] Visible tabs with granular permissions:', visibleTabs);
+        return visibleTabs;
       }
       
       // Staff can only see tabs they have view permission for

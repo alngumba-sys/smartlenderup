@@ -97,7 +97,7 @@ export function CollectionSheetsTab() {
           loanId: loan.loanId || loan.loan_id || 'Unknown', // ✅ Use user-friendly loanId (LN00001)
           loanUUID: loan.id, // Keep UUID for lookups
           clientId: loan.clientId,
-          clientName: client?.name || loan?.borrowerName || '',
+          clientName: client?.name || '',
           phoneNumber: client?.phone || '',
           loanAmount: loan.principalAmount || loan.loanAmount || 0,
           dueAmount: installmentAmount,

@@ -280,10 +280,10 @@ export function ApprovalsTab() {
                 <User className="size-5 md:size-7 text-blue-300 mx-auto mb-1 md:mb-2" />
                 <p className="text-blue-100 font-bold text-[10px] md:text-xs mb-0.5">Phase 1</p>
                 <p className="text-blue-200 text-[10px] md:text-xs font-semibold mb-1 leading-tight">Loan Requested</p>
-                <p className="text-blue-300 text-[8px] md:text-[10px] leading-tight mb-2 hidden md:block">Borrower Submission</p>
+                <p className="text-blue-300 text-[8px] md:text-[10px] leading-tight mb-2 hidden md:block">Client Submission</p>
                 <div className="mt-1 md:mt-2 pt-1 md:pt-2 border-t border-blue-700 space-y-1">
                   <div className="text-[8px] md:text-[9px] text-left text-blue-200 leading-tight hidden lg:block">
-                    • Borrower submits loan request<br/>
+                    • Client submits loan request<br/>
                     • Status set to Pending<br/>
                     • Initial documentation collected
                   </div>
