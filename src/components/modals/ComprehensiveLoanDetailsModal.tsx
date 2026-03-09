@@ -32,6 +32,7 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
     guarantors,
     loanDocuments,
     addRepayment,
+    refreshData,
   } = useData();
 
   const loan = loans.find(l => l.id === loanId);
@@ -276,17 +277,27 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
       bankAccountId: paymentData.destinationAccountId,
     };
 
-    // Add the repayment to the context
-    addRepayment(repaymentRecord);
+    try {
+      // Add the repayment to the context (this is async)
+      await addRepayment(repaymentRecord);
 
-    // Close the modal
-    setShowRecordPayment(false);
+      // Close the modal
+      setShowRecordPayment(false);
 
-    // Show success toast
-    toast.success('Payment Recorded Successfully', {
-      description: `${currencyCode} ${amount.toLocaleString()} recorded for ${client.name} via ${paymentData.paymentMethod}`,
-      duration: 5000,
-    });
+      // Show success toast
+      toast.success('Payment Recorded Successfully', {
+        description: `${currencyCode} ${amount.toLocaleString()} recorded for ${client.name} via ${paymentData.paymentMethod}`,
+        duration: 5000,
+      });
+
+      // ✅ Refresh data from Supabase to ensure UI is in sync with database
+      console.log('🔄 Refreshing data after payment...');
+      await refreshData();
+      console.log('✅ Data refreshed successfully');
+    } catch (error) {
+      console.error('❌ Error recording payment:', error);
+      // Error toast is already shown by addRepayment
+    }
   };
 
   return (

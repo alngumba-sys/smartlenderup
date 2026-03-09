@@ -486,48 +486,49 @@ const transformLoanForSupabase = (loan: any): any => {
     'organization_id': 'organization_id',
     'clientId': 'client_id',
     'client_id': 'client_id',
-    'productId': 'product_id', // ✅ Changed from loan_product_id to product_id to match COMPLETE_DATABASE_RESET.sql
-    'loan_product_id': 'product_id', // ✅ Changed from loan_product_id to product_id
-    'product_id': 'product_id',
-    'principalAmount': 'amount',
-    'amount': 'amount',
+    'productId': 'loan_product_id', // ✅ Changed back to loan_product_id to match schema.sql
+    'loan_product_id': 'loan_product_id',
+    'product_id': 'loan_product_id', // ✅ Changed to loan_product_id
+    'principalAmount': 'principal_amount', // ✅ Changed to principal_amount to match schema.sql
+    'amount': 'principal_amount', // ✅ Changed to principal_amount
     'interestRate': 'interest_rate',
     'interest_rate': 'interest_rate',
-    'term': 'term_period', // ✅ Changed from term_months to term_period to match COMPLETE_DATABASE_RESET.sql
-    'term_months': 'term_period', // ✅ Changed from term_months to term_period
-    'term_period': 'term_period',
-    'loanTerm': 'term_period',
+    'term': 'duration_months', // ✅ Changed to duration_months to match schema.sql
+    'term_months': 'duration_months', // ✅ Changed to duration_months
+    'term_period': 'duration_months',
+    'loanTerm': 'duration_months',
     'purpose': 'purpose',
     'status': 'status',
     'applicationDate': 'application_date',
     'application_date': 'application_date',
-    'approvedDate': 'approval_date',
-    'approval_date': 'approval_date',
-    'disbursementDate': 'disbursement_date',
-    'disbursement_date': 'disbursement_date',
-    'firstRepaymentDate': 'expected_repayment_date', // ✅ Changed from first_payment_date to expected_repayment_date
-    'first_payment_date': 'expected_repayment_date',
-    'expected_repayment_date': 'expected_repayment_date',
-    'totalRepayable': 'total_amount', // ✅ Changed from total_payable to total_amount to match COMPLETE_DATABASE_RESET.sql
+    'approvedDate': 'approved_at',
+    'approval_date': 'approved_at',
+    'disbursementDate': 'disbursed_at',
+    'disbursement_date': 'disbursed_at',
+    'firstRepaymentDate': 'first_payment_date',
+    'first_payment_date': 'first_payment_date',
+    'expected_repayment_date': 'first_payment_date',
+    'totalRepayable': 'total_amount',
     'total_payable': 'total_amount',
     'total_amount': 'total_amount',
-    'installmentAmount': 'monthly_payment',
-    'monthly_payment': 'monthly_payment',
-    'outstandingBalance': 'balance',
-    'balance': 'balance',
-    'paidAmount': 'amount_paid', // ✅ Changed from principal_paid to amount_paid to match COMPLETE_DATABASE_RESET.sql
-    'principal_paid': 'amount_paid',
-    'amount_paid': 'amount_paid',
+    'installmentAmount': 'monthly_installment',
+    'monthly_payment': 'monthly_installment',
+    'outstandingBalance': 'outstanding_balance',
+    'balance': 'outstanding_balance',
+    'paidAmount': 'paid_amount',
+    'principal_paid': 'paid_amount',
+    'amount_paid': 'paid_amount',
     'interestPaid': 'interest_paid',
     'interest_paid': 'interest_paid',
-    'paymentMethod': 'payment_method',
-    'payment_method': 'payment_method',
+    'paymentMethod': 'disbursement_method',
+    'payment_method': 'disbursement_method',
     'guarantorRequired': 'guarantor_required',
     'guarantor_required': 'guarantor_required',
     'collateralRequired': 'collateral_required',
     'collateral_required': 'collateral_required',
-    'staffMemberId': 'staff_member_id', // ✅ Staff member assignment
-    'staff_member_id': 'staff_member_id',
+    'staffMemberId': 'loan_officer_id', // ✅ Changed to loan_officer_id to match schema.sql
+    'staff_member_id': 'loan_officer_id',
+    'loan_officer_id': 'loan_officer_id',
     'createdAt': 'created_at',
     'created_at': 'created_at',
     'updatedAt': 'updated_at',
@@ -573,9 +574,9 @@ const transformLoanForSupabase = (loan: any): any => {
     transformed._needsClientLookup = true;
   }
   
-  if (transformed.product_id && !isValidUUID(transformed.product_id)) {
+  if (transformed.loan_product_id && !isValidUUID(transformed.loan_product_id)) {
     // Silently flag for lookup - this is expected behavior when syncing to Supabase
-    transformed._originalProductId = transformed.product_id;
+    transformed._originalProductId = transformed.loan_product_id;
     transformed._needsProductLookup = true;
   }
   
@@ -629,30 +630,30 @@ const transformLoanFromSupabase = (loan: any): any => {
     id: loan.id,
     clientId: loan.client_id,
     clientName: loan.client_name || 'Unknown', // We'll need to join this or look it up
-    productId: loan.product_id, // ✅ Changed from loan_product_id to product_id
+    productId: loan.loan_product_id, // ✅ Changed back to loan_product_id to match schema.sql
     productName: loan.product_name || 'Unknown', // We'll need to join this or look it up
-    principalAmount: loan.amount || 0,
+    principalAmount: loan.principal_amount || 0, // ✅ Changed to principal_amount to match schema.sql
     interestRate: loan.interest_rate || 0,
-    term: loan.term_period || 0,
-    termUnit: loan.term_period_unit || 'months',
+    term: loan.duration_months || 0, // ✅ Changed to duration_months to match schema.sql
+    termUnit: 'months',
     purpose: loan.purpose || '',
     status: loan.status || 'pending',
     applicationDate: loan.application_date || '',
-    approvedDate: loan.approval_date || '',
-    disbursementDate: loan.disbursement_date || '',
-    firstRepaymentDate: loan.expected_repayment_date || '',
+    approvedDate: loan.approved_at || '', // ✅ Changed to approved_at to match schema.sql
+    disbursementDate: loan.disbursed_at || '', // ✅ Changed to disbursed_at to match schema.sql
+    firstRepaymentDate: loan.first_payment_date || '',
     totalRepayable: loan.total_amount || 0,
-    installmentAmount: loan.monthly_payment || 0,
-    outstandingBalance: loan.balance || 0,
-    balance: loan.balance || 0,
-    paidAmount: loan.amount_paid || 0,
+    installmentAmount: loan.monthly_installment || 0, // ✅ Changed to monthly_installment to match schema.sql
+    outstandingBalance: loan.outstanding_balance || 0, // ✅ Changed to outstanding_balance to match schema.sql
+    balance: loan.outstanding_balance || 0,
+    paidAmount: loan.paid_amount || 0,
     interestPaid: loan.interest_paid || 0,
     loanNumber: loan.loan_number || '',
     phase: loan.phase || 1,
-    paymentMethod: loan.payment_method || 'Cash',
+    paymentMethod: loan.disbursement_method || 'Cash', // ✅ Changed to disbursement_method to match schema.sql
     guarantorRequired: loan.guarantor_required || false,
     collateralRequired: loan.collateral_required || false,
-    staffMemberId: loan.staff_member_id || undefined,
+    staffMemberId: loan.loan_officer_id || undefined, // ✅ Changed to loan_officer_id to match schema.sql
     createdAt: loan.created_at,
     updatedAt: loan.updated_at,
   };
@@ -1195,13 +1196,13 @@ export const createLoan = async (loan: Loan): Promise<boolean> => {
       .single();
     
     if (productData) {
-      transformedLoan.product_id = productData.id; // ✅ Changed from loan_product_id to product_id
+      transformedLoan.loan_product_id = productData.id; // ✅ Changed back to loan_product_id
       console.log(`✅ Found loan product UUID: ${productData.id}`);
       delete transformedLoan._needsProductLookup;
       delete transformedLoan._originalProductId;
     } else {
       console.error(`❌ Could not find loan product in Supabase: ${loan.productName}`);
-      delete transformedLoan.product_id; // ✅ Changed from loan_product_id to product_id
+      delete transformedLoan.loan_product_id; // ✅ Changed back to loan_product_id
       delete transformedLoan._needsProductLookup;
       delete transformedLoan._originalProductId;
     }
@@ -1219,8 +1220,8 @@ export const createLoan = async (loan: Loan): Promise<boolean> => {
     return false;
   }
   
-  if (!transformedLoan.product_id) { // ✅ Changed from loan_product_id to product_id
-    console.error('❌ Cannot create loan: product_id is required');
+  if (!transformedLoan.loan_product_id) { // ✅ Changed back to loan_product_id
+    console.error('❌ Cannot create loan: loan_product_id is required');
     return false;
   }
   
@@ -1228,7 +1229,7 @@ export const createLoan = async (loan: Loan): Promise<boolean> => {
   const { data: productExists } = await supabase
     .from('loan_products')
     .select('id')
-    .eq('id', transformedLoan.product_id) // ✅ Changed from loan_product_id to product_id
+    .eq('id', transformedLoan.loan_product_id) // ✅ Changed back to loan_product_id
     .eq('organization_id', orgId)
     .single();
   
@@ -2493,9 +2494,9 @@ export const syncAllDataToSupabase = async (data: any): Promise<boolean> => {
       const transformedLoans = data.loans
         .map((l: Loan) => ({ ...transformLoanForSupabase(l), organization_id: orgId }))
         .filter((l: any) => {
-          // Skip loans without valid client_id or product_id
-          if (!l.client_id || !l.product_id) { // ✅ Changed from loan_product_id to product_id
-            console.warn(`⚠️ Skipping loan without required foreign keys. Client ID: ${l.client_id}, Product ID: ${l.product_id}`);
+          // Skip loans without valid client_id or loan_product_id
+          if (!l.client_id || !l.loan_product_id) { // ✅ Changed back to loan_product_id
+            console.warn(`⚠️ Skipping loan without required foreign keys. Client ID: ${l.client_id}, Product ID: ${l.loan_product_id}`);
             return false;
           }
           return true;

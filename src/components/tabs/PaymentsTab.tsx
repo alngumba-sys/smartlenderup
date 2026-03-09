@@ -11,7 +11,7 @@ import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
 export function PaymentsTab() {
   const { isDark } = useTheme();
   // Get real data from DataContext
-  const { loans, clients, payments, addRepayment, generateReceiptNumber } = useData();
+  const { loans, clients, payments, addRepayment, generateReceiptNumber, refreshData } = useData();
   const [activeSubTab, setActiveSubTab] = useState<'reconciliation' | 'arrears'>('reconciliation');
   const [selectedArrearsLoan, setSelectedArrearsLoan] = useState<string | null>(null);
   const [showRecordPaymentModal, setShowRecordPaymentModal] = useState(false);
@@ -75,17 +75,27 @@ export function PaymentsTab() {
       bankAccountId: paymentData.destinationAccountId, // Add destination account ID
     };
 
-    // Add the repayment to the context
-    addRepayment(repaymentRecord);
+    try {
+      // Add the repayment to the context (this is async)
+      await addRepayment(repaymentRecord);
 
-    // Close the modal
-    setShowRecordPaymentModal(false);
+      // Close the modal
+      setShowRecordPaymentModal(false);
 
-    // Show success toast
-    toast.success('Payment Recorded Successfully', {
-      description: `KES ${amount.toLocaleString()} recorded for ${client.name} via ${paymentData.paymentMethod}`,
-      duration: 5000,
-    });
+      // Show success toast
+      toast.success('Payment Recorded Successfully', {
+        description: `KES ${amount.toLocaleString()} recorded for ${client.name} via ${paymentData.paymentMethod}`,
+        duration: 5000,
+      });
+
+      // ✅ Refresh data from Supabase to ensure UI is in sync with database
+      console.log('🔄 Refreshing data after payment...');
+      await refreshData();
+      console.log('✅ Data refreshed successfully');
+    } catch (error) {
+      console.error('❌ Error recording payment:', error);
+      // Error toast is already shown by addRepayment
+    }
   };
 
   const handleAutoReconcile = () => {
