@@ -3,6 +3,8 @@ import { X, RefreshCw, DollarSign, Calendar, PercentIcon, Info } from 'lucide-re
 import { formatCurrency, getCurrencyCode } from '../../utils/currencyUtils';
 import { toast } from 'sonner';
 import { useData } from '../../contexts/DataContext';
+import { loanService } from '../../services/supabaseDataService';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface LoanRolloverModalProps {
   isOpen: boolean;
@@ -11,7 +13,8 @@ interface LoanRolloverModalProps {
 }
 
 export function LoanRolloverModal({ isOpen, onClose, loanId }: LoanRolloverModalProps) {
-  const { loans, clients } = useData();
+  const { loans, clients, refreshData } = useData();
+  const { user } = useAuth();
   const currencyCode = getCurrencyCode();
   
   const loan = loans.find(l => l.id === loanId);
@@ -19,26 +22,107 @@ export function LoanRolloverModal({ isOpen, onClose, loanId }: LoanRolloverModal
   
   const [rolloverType, setRolloverType] = useState<'renew' | 'refinance' | 'extend'>('renew');
   const [newPrincipal, setNewPrincipal] = useState(loan?.principalAmount || 0);
-  const [additionalAmount, setAdditionalAmount] = useState(0);
+  const [additionalAmount, setAdditionalAmount] = useState<number | ''>(''); // ✅ Allow empty string
   const [newTerm, setNewTerm] = useState(loan?.term || 12);
   const [newInterestRate, setNewInterestRate] = useState(loan?.interestRate || 15);
   const [rolloutstanding, setRollOutstanding] = useState(true);
+  const [newLoanStartDate, setNewLoanStartDate] = useState(new Date().toISOString().split('T')[0]); // ✅ New loan start date
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   if (!isOpen || !loan) return null;
 
   const totalPaid = loan.paidAmount ?? loan.amount_paid ?? loan.amountPaid ?? 0;
   const totalRepayable = loan.totalRepayable || loan.totalRepayment || 0;
   const outstandingBalance = totalRepayable - totalPaid;
-  const totalNewLoan = rolloutstanding ? outstandingBalance + additionalAmount : newPrincipal;
-  const monthlyPayment = (totalNewLoan * (1 + (newInterestRate / 100))) / newTerm;
+  const totalNewLoan = rolloutstanding ? outstandingBalance + (additionalAmount || 0) : newPrincipal; // ✅ Handle empty string
+  
+  // ✅ CRITICAL: Interest is calculated from ORIGINAL principal, not outstanding balance
+  // This is because the outstanding balance already includes unpaid interest
+  const baseForInterest = rolloutstanding ? loan.principalAmount : newPrincipal; // Use original principal
+  const newInterest = (baseForInterest * newInterestRate * newTerm) / 100;
+  const totalRepayableNew = totalNewLoan + newInterest;
+  const monthlyPayment = totalRepayableNew / newTerm;
+  
+  // ✅ Calculate first payment date and maturity date
+  const firstPaymentDate = new Date(newLoanStartDate);
+  firstPaymentDate.setMonth(firstPaymentDate.getMonth() + 1);
+  
+  const maturityDate = new Date(newLoanStartDate);
+  maturityDate.setMonth(maturityDate.getMonth() + newTerm);
+  
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
 
-  const handleSubmit = () => {
-    // In production, this would update the loan in the database
-    toast.success('Loan Rollover Initiated', {
-      description: `New loan of ${totalNewLoan.toLocaleString()} created`,
-      duration: 5000,
-    });
-    onClose();
+  const handleSubmit = async () => {
+    if (!user) {
+      toast.error('User not authenticated');
+      return;
+    }
+    
+    if (!loan.client_id && !loan.clientId) {
+      toast.error('Client information missing');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Get organization ID from localStorage
+      const orgData = localStorage.getItem('current_organization');
+      if (!orgData) {
+        throw new Error('Organization not found');
+      }
+      const organization = JSON.parse(orgData);
+      
+      // ✅ Create new loan with rollover details
+      const newLoanData = {
+        clientId: loan.client_id || loan.clientId,
+        loanProductId: loan.loan_product_id || loan.productId || loan.loanProductId,
+        amount: totalNewLoan, // This will map to principal_amount in the service
+        principalAmount: totalNewLoan,
+        interestRate: newInterestRate,
+        term: newTerm,
+        loanTerm: newTerm,
+        disbursementDate: newLoanStartDate,
+        firstRepaymentDate: firstPaymentDate.toISOString().split('T')[0],
+        maturityDate: maturityDate.toISOString().split('T')[0],
+        totalRepayable: totalRepayableNew,
+        totalAmount: totalRepayableNew,
+        status: 'active',
+        purpose: `Rollover of loan ${loan.loan_number || loan.loanNumber} (${rolloverType})`,
+        notes: `Rolled over from loan ${loan.loan_number || loan.loanNumber}. Outstanding balance: ${formatCurrency(outstandingBalance)}${(additionalAmount && additionalAmount > 0) ? `, Additional top-up: ${formatCurrency(additionalAmount)}` : ''}. Interest calculated from original principal: ${formatCurrency(baseForInterest)}.`
+      };
+      
+      console.log('📝 Creating rollover loan:', newLoanData);
+      const createdLoan = await loanService.create(newLoanData, organization.id);
+      
+      // ✅ Update old loan status to mark it as rolled over
+      const oldLoanUpdates = {
+        status: 'completed', // Mark as completed since it's been rolled over
+        notes: `${loan.notes || ''}\n\nRolled over on ${new Date().toLocaleDateString('en-GB')} into new loan ${createdLoan.loan_number}. Outstanding balance at rollover: ${formatCurrency(outstandingBalance)}.`.trim()
+      };
+      
+      console.log('📝 Updating old loan:', oldLoanUpdates);
+      await loanService.update(loan.id, oldLoanUpdates, organization.id);
+      
+      toast.success('Loan Rollover Completed', {
+        description: `New loan of ${formatCurrency(totalNewLoan)} created successfully. Loan #${createdLoan.loan_number}`,
+        duration: 6000,
+      });
+      
+      // ✅ Refresh data to show the new loan
+      await refreshData();
+      onClose();
+    } catch (error: any) {
+      console.error('❌ Error processing rollover:', error);
+      toast.error('Failed to process loan rollover', {
+        description: error?.message || 'An unexpected error occurred',
+        duration: 5000,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -218,7 +302,7 @@ export function LoanRolloverModal({ isOpen, onClose, loanId }: LoanRolloverModal
                 <input
                   type="number"
                   value={additionalAmount}
-                  onChange={(e) => setAdditionalAmount(Number(e.target.value))}
+                  onChange={(e) => setAdditionalAmount(e.target.value === '' ? '' : Number(e.target.value))} // ✅ Allow clearing the field
                   className="w-full pl-16 pr-4 py-2 border border-gray-300 rounded-lg"
                   placeholder="0"
                 />
@@ -255,6 +339,22 @@ export function LoanRolloverModal({ isOpen, onClose, loanId }: LoanRolloverModal
                 />
               </div>
             </div>
+
+            {/* New Loan Start Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                New Loan Start Date
+              </label>
+              <input
+                type="date"
+                value={newLoanStartDate}
+                onChange={(e) => setNewLoanStartDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              />
+              <p className="text-xs text-gray-600 mt-1">
+                This is when the new loan period begins and determines when the first payment is due
+              </p>
+            </div>
           </div>
 
           {/* Calculation Summary */}
@@ -277,6 +377,14 @@ export function LoanRolloverModal({ isOpen, onClose, loanId }: LoanRolloverModal
                 <label className="text-xs text-blue-700">Interest Rate</label>
                 <p className="text-sm font-semibold text-blue-900">{newInterestRate}% per annum</p>
               </div>
+              <div>
+                <label className="text-xs text-blue-700">First Payment Date</label>
+                <p className="text-sm font-semibold text-blue-900">{formatDate(firstPaymentDate)}</p>
+              </div>
+              <div>
+                <label className="text-xs text-blue-700">Maturity Date</label>
+                <p className="text-sm font-semibold text-blue-900">{formatDate(maturityDate)}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -292,9 +400,10 @@ export function LoanRolloverModal({ isOpen, onClose, loanId }: LoanRolloverModal
           <button
             onClick={handleSubmit}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            disabled={isSubmitting}
           >
             <RefreshCw className="size-4" />
-            Process Rollover
+            {isSubmitting ? 'Processing...' : 'Process Rollover'}
           </button>
         </div>
       </div>

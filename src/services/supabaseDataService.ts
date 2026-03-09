@@ -722,23 +722,21 @@ export const loanService = {
       id: crypto.randomUUID(),
       organization_id: organizationId,
       client_id: clientUUID,
-      product_id: productUUID, // Changed from loan_product_id to product_id
+      loan_product_id: productUUID, // ✅ Changed to loan_product_id to match schema.sql
       loan_number: loanNumber,
       
-      // Loan details (mapped to actual schema column names)
-      amount: principalAmount, // Changed from principal_amount to amount
+      // Loan details (mapped to actual schema column names from /supabase/schema.sql)
+      principal_amount: principalAmount, // ✅ Changed to principal_amount to match schema.sql
       interest_rate: interestRate,
-      term_period: term, // Changed from duration_months to term_period
-      term_period_unit: 'months', // Added term_period_unit
-      repayment_frequency: loanData.repaymentFrequency?.toLowerCase() || 'monthly',
+      duration_months: term, // ✅ Changed to duration_months to match schema.sql
+      processing_fee: parseNumber(loanData.facilitationFee || loanData.processingFee || loanData.processing_fee || 0),
+      insurance_fee: 0,
       
       // Financial calculations
       total_amount: parseNumber(loanData.totalRepayable || loanData.totalAmount || loanData.total_amount || totalAmount),
-      balance: parseNumber(loanData.outstandingBalance || loanData.totalRepayable || loanData.totalAmount || loanData.total_amount || totalAmount), // Changed from outstanding_balance to balance
-      amount_paid: 0, // Changed from paid_amount to amount_paid
-      
-      // Fees
-      processing_fee: parseNumber(loanData.facilitationFee || loanData.processingFee || loanData.processing_fee || 0),
+      monthly_installment: monthlyInstallment, // ✅ Changed to monthly_installment to match schema.sql
+      outstanding_balance: parseNumber(loanData.outstandingBalance || loanData.totalRepayable || loanData.totalAmount || loanData.total_amount || totalAmount), // ✅ Changed to outstanding_balance
+      paid_amount: 0, // ✅ Changed to paid_amount to match schema.sql
       
       // Purpose & disbursement
       purpose: loanData.purpose || '',
@@ -746,11 +744,10 @@ export const loanService = {
       
       // Dates
       application_date: creationDate,
-      expected_repayment_date: loanData.firstRepaymentDate || null, // Changed from first_payment_date to expected_repayment_date
+      first_payment_date: loanData.firstRepaymentDate || null, // ✅ Changed to first_payment_date to match schema.sql
       maturity_date: loanData.maturityDate || null,
       
-      // 5-Phase workflow
-      phase: 1, // Start at phase 1
+      // Status
       status: loanData.status?.toLowerCase() || 'pending',
       
       // Audit
@@ -891,24 +888,24 @@ export const loanService = {
   async update(loanId: string, updates: any, organizationId: string) {
     // ✅ Transform field names from camelCase to snake_case
     const fieldMap: Record<string, string> = {
-      'approvedDate': 'approval_date',
+      'approvedDate': 'approved_at',
       'approvedBy': 'approved_by',
-      'disbursementDate': 'disbursement_date',
-      'disbursedDate': 'disbursement_date',
+      'disbursementDate': 'disbursed_at',
+      'disbursedDate': 'disbursed_at',
       'disbursedBy': 'disbursed_by',
       'applicationDate': 'application_date',
-      'firstRepaymentDate': 'expected_repayment_date',
-      'principalAmount': 'amount',
-      'loanTerm': 'term_period',
+      'firstRepaymentDate': 'first_payment_date',
+      'principalAmount': 'principal_amount',
+      'loanTerm': 'duration_months',
       'totalRepayable': 'total_amount',
-      'outstandingBalance': 'balance',
-      'paidAmount': 'amount_paid',
+      'outstandingBalance': 'outstanding_balance',
+      'paidAmount': 'paid_amount',
       'principalPaid': 'principal_paid',
       'interestPaid': 'interest_paid',
       'interestRate': 'interest_rate',
-      'productId': 'product_id',
+      'productId': 'loan_product_id',
       'clientId': 'client_id',
-      'staffMemberId': 'staff_member_id',
+      'staffMemberId': 'loan_officer_id',
       'lastPaymentDate': 'last_payment_date',
       'lastPaymentAmount': 'last_payment_amount',
       'nextPaymentDate': 'next_payment_date',
@@ -925,15 +922,17 @@ export const loanService = {
       'discountValue', 
       'discountAppliedTo', 
       'discountAmount',
+      'client',
+      'product',
+      'client_number',
+      'loan_officer',
       // ⚠️ MISSING COLUMNS IN DATABASE - exclude to prevent errors
       'lastPaymentDate',      // DB doesn't have last_payment_date
       'lastPaymentAmount',    // DB doesn't have last_payment_amount
       'nextPaymentDate',      // DB doesn't have next_payment_date
       'nextPaymentAmount',    // DB doesn't have next_payment_amount
-      'paidAmount',           // DB doesn't have amount_paid yet
       'principalPaid',        // DB doesn't have principal_paid yet
-      'interestPaid',         // DB doesn't have interest_paid yet
-      'outstandingBalance'    // DB doesn't have balance yet
+      'interestPaid'          // DB doesn't have interest_paid yet
     ];
     
     // Transform updates to match database schema
