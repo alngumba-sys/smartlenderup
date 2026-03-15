@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { X, DollarSign, Calendar, FileText, AlertTriangle, User, Upload, Trash2, Info, CheckCircle, Edit2, Save } from 'lucide-react';
+import { X, Calendar, FileText, AlertTriangle, User, Upload, Trash2, Info, CheckCircle, Edit2, Save } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useData } from '../../contexts/DataContext';
-import { getCurrencyCode } from '../../utils/currencyUtils';
+import { getCurrencyCode, getCurrencySymbol } from '../../utils/currencyUtils';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { formatNumberWithCommas, parseFormattedNumber } from '../../utils/numberFormat';
 import { calculateFacilitationFee, type FacilitationFeeBreakdown, saveFacilitationFeeConfig, getFacilitationFeeConfig } from '../../utils/facilitationFeeCalculator';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface NewLoanModalProps {
   onClose: () => void;
@@ -49,6 +49,7 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
   
   // Get active country currency
   const currencyCode = getCurrencyCode();
+  const currencySymbol = getCurrencySymbol();
   
   const [formData, setFormData] = useState({
     clientId: preselectedClientId || '',
@@ -296,6 +297,13 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
     return 'bg-gray-500';
   };
 
+  const getCreditScoreBadgeClass = (score: number) => {
+    if (score >= 740) return 'bg-green-100 text-green-800';
+    if (score >= 670) return 'bg-blue-100 text-blue-800';
+    if (score >= 580) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-orange-100 text-orange-800';
+  };
+
   const recommendedAmount = creditScore ? getRecommendedLoanAmount(creditScore) : 0;
 
   return (
@@ -303,7 +311,7 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
       <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[96vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="relative bg-gradient-to-r from-slate-800 via-slate-700 to-blue-900 px-6 py-4">
-          <div className="flex items-start justify-between">
+          <div className="flex items-center justify-between">
             <div className="flex-1">
               <h2 className="text-white text-xl font-semibold mb-0.5">
                 {editingLoanId ? 'Edit Loan Application' : 'New Loan Application'}
@@ -313,29 +321,28 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
               </p>
             </div>
             
-            {/* Credit Score Display in Header */}
+            {/* Credit Score Display in Header - Compact Design */}
             {creditScore !== null && (
-              <div className="flex items-center gap-3 ml-6">
-                <div className="text-center px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl shadow-lg">
-                  <p className="text-xs text-blue-200 mb-0.5 font-medium">Credit Score</p>
-                  <p className={`text-3xl font-bold ${getCreditScoreColor(creditScore)}`}>{creditScore}</p>
-                  <div className="mt-1">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      creditScore >= 740 ? 'bg-green-100 text-green-800' :
-                      creditScore >= 670 ? 'bg-blue-100 text-blue-800' :
-                      creditScore >= 580 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-orange-100 text-orange-800'
-                    }`}>
+              <div className="flex items-center gap-2 ml-6">
+                {/* Credit Score */}
+                <div className="flex items-center gap-3 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg shadow-lg">
+                  <div className="text-center">
+                    <p className="text-[10px] text-blue-200 font-medium leading-tight">Credit Score</p>
+                    <p className={`font-bold ${getCreditScoreColor(creditScore)} text-2xl leading-tight`}>{creditScore}</p>
+                  </div>
+                  <div>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${getCreditScoreBadgeClass(creditScore)}`}>
                       {getCreditScoreLabel(creditScore)}
                     </span>
                   </div>
                 </div>
                 
-                {/* Recommended Loan Amount */}
-                <div className="text-center px-4 py-2 bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 backdrop-blur-md border border-emerald-400/30 rounded-xl shadow-lg">
-                  <p className="text-xs text-emerald-100 mb-0.5 font-medium">Max Recommended</p>
-                  <p className="text-2xl font-bold text-white">{currencyCode} {(recommendedAmount / 1000).toFixed(0)}K</p>
-                  <p className="text-xs text-emerald-200 mt-0.5">Based on credit score</p>
+                {/* Max Recommended */}
+                <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 rounded-lg shadow-lg">
+                  <div className="text-center">
+                    <p className="text-[10px] text-emerald-200 font-medium leading-tight">Max Recommended</p>
+                    <p className="text-xl font-bold text-white leading-tight">{currencyCode} {(recommendedAmount / 1000).toFixed(0)}K</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -388,7 +395,7 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
                   Loan Product <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
+                  <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
                   <select
                     required
                     value={formData.productId}
@@ -407,31 +414,6 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
                 {availableProducts.length === 0 && (
                   <p className="text-red-600 text-xs mt-1">No active loan products available. Please create one first.</p>
                 )}
-              </div>
-
-              {/* Staff Member (Deal Owner) */}
-              <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                  Staff Member (Who Brought This Deal) <span className="text-gray-400 text-xs">(Optional)</span>
-                </label>
-                <div className="relative">
-                  <User className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
-                  <select
-                    value={formData.staffMemberId}
-                    onChange={(e) => setFormData({ ...formData, staffMemberId: e.target.value })}
-                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  >
-                    <option value="">No staff member assigned</option>
-                    {payees.filter(p => (p.type === 'Employee' || p.category === 'Employee') && p.status === 'Active').map(staff => (
-                      <option key={staff.id} value={staff.id}>
-                        {staff.name} - {staff.phone}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <p className="text-gray-500 text-xs mt-1">
-                  Assign this loan to a staff member to track their commission on the facilitation fee
-                </p>
               </div>
             </div>
 
@@ -487,7 +469,7 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
                   Principal Amount ({currencyCode}) <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
+                  <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
                   <input
                     type="text"
                     required
@@ -824,6 +806,28 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
                   placeholder="Working capital, equipment, etc."
                 />
               </div>
+
+              {/* Staff Member (Deal Owner) */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Staff Member (Who Brought This Deal) <span className="text-gray-400 text-xs">(Optional)</span>
+                </label>
+                <div className="relative">
+                  <User className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
+                  <select
+                    value={formData.staffMemberId}
+                    onChange={(e) => setFormData({ ...formData, staffMemberId: e.target.value })}
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                  >
+                    <option value="">No staff member assigned</option>
+                    {payees.filter(p => (p.type === 'Employee' || p.category === 'Employee') && p.status === 'Active').map(staff => (
+                      <option key={staff.id} value={staff.id}>
+                        {staff.name} - {staff.phone}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1012,7 +1016,7 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
               disabled={!selectedProduct}
               className="flex-1 px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl hover:from-emerald-700 hover:to-green-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all"
             >
-              <DollarSign className="size-5" />
+              <Calendar className="size-5" />
               {editingLoanId ? 'Update Loan Application' : 'Create Loan Application'}
             </button>
           </div>

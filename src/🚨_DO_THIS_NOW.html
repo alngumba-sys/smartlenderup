@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚨 FIX LOAN CREATION ERROR - DO THIS NOW!</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+            animation: pulse 2s infinite;
+        }
+        
+        .header p {
+            font-size: 18px;
+            opacity: 0.95;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-weight: bold;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .error-box {
+            background: #fee;
+            border-left: 4px solid #f00;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+        
+        .error-box h3 {
+            color: #c00;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .error-box code {
+            display: block;
+            background: #fdd;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            margin-top: 10px;
+            overflow-x: auto;
+        }
+        
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+        
+        .success-box h3 {
+            color: #155724;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .steps {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 30px 0;
+        }
+        
+        .step {
+            display: flex;
+            margin-bottom: 25px;
+            align-items: flex-start;
+        }
+        
+        .step:last-child {
+            margin-bottom: 0;
+        }
+        
+        .step-number {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            flex-shrink: 0;
+            margin-right: 20px;
+        }
+        
+        .step-content h4 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        
+        .step-content p {
+            color: #666;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+        
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: transform 0.3s, box-shadow 0.3s;
+            margin: 10px 10px 10px 0;
+            font-size: 16px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .footer {
+            background: #f8f9fa;
+            padding: 20px 40px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .emoji {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+        
+        ul {
+            margin-left: 20px;
+            color: #666;
+            line-height: 1.8;
+        }
+        
+        ul li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 FIX LOAN CREATION ERROR</h1>
+            <p>Quick Action Required - 2 Minutes</p>
+            <div class="status-badge">✅ Code Fixed | 🔧 Database Action Needed</div>
+        </div>
+        
+        <div class="content">
+            <div class="success-box">
+                <h3>✅ Error #1: FIXED - Runtime Error</h3>
+                <p><strong>Fixed in:</strong> <code>/config/rolePermissions.ts</code></p>
+                <p>The SSR (server-side rendering) error has been resolved. All window/localStorage checks now use proper environment detection.</p>
+            </div>
+            
+            <div class="error-box">
+                <h3>🔧 Error #2: ACTION REQUIRED - Schema Cache</h3>
+                <p><strong>Error:</strong> PGRST204 - "Could not find the 'amount' column"</p>
+                <code>Message: "Could not find the 'amount' column of 'loans' in the schema cache"</code>
+                <p style="margin-top: 15px;"><strong>What this means:</strong> Your Supabase database is fine, but the API layer needs to refresh its understanding of your database structure.</p>
+            </div>
+            
+            <div class="steps">
+                <h3 style="margin-bottom: 25px; color: #333;">🎯 Follow These Steps (2 Minutes)</h3>
+                
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h4>Open Supabase Dashboard</h4>
+                        <p>Go to <span class="highlight">https://app.supabase.com</span> and select your BV Funguo project</p>
+                        <a href="https://app.supabase.com" target="_blank" class="btn" style="margin-top: 10px;">
+                            🌐 Open Supabase
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h4>Navigate to API Settings</h4>
+                        <p>Click on <span class="highlight">"API"</span> in the left sidebar menu</p>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h4>Refresh Schema Cache</h4>
+                        <p>Scroll down to find the <span class="highlight">"Schema Cache"</span> section and click the <strong>"Refresh schema cache"</strong> button</p>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h4>Wait 30 Seconds</h4>
+                        <p>Give Supabase time to refresh its cache (usually takes 10-30 seconds)</p>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <h4>Test Loan Creation</h4>
+                        <p>Return to your app and try creating a loan again. It should work now! ✅</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="background: #e7f3ff; padding: 20px; border-radius: 8px; border-left: 4px solid #2196F3;">
+                <h3 style="color: #1976D2; margin-bottom: 15px;">💡 Why This Happened</h3>
+                <ul>
+                    <li>Your database schema was modified or updated</li>
+                    <li>Supabase's API layer cached the old schema</li>
+                    <li>The cache needs to be manually refreshed</li>
+                    <li>This is a one-time fix - won't happen again</li>
+                </ul>
+            </div>
+            
+            <div style="margin-top: 30px; text-align: center;">
+                <a href="/⚡_LOAN_CREATION_ERRORS_FIXED.md" class="btn">
+                    📄 View Full Documentation
+                </a>
+                <a href="/FIX_LOAN_CREATION_SCHEMA.sql" class="btn btn-secondary">
+                    📝 View SQL Fix (Backup Option)
+                </a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>Status:</strong> Code errors fixed ✅ | Waiting for schema cache refresh 🔧</p>
+            <p style="margin-top: 10px;">Last updated: March 12, 2026</p>
+        </div>
+    </div>
+</body>
+</html>

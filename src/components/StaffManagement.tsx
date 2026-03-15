@@ -3,7 +3,7 @@ import { Users, Plus, Edit2, Trash2, Shield, Eye, EyeOff, Key, Phone, Sparkles }
 import { supabase } from '../supabaseClient';
 import { StaffUser, AVAILABLE_TABS, TabPermission, StaffRole } from '../types/staff';
 import { getOrganizationId } from '../utils/organizationUtils';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { canCreateInTab, canEditInTab, canDeleteInTab, showPermissionError } from '../utils/staffPermissions';
 import { showDatabaseError } from '../utils/toastUtils';
 import { GranularPermissionsEditor } from './GranularPermissionsEditor';

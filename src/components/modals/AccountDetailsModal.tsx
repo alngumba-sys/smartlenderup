@@ -106,7 +106,7 @@ export function AccountDetailsModal({
           entry_number: line.journal_entries.entry_number,
           description: line.journal_entries.description,
           reference_type: line.journal_entries.source_type,
-          reference_id: line.journal_entries.source_id,
+          reference_id: line.journal_entries.reference, // ✅ FIXED: Use 'reference' instead of 'source_id'
           created_at: line.journal_entries.created_at || line.created_at,
           // Try both possible column names
           debit_amount: Number(line.debit_amount || line.debit || 0),

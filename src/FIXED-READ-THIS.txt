@@ -1,0 +1,17 @@
+I FIXED YOUR CONFIGURATION!
+
+═══════════════════════════════════════════════════════════════
+
+Run ONE of these (based on your OS):
+
+  Mac/Linux:     chmod +x fix.sh && ./fix.sh
+
+  Windows:       fix.bat
+
+═══════════════════════════════════════════════════════════════
+
+That's it. Error will be gone.
+
+Open browser to: http://localhost:5173
+
+Done! ✅

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WASM Block Test</title>
+  <style>
+    body {
+      font-family: system-ui;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    .test {
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 2px solid #ccc;
+    }
+    .pass {
+      background: #d4edda;
+      border-color: #28a745;
+      color: #155724;
+    }
+    .fail {
+      background: #f8d7da;
+      border-color: #dc3545;
+      color: #721c24;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔬 WebAssembly Block Test</h1>
+  <p>This page tests if WebAssembly is properly blocked.</p>
+  
+  <div id="results"></div>
+  
+  <script>
+    const results = document.getElementById('results');
+    
+    function addTest(name, passed, details) {
+      const div = document.createElement('div');
+      div.className = `test ${passed ? 'pass' : 'fail'}`;
+      div.innerHTML = `
+        <strong>${passed ? '✅' : '❌'} ${name}</strong><br>
+        <small>${details}</small>
+      `;
+      results.appendChild(div);
+    }
+    
+    // Test 1: WebAssembly is undefined
+    const test1 = typeof WebAssembly === 'undefined';
+    addTest(
+      'WebAssembly is undefined',
+      test1,
+      test1 ? 'WebAssembly object does not exist' : 'WARNING: WebAssembly still exists!'
+    );
+    
+    // Test 2: Cannot create WebAssembly
+    let test2 = false;
+    try {
+      if (typeof WebAssembly !== 'undefined' && WebAssembly.Module) {
+        new WebAssembly.Module(new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]));
+        test2 = false;
+      } else {
+        test2 = true;
+      }
+    } catch (e) {
+      test2 = true;
+    }
+    addTest(
+      'Cannot instantiate WebAssembly',
+      test2,
+      test2 ? 'WebAssembly.Module is blocked or undefined' : 'WARNING: WebAssembly can still be instantiated!'
+    );
+    
+    // Test 3: XLSX flags are set
+    const test3 = window.XLSX_NO_WASM === true && window.DISABLE_WASM === true;
+    addTest(
+      'XLSX WebAssembly flags are set',
+      test3,
+      test3 ? 'XLSX_NO_WASM and DISABLE_WASM flags are true' : 'WARNING: XLSX flags not set correctly!'
+    );
+    
+    // Test 4: Fetch is overridden
+    const test4 = window.fetch.toString().includes('wasm');
+    addTest(
+      'Fetch is intercepted',
+      test4,
+      test4 ? 'fetch() has WASM blocking code' : 'WARNING: fetch() might not block WASM!'
+    );
+    
+    // Summary
+    const allPassed = test1 && test2 && test3 && test4;
+    const summary = document.createElement('div');
+    summary.className = `test ${allPassed ? 'pass' : 'fail'}`;
+    summary.style.marginTop = '30px';
+    summary.style.fontSize = '18px';
+    summary.innerHTML = `
+      <strong>${allPassed ? '🎉 ALL TESTS PASSED!' : '⚠️ SOME TESTS FAILED'}</strong><br>
+      <small>${allPassed ? 'WebAssembly is completely blocked. XLSX will not use WASM.' : 'There may be issues with WASM blocking.'}</small>
+    `;
+    results.appendChild(summary);
+    
+    console.log('✅ Test Results:', {
+      'WebAssembly undefined': test1,
+      'Cannot instantiate': test2,
+      'XLSX flags set': test3,
+      'Fetch intercepted': test4,
+      'All passed': allPassed
+    });
+  </script>
+</body>
+</html>

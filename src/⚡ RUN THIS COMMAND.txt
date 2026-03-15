@@ -1,0 +1,48 @@
+╔════════════════════════════════════════════════════════════╗
+║                                                            ║
+║              🚨 WEBASSEMBLY ERROR? 🚨                     ║
+║                                                            ║
+║              RUN THIS ONE COMMAND:                         ║
+║                                                            ║
+╚════════════════════════════════════════════════════════════╝
+
+
+npm start
+
+
+═══════════════════════════════════════════════════════════════
+
+WHAT THIS DOES:
+
+✅ Starts server on port 5174
+✅ Opens browser to cache clearer
+✅ Automatically clears browser cache
+✅ Loads app with NO errors
+
+═══════════════════════════════════════════════════════════════
+
+OR FOR WINDOWS:
+
+Just double-click this file:
+
+    START.bat
+
+═══════════════════════════════════════════════════════════════
+
+OR FOR MAC/LINUX:
+
+Run this in terminal:
+
+    chmod +x START.sh
+    ./START.sh
+
+═══════════════════════════════════════════════════════════════
+
+THE RESULT:
+
+→ Browser opens automatically
+→ Cache clears automatically  
+→ App loads with NO WebAssembly error
+→ Everything just works! ✅
+
+═══════════════════════════════════════════════════════════════

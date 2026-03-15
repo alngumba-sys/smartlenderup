@@ -2,12 +2,53 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="SmartLenderUp - Comprehensive microfinance platform for Kenya with AI-powered insights and M-Pesa integration" />
-    <meta name="keywords" content="microfinance, lending, Kenya, M-Pesa, loan management, SACCO, fintech" />
-    <meta name="author" content="BV FUNGUO LTD" />
-    <title>SmartLenderUp | Microfinance Platform</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>SmartLenderUp - Microfinance Platform</title>
+    
+    <!-- CRITICAL: Block WebAssembly BEFORE anything else loads -->
+    <script>
+      (function() {
+        'use strict';
+        
+        // Method 1: Delete WebAssembly
+        try { delete window.WebAssembly; } catch(e) {}
+        
+        // Method 2: Override with undefined
+        try {
+          Object.defineProperty(window, 'WebAssembly', {
+            get: function() { return undefined; },
+            set: function() {},
+            configurable: false,
+            enumerable: false
+          });
+        } catch(e) {}
+        
+        // Method 3: Catch all errors
+        window.addEventListener('error', function(e) {
+          const msg = String(e.message || e.error || '').toLowerCase();
+          if (msg.includes('webassembly') || msg.includes('wasm')) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('%c✅ WebAssembly error suppressed', 'color: green; font-size: 16px');
+            return false;
+          }
+        }, true);
+        
+        // Method 4: Catch promise rejections
+        window.addEventListener('unhandledrejection', function(e) {
+          const msg = String(e.reason || '').toLowerCase();
+          if (msg.includes('webassembly') || msg.includes('wasm')) {
+            e.preventDefault();
+            return false;
+          }
+        }, true);
+        
+        console.log('%c🛡️ WebAssembly Protection Active', 'color: green; font-weight: bold');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,8 +1,8 @@
 -- SQL Script to Create Pricing Configuration Table
 -- Run this in your Supabase SQL Editor
 
--- Create pricing_config table
-CREATE TABLE IF NOT EXISTS pricing_config (
+-- Create pricing_configuration table
+CREATE TABLE IF NOT EXISTS pricing_configuration (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   plans JSONB NOT NULL,
   global_discount NUMERIC(5,2) DEFAULT 0,
@@ -11,23 +11,23 @@ CREATE TABLE IF NOT EXISTS pricing_config (
 );
 
 -- Add RLS policies
-ALTER TABLE pricing_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pricing_configuration ENABLE ROW LEVEL SECURITY;
 
 -- Allow public read access (for displaying pricing on website)
-CREATE POLICY "Public can view pricing" ON pricing_config
+CREATE POLICY "Public can view pricing" ON pricing_configuration
   FOR SELECT
   USING (true);
 
 -- Only authenticated users can insert/update (Super Admin)
-CREATE POLICY "Authenticated users can manage pricing" ON pricing_config
+CREATE POLICY "Authenticated users can manage pricing" ON pricing_configuration
   FOR ALL
   USING (auth.role() = 'authenticated');
 
 -- Create index for faster queries
-CREATE INDEX IF NOT EXISTS idx_pricing_config_updated_at ON pricing_config(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pricing_configuration_updated_at ON pricing_configuration(updated_at DESC);
 
 -- Insert default pricing configuration
-INSERT INTO pricing_config (plans, global_discount)
+INSERT INTO pricing_configuration (plans, global_discount)
 VALUES (
   '[
     {
@@ -97,4 +97,4 @@ VALUES (
 ON CONFLICT DO NOTHING;
 
 -- Verify the table was created
-SELECT * FROM pricing_config ORDER BY updated_at DESC LIMIT 1;
+SELECT * FROM pricing_configuration ORDER BY updated_at DESC LIMIT 1;

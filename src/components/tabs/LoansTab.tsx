@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Search, Plus, Calendar, AlertCircle, CheckCircle, XCircle, DollarSign, TrendingUp, PercentIcon, Wallet, User, Calculator, Upload, X, Info, Filter, Clock, MessageSquare, UserCheck, FileText, Send, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit, RefreshCw } from 'lucide-react';
 import { generateInstallments, type LoanDocument, type Guarantor, type Collateral } from '../../data/dummyData';
+// Import useData hook from DataContext - Version: 2025-01-11
 import { useData } from '../../contexts/DataContext';
 import { ComprehensiveLoanDetailsModal } from '../modals/ComprehensiveLoanDetailsModal';
 import { NewLoanModal } from '../modals/NewLoanModal';
@@ -109,8 +110,6 @@ export function LoansTab() {
     if (!isConnected) {
       return; // Block the operation if offline
     }
-
-    console.log(editingLoanId ? 'Updating loan:' : 'New loan created:', loanData);
     
     const client = clients.find(c => c.id === loanData.clientId);
     const product = loanProducts.find(p => p.id === loanData.productId);
@@ -254,12 +253,6 @@ export function LoansTab() {
       discountAppliedTo: loanData.discountAppliedTo || null
     };
     
-    // DEBUG: Log what's about to be saved
-    console.log('=== LOAN DATA BEING SAVED ===');
-    console.log('Total Interest:', completeLoan.totalInterest);
-    console.log('Total Repayable:', completeLoan.totalRepayable);
-    console.log('Outstanding Balance:', completeLoan.outstandingBalance);
-    console.log('============================');
     
     // Save the loan to DataContext and get the generated ID
     let loanId: string;
@@ -437,7 +430,6 @@ export function LoansTab() {
       setLoanToDelete(null);
     } catch (error) {
       // Error is already handled in deleteLoan with toast
-      console.error('Error deleting loan:', error);
       setShowDeleteConfirmation(false);
       setLoanToDelete(null);
     }
@@ -640,7 +632,6 @@ export function LoansTab() {
         
         return isPaid;
       });
-      console.log(`🔍 Paid filter result: ${displayLoans.length} loans found`);
       break;
     case 'defaulted':
       displayLoans = loans.filter(loan => 
@@ -1751,7 +1742,7 @@ export function LoansTab() {
                       
                       // 🔍 DEBUG for LN001
                       if (loan.loanNumber === 'LN001') {
-                        console.log('🔍 LOANS TABLE - LN001 DEBUG:', {
+                        const debugInfo = {
                           principal: principalAmt,
                           rate: loan.interestRate,
                           term: loan.term,
@@ -1759,7 +1750,7 @@ export function LoansTab() {
                           loanTerm: loan.loanTerm,
                           calculatedInterest: calculatedInterest,
                           formula: `${principalAmt} × ${loan.interestRate} × ${loan.term || loan.termPeriod || loan.loanTerm || 1} / 100 = ${calculatedInterest}`
-                        });
+                        };
                       }
                       
                       const calculatedTotal = principalAmt + calculatedInterest;
@@ -1801,7 +1792,7 @@ export function LoansTab() {
                           <td className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                             KES {interestAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
-                          <td className={`px-4 py-2 text-right text-xs text-emerald-700 dark:text-emerald-400`}>
+                          <td className={`px-4 py-2 text-right text-xs text-emerald-800 dark:text-emerald-500`}>
                             KES {paidAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
                           <td className={`px-4 py-2 text-right text-xs text-orange-600 dark:text-orange-400`}>
@@ -1815,10 +1806,9 @@ export function LoansTab() {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  console.log('🟢 Setting detailModalLoan to:', loan.id);
                                   setDetailModalLoan(loan.id);
                                 }}
-                                className="dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-300 text-xs cursor-pointer hover:underline text-[rgb(4,201,60)]"
+                                className="dark:text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-400 text-xs cursor-pointer hover:underline text-emerald-700"
                               >
                                 View
                               </button>
@@ -1877,7 +1867,7 @@ export function LoansTab() {
                       <td className={`px-4 py-3 text-right text-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
                         KES {sortedLoans.reduce((sum, loan) => sum + calculateCorrectInterest(loan), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                       </td>
-                      <td className={`px-4 py-3 text-right text-xs text-emerald-700 dark:text-emerald-400 font-semibold`}>
+                      <td className={`px-4 py-3 text-right text-xs text-emerald-800 dark:text-emerald-500 font-semibold`}>
                         KES {sortedLoans.reduce((sum, loan) => sum + (loan.paidAmount || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                       </td>
                       <td className={`px-4 py-3 text-right text-xs text-orange-600 dark:text-orange-400 font-semibold`}>
@@ -2260,12 +2250,10 @@ export function LoansTab() {
       )}
 
       {detailModalLoan && (() => {
-        console.log('📋 Rendering ComprehensiveLoanDetailsModal for loan:', detailModalLoan);
         return (
           <ComprehensiveLoanDetailsModal
             loanId={detailModalLoan}
             onClose={() => {
-              console.log('🚪 Closing modal');
               setDetailModalLoan(null);
             }}
           />

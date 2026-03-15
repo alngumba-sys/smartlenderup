@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User, Phone, Mail, MapPin, Calendar, Lock, Bell, Download, FileText, CreditCard, Shield } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface ClientProfileTabProps {
   clientId: string;

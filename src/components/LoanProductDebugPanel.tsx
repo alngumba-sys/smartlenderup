@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { runLoanProductDiagnostic } from '../utils/loanProductDiagnostic';
 
 export function LoanProductDebugPanel() {
@@ -66,22 +66,40 @@ export function LoanProductDebugPanel() {
 
       const org = JSON.parse(orgData);
       
+      // Generate a unique product code with timestamp
+      const timestamp = Date.now().toString().slice(-6);
+      const productCode = `TEST-PROD${timestamp}`;
+      
       const testProduct = {
-        id: `TEST${Date.now()}`,
+        id: crypto.randomUUID(),
         organization_id: org.id,
+        product_code: productCode,
+        product_name: 'Debug Test Product',
         name: 'Debug Test Product',
         description: 'Created by debug panel',
         min_amount: 1000,
         max_amount: 50000,
+        minimum_amount: 1000,
+        maximum_amount: 50000,
         min_term: 1,
         max_term: 12,
+        minimum_term: 1,
+        maximum_term: 12,
+        term_unit: 'Months',
         interest_rate: 10,
+        interest_method: 'flat',
+        interest_type: 'Flat',
+        repayment_frequency: 'monthly',
         processing_fee_percentage: 2,
+        processing_fee_fixed: 0,
+        insurance_fee_fixed: 0,
         guarantor_required: false,
         collateral_required: false,
-        status: 'Active',
-        created_at: new Date().toISOString().split('T')[0],
-        updated_at: new Date().toISOString().split('T')[0],
+        require_guarantor: false,
+        require_collateral: false,
+        status: 'active',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
       console.log('📤 Creating test product:', testProduct);

@@ -1,4 +1,4 @@
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export type TabKey = 
   | 'dashboard'
@@ -434,8 +434,8 @@ export function isManager(): boolean {
     console.error('Error checking manager status:', error);
   }
   
-  console.log('[isManager] ⚠️ No user data - defaulting to manager (true)');
-  return true; // Default to true to avoid locking out users
+  console.log('[isManager] ⚠️ No user data - defaulting to FALSE (no access)');
+  return false; // ✅ FIXED: Default to false to deny access when not logged in
 }
 
 // Get all tabs that user can view
@@ -444,7 +444,12 @@ export function getVisibleTabs(): TabKey[] {
     const userData = localStorage.getItem('bvfunguo_user');
     if (userData) {
       const user = JSON.parse(userData);
-      if (user.role === 'manager' || user.userType === 'manager') {
+      // Check if user is a manager/admin (case-insensitive)
+      const role = (user.role || '').toLowerCase();
+      const userType = (user.userType || '').toLowerCase();
+      
+      if (role.includes('manager') || role.includes('admin') || 
+          userType.includes('manager') || userType.includes('admin')) {
         // Managers can see all tabs
         return [
           'dashboard',
@@ -596,8 +601,11 @@ export function getVisibleTabs(): TabKey[] {
 export function getFirstVisibleTabRoute(): string {
   const visibleTabs = getVisibleTabs();
   
+  console.log('🎯 [getFirstVisibleTabRoute] Visible tabs:', visibleTabs);
+  
   if (visibleTabs.length === 0) {
-    return 'loans'; // Fallback to loans if no permissions
+    console.warn('⚠️ [getFirstVisibleTabRoute] No visible tabs found! Defaulting to dashboard');
+    return 'dashboard'; // Changed from 'loans' to 'dashboard' as fallback
   }
   
   // Map tabKeys to their navigation routes
@@ -621,11 +629,16 @@ export function getFirstVisibleTabRoute(): string {
   // ✅ REQUIREMENT: If Dashboard is disabled, set landing page to Loans
   const hasDashboard = visibleTabs.includes('dashboard');
   
-  if (!hasDashboard) {
-    console.log('📍 Dashboard disabled - redirecting to Loans as landing page');
-    return 'loans'; // Loans is the landing page when Dashboard is disabled
+  if (!hasDashboard && visibleTabs.length > 0) {
+    console.log('📍 Dashboard disabled - using first visible tab:', visibleTabs[0]);
+    const firstTabKey = visibleTabs[0];
+    const route = tabKeyToRoute[firstTabKey] || 'dashboard';
+    console.log('🎯 [getFirstVisibleTabRoute] Returning route:', route);
+    return route;
   }
   
   const firstTabKey = visibleTabs[0];
-  return tabKeyToRoute[firstTabKey] || 'loans'; // Default to loans instead of dashboard
+  const route = tabKeyToRoute[firstTabKey] || 'dashboard';
+  console.log('🎯 [getFirstVisibleTabRoute] Returning route:', route);
+  return route;
 }

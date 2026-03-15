@@ -19,12 +19,9 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "suppressImplicitAnyIndexErrors": true,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
-    "strictFunctionTypes": false,
-    "strictPropertyInitialization": false
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true
   },
-  "include": ["src", "App.tsx", "components", "contexts", "utils", "lib", "hooks", "config", "data", "services", "api"],
+  "include": ["src", "components", "lib", "utils", "contexts", "services", "data"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

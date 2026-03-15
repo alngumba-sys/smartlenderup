@@ -51,12 +51,14 @@ interface InternalStaffPortalProps {
 export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaffPortalProps) {
   const navigation = useNavigation();
   // Use activeTab from NavigationContext instead of local state
-  const activeTab = navigation.activeTab;
+  const activeTab = navigation.activeTab || 'dashboard'; // Ensure always has a value
   const setActiveTab = navigation.setActiveTab;
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { hasPermission, currentUser } = useAuth();
+
+
 
   // Handle tab trigger from header
   useEffect(() => {
@@ -206,7 +208,6 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
   });
 
   const handleMenuClick = (item: typeof menuItems[0]) => {
-    console.log('handleMenuClick called with item:', item.id);
     if (item.type === 'single') {
       const tabToActivate = item.linkedTab || item.id;
       setActiveTab(tabToActivate);
@@ -217,9 +218,7 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
   };
 
   const handleDropdownItemClick = (tabId: string) => {
-    console.log('handleDropdownItemClick called with:', tabId);
     setActiveTab(tabId);
-    console.log('setActiveTab called with:', tabId);
     setOpenDropdown(null);
   };
 
@@ -249,6 +248,11 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
         {/* {currentUser && currentUser.organizationId && (
           <TrialBanner organizationId={currentUser.organizationId} />
         )} */}
+        
+        {/* 🐛 DEBUG: Show what tab is currently active */}
+        <div className="hidden">
+          Current active tab: {activeTab}
+        </div>
         
         {/* All tab contents - conditionally rendered to prevent chart dimension errors */}
         {activeTab === 'dashboard' && <DashboardTab onNavigate={setActiveTab} />}
@@ -308,6 +312,18 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
         {activeTab === 'payroll' && <PayrollTab />}
         
         {activeTab === 'financial-statements' && <FinancialStatementsTab />}
+        
+        {/* 🐛 FALLBACK: Show dashboard if no tab matches */}
+        {!['dashboard', 'clients', 'institutions', 'loans', 'loan-calculator', 'approvals', 'approval1', 'approval2', 
+            'loan-reconciliation', 'payments', 'collection-sheets', 'credit-scoring', 'ai-insights', 'sms-campaigns', 
+            'notifications', 'reports', 'tasks', 'kyc', 'compliance', 'audit-trail', 'tickets', 'staff-management', 
+            'documents', 'settings', 'accounting', 'loan-products', 'expenses', 'payroll', 'financial-statements'].includes(activeTab) && (
+          <div className="p-6 text-center">
+            <p className="text-red-500 mb-4">Unknown tab: "{activeTab}"</p>
+            <p className="text-gray-600 mb-4">Falling back to dashboard...</p>
+            <DashboardTab onNavigate={setActiveTab} />
+          </div>
+        )}
       </div>
 
       {/* 🔒 DEBUG: Permissions Debug Panel - Remove in production */}

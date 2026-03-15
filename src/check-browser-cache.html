@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browser Cache Checker</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f7fafc;
+    }
+    .box {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    h1 {
+      color: #2d3748;
+      margin: 0 0 20px 0;
+    }
+    .status {
+      padding: 15px;
+      border-radius: 8px;
+      margin: 10px 0;
+      font-weight: bold;
+    }
+    .good {
+      background: #c6f6d5;
+      color: #22543d;
+    }
+    .bad {
+      background: #fed7d7;
+      color: #742a2a;
+    }
+    .info {
+      background: #bee3f8;
+      color: #2c5282;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #5a67d8;
+    }
+    code {
+      background: #edf2f7;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+    }
+    .instructions {
+      background: #f0fff4;
+      border-left: 4px solid #38a169;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+    }
+    .instructions h3 {
+      margin: 0 0 10px 0;
+      color: #22543d;
+    }
+    .instructions ol {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    .instructions li {
+      margin: 8px 0;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>🔍 Browser Cache Diagnostic</h1>
+    <p>This page checks if your browser has cached files that cause the WebAssembly error.</p>
+    
+    <div id="cache-status"></div>
+    <div id="incognito-status"></div>
+    <div id="serviceworker-status"></div>
+    
+    <div style="margin-top: 20px;">
+      <button onclick="checkCache()">🔄 Re-check Cache</button>
+      <button onclick="clearAllCache()">🧹 Clear All Cache</button>
+    </div>
+  </div>
+  
+  <div class="box instructions" id="fix-instructions" style="display: none;">
+    <h3>✅ How to Fix the WebAssembly Error:</h3>
+    <ol>
+      <li><strong>Press Ctrl+Shift+N</strong> (Windows/Linux) or <strong>Cmd+Shift+N</strong> (Mac)</li>
+      <li><strong>Go to <code>http://localhost:5173</code></strong> in the incognito window</li>
+      <li><strong>✅ Error will be gone!</strong></li>
+    </ol>
+    <p style="margin-top: 15px; color: #22543d;">
+      <strong>Why?</strong> Incognito mode has zero cache, so it loads fresh JavaScript files.
+    </p>
+  </div>
+
+  <script>
+    async function checkCache() {
+      const cacheStatusDiv = document.getElementById('cache-status');
+      const incognitoStatusDiv = document.getElementById('incognito-status');
+      const serviceworkerStatusDiv = document.getElementById('serviceworker-status');
+      const fixInstructions = document.getElementById('fix-instructions');
+      
+      // Check if incognito mode
+      const isIncognito = await detectIncognito();
+      
+      if (isIncognito) {
+        incognitoStatusDiv.innerHTML = `
+          <div class="status good">
+            ✅ You're in incognito mode - no cache issues possible!
+          </div>
+        `;
+        fixInstructions.style.display = 'none';
+      } else {
+        incognitoStatusDiv.innerHTML = `
+          <div class="status bad">
+            ❌ You're in regular browser mode - cache may cause issues
+          </div>
+        `;
+        fixInstructions.style.display = 'block';
+      }
+      
+      // Check caches
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        if (cacheNames.length > 0) {
+          cacheStatusDiv.innerHTML = `
+            <div class="status bad">
+              ⚠️ Found ${cacheNames.length} cached storage(s): ${cacheNames.join(', ')}
+            </div>
+          `;
+        } else {
+          cacheStatusDiv.innerHTML = `
+            <div class="status good">
+              ✅ No cache storage found
+            </div>
+          `;
+        }
+      }
+      
+      // Check service workers
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        if (registrations.length > 0) {
+          serviceworkerStatusDiv.innerHTML = `
+            <div class="status info">
+              ℹ️ Found ${registrations.length} service worker(s) - will be unregistered on app load
+            </div>
+          `;
+        } else {
+          serviceworkerStatusDiv.innerHTML = `
+            <div class="status good">
+              ✅ No service workers registered
+            </div>
+          `;
+        }
+      }
+    }
+    
+    async function clearAllCache() {
+      // Clear all caches
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        for (const name of cacheNames) {
+          await caches.delete(name);
+          console.log('🗑️ Deleted cache:', name);
+        }
+      }
+      
+      // Unregister all service workers
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          await reg.unregister();
+          console.log('🗑️ Unregistered service worker:', reg.scope);
+        }
+      }
+      
+      alert('✅ Cache cleared! Now refresh the page.');
+      await checkCache();
+    }
+    
+    async function detectIncognito() {
+      // Detection method for Chrome/Edge
+      if ('storage' in navigator && 'estimate' in navigator.storage) {
+        const { quota } = await navigator.storage.estimate();
+        // Incognito mode typically has lower quota
+        return quota < 120000000; // Less than ~120MB usually means incognito
+      }
+      return false;
+    }
+    
+    // Run check on load
+    checkCache();
+  </script>
+</body>
+</html>

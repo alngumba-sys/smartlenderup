@@ -6,7 +6,7 @@
  */
 
 import { supabaseDataService } from '../services/supabaseDataService';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface MigrationReport {
   clients: { found: number; migrated: number; failed: number; errors: string[] };

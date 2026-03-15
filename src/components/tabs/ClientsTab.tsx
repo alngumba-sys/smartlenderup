@@ -7,7 +7,7 @@ import { ViewToggle } from '../ViewToggle';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigation } from '../../contexts/NavigationContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { safePercentage, safeToFixed } from '../../utils/safeCalculations';
 import { getOrganizationName } from '../../utils/organizationUtils';
 import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
@@ -54,7 +54,6 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
     clients.forEach(client => {
       const clientName = client.name?.toUpperCase() || '';
       if (businessNames.some(name => clientName.includes(name)) && client.clientType !== 'business') {
-        console.log(`Moving ${client.name} to business type...`);
         updateClient(client.id, { clientType: 'business' }, { silent: true });
       }
     });
@@ -96,9 +95,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
         hasUpdates = true;
       }
     });
-    if (hasUpdates) {
-      console.log('Credit scores and risk ratings recalculated for all clients');
-    }
+    // Credit scores and risk ratings recalculated if hasUpdates is true
   }, [clients.length, loans.length]); // Recalculate when clients or loans change
 
   const handleNewClient = async (clientData: any) => {
@@ -607,9 +604,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
                       {/* Name with Avatar */}
                       <td className={`px-4 py-2 text-xs ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
                         <div className="flex items-center gap-2">
-                          <div className={`size-8 rounded-full flex items-center justify-center text-white flex-shrink-0 overflow-hidden text-xs ${
-                            client.clientType === 'business' ? 'bg-blue-600' : 'bg-emerald-600'
-                          }`}>
+                          <div className={`size-8 rounded-full flex items-center justify-center text-white flex-shrink-0 overflow-hidden ${ client.clientType === 'business' ? 'bg-blue-600' : 'bg-emerald-600' } text-[9px]`}>
                             {client.photo ? (
                               <img src={client.photo} alt={client.name} className="size-full object-cover" />
                             ) : client.clientType === 'business' ? (
@@ -676,7 +671,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
                               e.stopPropagation();
                               setDetailModalClient(client.id);
                             }}
-                            className="dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 text-xs text-[rgb(5,200,73)]"
+                            className="dark:text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-400 text-xs text-emerald-700"
                           >
                             View
                           </button>

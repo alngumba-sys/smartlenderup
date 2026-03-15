@@ -30,6 +30,8 @@ interface CreditScore {
   totalRepaid: number;
   daysOverdue: number;
   clientType: 'individual' | 'business';
+  status: string; // Client status (Active, Inactive, etc.)
+  outstandingBalance: number; // Outstanding balance
 }
 
 export function CreditScoringTab() {
@@ -43,7 +45,7 @@ export function CreditScoringTab() {
   const [activeTab, setActiveTab] = useState<'individual' | 'business'>('individual');
   
   // Add sorting state
-  const [sortField, setSortField] = useState<'clientName' | 'currentScore' | 'riskCategory' | 'repaymentRate' | 'activeLoans'>('currentScore');
+  const [sortField, setSortField] = useState<'clientName' | 'clientNumber' | 'status' | 'currentScore' | 'riskCategory' | 'repaymentRate' | 'activeLoans' | 'outstandingBalance'>('currentScore');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
   // Add mounted state to prevent chart rendering before container dimensions are ready
@@ -299,7 +301,12 @@ export function CreditScoringTab() {
       console.log(`  - Loans found: ${clientLoans.length}`);
       console.log(`  - Repayments found: ${clientRepayments.length}`);
       
-      const totalBorrowed = clientLoans.reduce((sum, l) => sum + l.principalAmount, 0);
+      // ✅ FIXED: Only count loans that have been actually disbursed (not just applications)
+      const disbursedLoans = clientLoans.filter(l => {
+        const status = l.status?.toLowerCase();
+        return status === 'disbursed' || status === 'active' || status === 'paid' || status === 'closed';
+      });
+      const totalBorrowed = disbursedLoans.reduce((sum, l) => sum + l.principalAmount, 0);
       const totalRepaid = clientRepayments.reduce((sum, r) => sum + r.principal, 0);
       const activeLoans = clientLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed').length;
       const closedLoans = clientLoans.filter(l => l.status === 'Paid' || l.status === 'Closed').length;
@@ -359,7 +366,9 @@ export function CreditScoringTab() {
         totalBorrowed,
         totalRepaid,
         daysOverdue,
-        clientType: client.clientType || 'individual'
+        clientType: client.clientType || 'individual',
+        status: client.status || 'Active', // Add client status
+        outstandingBalance: totalBorrowed - totalRepaid // Add outstanding balance
       };
     });
   }, [clients, loans, repayments]);
@@ -380,6 +389,10 @@ export function CreditScoringTab() {
   const sortedScores = filteredScores.sort((a, b) => {
     if (sortField === 'clientName') {
       return sortDirection === 'asc' ? a.clientName.localeCompare(b.clientName) : b.clientName.localeCompare(a.clientName);
+    } else if (sortField === 'clientNumber') {
+      return sortDirection === 'asc' ? a.clientNumber.localeCompare(b.clientNumber) : b.clientNumber.localeCompare(a.clientNumber);
+    } else if (sortField === 'status') {
+      return sortDirection === 'asc' ? a.status.localeCompare(b.status) : b.status.localeCompare(a.status);
     } else if (sortField === 'currentScore') {
       return sortDirection === 'asc' ? a.currentScore - b.currentScore : b.currentScore - a.currentScore;
     } else if (sortField === 'riskCategory') {
@@ -389,6 +402,8 @@ export function CreditScoringTab() {
       return sortDirection === 'asc' ? a.repaymentRate - b.repaymentRate : b.repaymentRate - a.repaymentRate;
     } else if (sortField === 'activeLoans') {
       return sortDirection === 'asc' ? a.activeLoans - b.activeLoans : b.activeLoans - a.activeLoans;
+    } else if (sortField === 'outstandingBalance') {
+      return sortDirection === 'asc' ? a.totalBorrowed - a.totalRepaid - b.totalBorrowed + b.totalRepaid : b.totalBorrowed - b.totalRepaid - a.totalBorrowed + a.totalRepaid;
     }
     return 0;
   });
@@ -503,7 +518,7 @@ export function CreditScoringTab() {
   };
 
   // Handle sort column click
-  const handleSort = (field: 'clientName' | 'currentScore' | 'riskCategory' | 'repaymentRate' | 'activeLoans') => {
+  const handleSort = (field: 'clientName' | 'clientNumber' | 'status' | 'currentScore' | 'riskCategory' | 'repaymentRate' | 'activeLoans' | 'outstandingBalance') => {
     if (sortField === field) {
       // Toggle direction if same field
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -515,7 +530,7 @@ export function CreditScoringTab() {
   };
 
   // Render sort icon
-  const renderSortIcon = (field: 'clientName' | 'currentScore' | 'riskCategory' | 'repaymentRate' | 'activeLoans') => {
+  const renderSortIcon = (field: 'clientName' | 'clientNumber' | 'status' | 'currentScore' | 'riskCategory' | 'repaymentRate' | 'activeLoans' | 'outstandingBalance') => {
     if (sortField !== field) {
       return <ChevronUp className="size-3 opacity-30" />;
     }

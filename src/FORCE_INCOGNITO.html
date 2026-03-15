@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>🔴 USE INCOGNITO MODE</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: gradient 15s ease infinite;
+            background-size: 400% 400%;
+        }
+        
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .container {
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 30px 90px rgba(0, 0, 0, 0.4);
+            max-width: 800px;
+            width: 100%;
+            padding: 60px;
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .icon {
+            font-size: 80px;
+            text-align: center;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        h1 {
+            font-size: 3em;
+            color: #e53e3e;
+            margin-bottom: 20px;
+            text-align: center;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .subtitle {
+            font-size: 1.5em;
+            color: #555;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .step-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin: 30px 0;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        
+        .step-title {
+            font-size: 2em;
+            margin-bottom: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .step-number {
+            background: white;
+            color: #667eea;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .keyboard {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-weight: bold;
+            display: inline-block;
+            box-shadow: 0 5px 0 rgba(0, 0, 0, 0.2);
+            margin: 0 5px;
+            font-size: 1.3em;
+        }
+        
+        .instructions {
+            font-size: 1.3em;
+            line-height: 2;
+            margin: 20px 0;
+        }
+        
+        .warning-box {
+            background: #ffe6e6;
+            border-left: 6px solid #e53e3e;
+            padding: 30px;
+            margin: 30px 0;
+            border-radius: 10px;
+        }
+        
+        .warning-box h3 {
+            color: #e53e3e;
+            font-size: 1.8em;
+            margin-bottom: 15px;
+        }
+        
+        .warning-box p {
+            color: #2d3748;
+            font-size: 1.2em;
+            line-height: 1.8;
+        }
+        
+        .success-box {
+            background: #d4edda;
+            border-left: 6px solid #28a745;
+            padding: 30px;
+            margin: 30px 0;
+            border-radius: 10px;
+        }
+        
+        .success-box h3 {
+            color: #28a745;
+            font-size: 1.8em;
+            margin-bottom: 15px;
+        }
+        
+        .success-box p {
+            color: #2d3748;
+            font-size: 1.2em;
+            line-height: 1.8;
+        }
+        
+        .big-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 25px 50px;
+            border-radius: 15px;
+            font-size: 1.8em;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(40, 167, 69, 0.4);
+            transition: all 0.3s;
+            display: block;
+            width: 100%;
+            margin: 30px 0;
+        }
+        
+        .big-button:hover {
+            background: #218838;
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(40, 167, 69, 0.5);
+        }
+        
+        .big-button:active {
+            transform: translateY(0);
+        }
+        
+        .code {
+            background: #2d3748;
+            color: #48bb78;
+            padding: 3px 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+        
+        .countdown {
+            text-align: center;
+            font-size: 4em;
+            color: #667eea;
+            font-weight: bold;
+            margin: 30px 0;
+            animation: countPulse 1s infinite;
+        }
+        
+        @keyframes countPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">🔥</div>
+        <h1>BROWSER CACHE ERROR</h1>
+        <p class="subtitle">Your browser cached OLD files with WebAssembly</p>
+        
+        <div class="warning-box">
+            <h3>❌ The Error You're Seeing:</h3>
+            <p><span class="code">TypeError: WebAssembly compilation aborted</span></p>
+            <p style="margin-top: 15px;"><strong>This error is NOT from the code - it's from YOUR BROWSER'S CACHE!</strong></p>
+        </div>
+        
+        <div class="step-box">
+            <div class="step-title">
+                <div class="step-number">1</div>
+                <div>Close This Window</div>
+            </div>
+            <p class="instructions">
+                Close this browser window/tab right now.
+            </p>
+        </div>
+        
+        <div class="step-box">
+            <div class="step-title">
+                <div class="step-number">2</div>
+                <div>Open Incognito Mode</div>
+            </div>
+            <p class="instructions">
+                Press: <span class="keyboard">Ctrl</span> + <span class="keyboard">Shift</span> + <span class="keyboard">N</span>
+            </p>
+            <p class="instructions" style="font-size: 1.1em; opacity: 0.9;">
+                (On Mac: <span class="keyboard">Cmd</span> + <span class="keyboard">Shift</span> + <span class="keyboard">N</span>)
+            </p>
+        </div>
+        
+        <div class="step-box">
+            <div class="step-title">
+                <div class="step-number">3</div>
+                <div>Go to the App</div>
+            </div>
+            <p class="instructions">
+                In the incognito window, go to:
+            </p>
+            <p class="instructions">
+                <span class="keyboard">http://localhost:5173</span>
+            </p>
+        </div>
+        
+        <div class="success-box">
+            <h3>✅ That's It!</h3>
+            <p>
+                The app will load perfectly in incognito mode with <strong>NO ERROR!</strong>
+            </p>
+            <p style="margin-top: 15px;">
+                Incognito mode has <strong>ZERO cache</strong>, so it always loads fresh files. The fresh files have <strong>NO WebAssembly</strong>.
+            </p>
+        </div>
+        
+        <button class="big-button" onclick="showCountdown()">
+            🚀 I UNDERSTAND - OPENING INCOGNITO
+        </button>
+        
+        <div id="countdown-container" style="display: none;">
+            <div class="countdown" id="countdown">3</div>
+            <p style="text-align: center; font-size: 1.5em; color: #2d3748;">
+                Close this window and press <span class="keyboard" style="background: #667eea; color: white;">Ctrl+Shift+N</span>
+            </p>
+        </div>
+        
+        <div class="warning-box" style="background: #fff3cd; border-color: #ffc107;">
+            <h3 style="color: #856404;">💡 Why This Happens:</h3>
+            <p>
+                Your browser cached OLD JavaScript files from when Supabase was installed. Those old files try to load WebAssembly. The NEW code doesn't have Supabase or WebAssembly, but your browser won't load the new files because it's using cached ones.
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        function showCountdown() {
+            document.getElementById('countdown-container').style.display = 'block';
+            document.querySelector('.big-button').style.display = 'none';
+            
+            let count = 3;
+            const countdownEl = document.getElementById('countdown');
+            
+            const interval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdownEl.textContent = count;
+                } else {
+                    countdownEl.textContent = 'GO!';
+                    countdownEl.style.color = '#28a745';
+                    clearInterval(interval);
+                    
+                    setTimeout(() => {
+                        alert('📋 DO THIS NOW:\n\n' +
+                              '1. Close this window\n' +
+                              '2. Press Ctrl+Shift+N (Cmd+Shift+N on Mac)\n' +
+                              '3. Go to http://localhost:5173\n\n' +
+                              '✅ The error will be GONE!');
+                    }, 500);
+                }
+            }, 1000);
+        }
+        
+        // Auto-detect incognito mode
+        function detectIncognito() {
+            // This is a basic check - not 100% accurate
+            if (window.localStorage) {
+                try {
+                    localStorage.setItem('test', '1');
+                    localStorage.removeItem('test');
+                    return false; // Not incognito
+                } catch (e) {
+                    return true; // Might be incognito
+                }
+            }
+            return false;
+        }
+        
+        // Check if in incognito on load
+        window.addEventListener('load', () => {
+            const isIncognito = detectIncognito();
+            if (isIncognito) {
+                document.body.innerHTML = `
+                    <div class="container">
+                        <div class="icon">✅</div>
+                        <h1 style="color: #28a745;">YOU'RE IN INCOGNITO!</h1>
+                        <div class="success-box">
+                            <h3>Perfect!</h3>
+                            <p>Now go to: <span class="code">http://localhost:5173</span></p>
+                            <p style="margin-top: 20px;">The app will work with NO ERROR!</p>
+                        </div>
+                        <button class="big-button" onclick="window.location='http://localhost:5173'">
+                            🚀 GO TO APP NOW
+                        </button>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

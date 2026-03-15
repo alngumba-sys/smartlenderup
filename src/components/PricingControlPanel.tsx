@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DollarSign, Users, HardDrive, Save, Settings, ToggleLeft, ToggleRight, Percent, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { showDatabaseError } from '../utils/toastUtils';
 
 interface PlanLimits {
@@ -113,7 +113,10 @@ export function PricingControlPanel() {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Error loading pricing data:', error);
+        // Silently skip if RLS is blocking access
+        if (error.code !== '42501') {
+          console.error('Error loading pricing data:', error);
+        }
         return;
       }
 
@@ -164,8 +167,14 @@ export function PricingControlPanel() {
       const { error: connectionError } = await supabase.from('pricing_config').select('count').limit(1);
       
       if (connectionError) {
-        console.error('❌ PricingControlPanel: Database not reachable:', connectionError);
-        showDatabaseError('Database not reachable. Check your internet');
+        // Silently skip if RLS is blocking access
+        if (connectionError.code === '42501') {
+          console.log('ℹ️ PricingControlPanel: RLS enabled - run /COPY_AND_RUN_THIS.sql to enable cloud sync');
+          showDatabaseError('Pricing saved locally. Run SQL script to enable cloud sync.');
+        } else {
+          console.error('❌ PricingControlPanel: Database not reachable:', connectionError);
+          showDatabaseError('Database not reachable. Check your internet');
+        }
         setIsSaving(false);
         return;
       }

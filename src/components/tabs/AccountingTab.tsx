@@ -1314,15 +1314,7 @@ export function AccountingTab() {
                   <FileText className="size-4" />
                   {isCreatingEntries ? 'Creating...' : 'Sync Journal Entries'}
                 </button>
-                <button
-                  onClick={handleRecalculateBalancesFromContext}
-                  disabled={isRecalculating}
-                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  title="Recalculate all account balances from posted journal entries"
-                >
-                  <CheckCircle className="size-4" />
-                  {isRecalculating ? 'Recalculating...' : 'Recalculate Balances'}
-                </button>
+
                 <button
                   onClick={exportToExcel}
                   className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 text-sm"

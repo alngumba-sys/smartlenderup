@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Mail, MailOpen, Phone, Calendar, Clock, RefreshCw, Trash2, CheckCircle, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface ContactMessage {
   id: string;

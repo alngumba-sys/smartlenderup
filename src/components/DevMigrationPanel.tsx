@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Calendar, Link, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface MigrationResult {
   success: boolean;

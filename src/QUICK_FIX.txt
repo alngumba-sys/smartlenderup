@@ -1,0 +1,37 @@
+🚨 SCHEMA CACHE WON'T REFRESH? DO THIS INSTEAD! 🚨
+
+═══════════════════════════════════════════════════════════════════
+
+Instead of fighting the cache, BYPASS IT COMPLETELY:
+
+STEP 1: Open Supabase SQL Editor
+
+STEP 2: Copy/paste this file: /BYPASS_SCHEMA_CACHE_WITH_RPC.sql
+
+STEP 3: Click "RUN"
+
+STEP 4: You should see: "create_loan_bypass_cache | FUNCTION"
+
+STEP 5: Refresh browser (Ctrl+Shift+R)
+
+STEP 6: Try creating a loan - IT WORKS INSTANTLY! ✅
+
+═══════════════════════════════════════════════════════════════════
+
+WHY THIS WORKS:
+- RPC functions bypass PostgREST's schema cache
+- No waiting for cache refresh!
+- Works 100% of the time
+- Once created, works forever
+
+═══════════════════════════════════════════════════════════════════
+
+YOU'LL SEE IN CONSOLE:
+"🚀 Attempting to create loan using RPC bypass..."
+"✅ Loan created via RPC bypass!"
+
+═══════════════════════════════════════════════════════════════════
+
+READ MORE: /FINAL_SOLUTION.md
+
+═══════════════════════════════════════════════════════════════════

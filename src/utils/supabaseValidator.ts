@@ -1,12 +1,13 @@
 /**
- * Supabase Connection Validator
- * 
- * Ensures Supabase is properly configured and connected.
- * NO localStorage fallbacks, NO mock data.
+ * ============================================
+ * SUPABASE SCHEMA VALIDATOR
+ * ============================================
+ * Validates that Supabase tables match our schema
+ * Helps catch schema mismatches early
  */
 
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 /**
  * Validate Supabase connection and configuration

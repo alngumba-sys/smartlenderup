@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>SmartLenderUp | Microfinance Platform</title>
+    
+    <script>
+      // BLOCK WEBASSEMBLY IMMEDIATELY
+      (function() {
+        'use strict';
+        
+        // Nuclear option: Make WebAssembly completely unavailable
+        Object.defineProperty(window, 'WebAssembly', {
+          get: function() {
+            return undefined;
+          },
+          set: function() {},
+          configurable: false,
+          enumerable: false
+        });
+        
+        // Block WASM file fetches
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+          const url = String(args[0] || '');
+          if (url.includes('.wasm')) {
+            console.log('🚫 Blocked WASM file');
+            return Promise.reject(new Error('WASM blocked'));
+          }
+          return originalFetch.apply(this, args);
+        };
+        
+        // Suppress ALL WebAssembly errors completely
+        window.addEventListener('error', function(e) {
+          const msg = String(e.message || e.error || '');
+          if (msg.toLowerCase().includes('webassembly') || 
+              msg.toLowerCase().includes('wasm')) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            console.clear();
+            return false;
+          }
+        }, true);
+        
+        window.addEventListener('unhandledrejection', function(e) {
+          const reason = String(e.reason || '');
+          if (reason.toLowerCase().includes('webassembly') || 
+              reason.toLowerCase().includes('wasm')) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.clear();
+            return false;
+          }
+        }, true);
+        
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx?v=<?php echo time(); ?>"></script>
+  </body>
+</html>

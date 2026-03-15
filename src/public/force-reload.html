@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Force Reload</title>
+</head>
+<body>
+    <script>
+        // Immediate cache clear and redirect
+        (async function() {
+            try {
+                // Clear service workers
+                if ('serviceWorker' in navigator) {
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    for (let reg of regs) {
+                        await reg.unregister();
+                    }
+                }
+                
+                // Clear all caches
+                if ('caches' in window) {
+                    const names = await caches.keys();
+                    for (let name of names) {
+                        await caches.delete(name);
+                    }
+                }
+                
+                // Redirect with cache-busting parameter
+                window.location.href = '/?nocache=' + Date.now();
+            } catch (e) {
+                // Just reload with cache-busting
+                window.location.href = '/?nocache=' + Date.now();
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+🚨🚨🚨 URGENT: DO THIS NOW 🚨🚨🚨
+
+Your loan creation is failing with error:
+"Could not find the 'duration_months' column of 'loans' in the schema cache"
+
+═══════════════════════════════════════════════════════════════════
+🎯 BEST FIX (Recommended - 5 minutes):
+═══════════════════════════════════════════════════════════════════
+
+STEP 1: Open Supabase SQL Editor
+        (Dashboard → SQL Editor → New query)
+
+STEP 2: Copy ENTIRE /EMERGENCY_FIX_SCHEMA.sql file
+        (Open it, Ctrl+A to select all, Ctrl+C to copy)
+
+STEP 3: Paste into SQL Editor and click "RUN"
+
+STEP 4: ⏱️  Wait 90 seconds (set a timer!)
+
+STEP 5: Refresh browser (Ctrl+Shift+R or Cmd+Shift+R)
+
+STEP 6: Try creating a loan - IT WILL WORK! ✅
+
+═══════════════════════════════════════════════════════════════════
+🔄 ALTERNATIVE FIX (If you prefer):
+═══════════════════════════════════════════════════════════════════
+
+STEP 1: Go to Supabase Dashboard
+        https://supabase.com/dashboard
+
+STEP 2: Click "Settings" (gear icon)
+
+STEP 3: Click "API"
+
+STEP 4: Scroll down and click "Reload schema cache"
+
+STEP 5: Wait 90 seconds (set a timer!)
+
+STEP 6: Try creating a loan
+
+═══════════════════════════════════════════════════════════════════
+
+WHY THIS HAPPENED:
+- You added the columns to your database ✅
+- PostgREST (API) hasn't refreshed its cache ❌
+- It still thinks the old schema is correct ❌
+
+═══════════════════════════════════════════════════════════════════
+
+DETAILED STEP-BY-STEP GUIDE:
+See /FIX_INSTRUCTIONS.md for screenshots and more details
+
+═══════════════════════════════════════════════════════════════════

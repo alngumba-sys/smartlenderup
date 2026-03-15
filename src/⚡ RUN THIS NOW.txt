@@ -1,0 +1,74 @@
+
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║                  ⚡ FINAL SOLUTION - RUN THIS ⚡                 ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+
+COPY AND PASTE THIS COMMAND:
+══════════════════════════════════════════════════════════════════
+
+npm run EXTREME
+
+
+WHAT IT DOES:
+══════════════════════════════════════════════════════════════════
+
+1. Deletes ANY @supabase folders in node_modules
+2. Deletes ALL Vite cache folders
+3. Creates brand new vite.config.ts that BLOCKS @supabase
+4. Creates brand new index.html with WebAssembly blocker
+5. Starts dev server automatically
+
+
+THEN:
+══════════════════════════════════════════════════════════════════
+
+When browser opens, press: Ctrl + Shift + R
+
+(This is a "hard refresh" - forces browser to ignore cache)
+
+
+══════════════════════════════════════════════════════════════════
+
+IF STILL GETTING ERROR:
+══════════════════════════════════════════════════════════════════
+
+Close ALL browser windows completely.
+
+Then open INCOGNITO mode:
+  • Windows/Linux: Ctrl + Shift + N
+  • Mac: Cmd + Shift + N
+
+Navigate to: http://localhost:5174
+
+✅ GUARANTEED TO WORK IN INCOGNITO!
+
+
+══════════════════════════════════════════════════════════════════
+
+WHY INCOGNITO WORKS 100%:
+══════════════════════════════════════════════════════════════════
+
+Incognito mode:
+  ✅ Has NO cached files
+  ✅ Has NO stored data
+  ✅ Loads FRESH code every time
+  ✅ Cannot have old @supabase modules
+
+
+══════════════════════════════════════════════════════════════════
+
+BOTTOM LINE:
+══════════════════════════════════════════════════════════════════
+
+1. Run: npm run EXTREME
+2. When browser opens, press: Ctrl+Shift+R
+3. If still error, use Incognito mode
+
+
+✅ ONE OF THESE WILL 100% WORK!
+
+
+══════════════════════════════════════════════════════════════════

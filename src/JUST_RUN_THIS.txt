@@ -1,0 +1,86 @@
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║          WEBASSEMBLY ERROR - COMPLETE FIX                    ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+
+I FIXED 2 PACKAGES THAT USE WEBASSEMBLY:
+  ✓ @supabase/supabase-js (excluded from optimization)
+  ✓ xlsx (excluded from optimization)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+                    RUN ONE OF THESE:
+
+
+Mac/Linux:
+──────────────────────────────────────────────────────────────
+
+chmod +x ABSOLUTE_FIX.sh && ./ABSOLUTE_FIX.sh
+
+
+Windows CMD:
+──────────────────────────────────────────────────────────────
+
+ABSOLUTE_FIX.bat
+
+
+Mac/Linux (one-liner):
+──────────────────────────────────────────────────────────────
+
+pkill -9 node; rm -rf node_modules/.vite node_modules/.cache .vite dist .cache; npm cache clean --force; npm run dev
+
+
+Windows PowerShell (one-liner):
+──────────────────────────────────────────────────────────────
+
+taskkill /F /IM node.exe; rm -r -Force node_modules\.vite,node_modules\.cache,.vite,dist,.cache -ErrorAction SilentlyContinue; npm cache clean --force; npm run dev
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+                WHAT THIS DOES:
+
+
+1. Kills Node processes (wait 2 seconds)
+2. Deletes ALL cache folders:
+   • node_modules/.vite
+   • node_modules/.cache
+   • .vite
+   • dist
+   • .cache
+3. Clears npm cache
+4. Starts dev server
+
+
+Takes 20 seconds.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+           THEN OPEN: http://localhost:5173
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+IF BROWSER STILL SHOWS ERROR:
+
+Press F12 → Right-click refresh → "Empty Cache and Hard Reload"
+
+OR use Incognito: Ctrl+Shift+N
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+         RECOMMENDED: Use the .sh or .bat scripts above
+               (They're cleaner and show progress)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

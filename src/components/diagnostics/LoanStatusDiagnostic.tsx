@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { AlertTriangle, CheckCircle, XCircle, RefreshCw, Database, Wrench, AlertCircle, ExternalLink } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface LoanDiagnostic {
   id: string;

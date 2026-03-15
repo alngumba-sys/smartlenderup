@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Eye, EyeOff, User, Mail, Phone, Lock, Check } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { showDatabaseError } from '../../utils/toastUtils';
 
 interface ProfileModalProps {

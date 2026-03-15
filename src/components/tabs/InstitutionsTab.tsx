@@ -5,7 +5,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { AddInstitutionModal } from '../modals/AddInstitutionModal';
 import { AssignClientsModal } from '../modals/AssignClientsModal';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export function InstitutionsTab() {
   const { isDark } = useTheme();

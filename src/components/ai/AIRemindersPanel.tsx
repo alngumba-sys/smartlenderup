@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Mail, MessageSquare, Send, Sparkles, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface ReminderTemplate {
   id: string;

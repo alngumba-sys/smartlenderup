@@ -1,9 +1,72 @@
 import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle, Loader, X } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { getOrganizationId } from '../utils/organizationUtils';
-import * as XLSX from 'xlsx';
+
+// 🔴 REMOVED XLSX - Using pure JavaScript CSV parser instead
+// This completely eliminates WebAssembly dependency
+
+// Pure JavaScript CSV parser (no dependencies, no WebAssembly)
+function parseCSV(text: string): any[][] {
+  const lines = text.split('\n').filter(line => line.trim());
+  return lines.map(line => {
+    const cells: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        cells.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    cells.push(current.trim());
+    return cells;
+  });
+}
+
+// Convert CSV to JSON objects
+function csvToJson(csv: string): any[] {
+  const rows = parseCSV(csv);
+  if (rows.length === 0) return [];
+  
+  const headers = rows[0].map(h => h.trim());
+  const data = rows.slice(1);
+  
+  return data.map(row => {
+    const obj: any = {};
+    headers.forEach((header, i) => {
+      obj[header] = row[i] || '';
+    });
+    return obj;
+  });
+}
+
+// Convert JSON to CSV
+function jsonToCsv(data: any[]): string {
+  if (data.length === 0) return '';
+  
+  const headers = Object.keys(data[0]);
+  const csvRows = [headers.join(',')];
+  
+  for (const row of data) {
+    const values = headers.map(header => {
+      const value = String(row[header] || '');
+      // Escape quotes and wrap in quotes if contains comma
+      return value.includes(',') ? `"${value.replace(/"/g, '""')}"` : value;
+    });
+    csvRows.push(values.join(','));
+  }
+  
+  return csvRows.join('\n');
+}
 
 export function DataImportExport() {
   const [importing, setImporting] = useState(false);
@@ -170,42 +233,16 @@ export function DataImportExport() {
     toast.success('Template downloaded successfully!');
   };
 
-  // Parse CSV file
-  const parseCSV = (text: string): string[][] => {
-    const lines = text.split('\n').filter(line => line.trim());
-    return lines.map(line => {
-      const values: string[] = [];
-      let current = '';
-      let inQuotes = false;
-
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          values.push(current.trim());
-          current = '';
-        } else {
-          current += char;
-        }
-      }
-      values.push(current.trim());
-      return values;
-    });
-  };
-
   // Handle file upload
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Check if file is CSV or Excel
+    // ONLY accept CSV files - no Excel support to avoid XLSX dependency
     const isCSV = file.name.endsWith('.csv');
-    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
     
-    if (!isCSV && !isExcel) {
-      alert('Please upload a CSV or Excel file (.csv, .xlsx, .xls)');
+    if (!isCSV) {
+      alert('Please upload a CSV file (.csv only). Excel files are not supported.');
       return;
     }
 
@@ -214,36 +251,12 @@ export function DataImportExport() {
     setProgress({ current: 0, total: 0 });
 
     try {
-      let parsedData: any[] = [];
-
-      if (isCSV) {
-        // Parse CSV file using native JavaScript (no external library needed)
-        const text = await file.text();
-        const lines = text.split('\n').filter(line => line.trim());
-        
-        if (lines.length < 2) {
-          throw new Error('CSV file is empty or has no data rows');
-        }
-        
-        // Parse header row
-        const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
-        
-        // Parse data rows
-        parsedData = lines.slice(1).map(line => {
-          const values = line.split(',').map(v => v.trim().replace(/^["']|["']$/g, ''));
-          const obj: any = {};
-          headers.forEach((header, index) => {
-            obj[header] = values[index] || '';
-          });
-          return obj;
-        });
-      } else {
-        // Parse Excel file
-        const arrayBuffer = await file.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        parsedData = XLSX.utils.sheet_to_json(worksheet, { raw: false, defval: '' });
+      // Parse CSV file using native JavaScript (no external library needed)
+      const text = await file.text();
+      const parsedData = csvToJson(text);
+      
+      if (parsedData.length === 0) {
+        throw new Error('CSV file is empty or has no data rows');
       }
 
       // Process the data
@@ -253,7 +266,7 @@ export function DataImportExport() {
       setUploadResults({
         success: 0,
         failed: 1,
-        errors: ['Failed to parse file. Please check the file format.']
+        errors: ['Failed to parse CSV file. Please check the file format.']
       });
     } finally {
       setImporting(false);
@@ -337,7 +350,7 @@ export function DataImportExport() {
         const { data: existingClient } = await supabase
           .from('clients')
           .select('id')
-          .eq('phone', formattedPhone)
+          .eq('phone_primary', formattedPhone)
           .eq('organization_id', organizationId)
           .single();
 
@@ -357,7 +370,7 @@ export function DataImportExport() {
               organization_id: organizationId,
               first_name: firstName,
               last_name: lastName,
-              phone: formattedPhone,
+              phone_primary: formattedPhone,
               id_number: idNumber?.trim() || '',
               status: 'active',
               created_at: new Date().toISOString(),
@@ -526,7 +539,7 @@ export function DataImportExport() {
       </div>
 
       <p className="text-sm text-gray-600 mb-6">
-        Import loan data with borrower and guarantor information from CSV or Excel files. Download the template to see the required format.
+        Import loan data with borrower and guarantor information from CSV files. Download the template to see the required format.
       </p>
 
       {/* Download Template */}
@@ -544,15 +557,15 @@ export function DataImportExport() {
       <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
         <Upload className="size-8 text-gray-400 mx-auto mb-3" />
         <p className="text-sm text-gray-600 mb-4">
-          Upload your completed CSV or Excel file to import loan data
+          Upload your completed CSV file to import loan data (CSV files only)
         </p>
         
         <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 cursor-pointer">
           <Upload className="size-4" />
-          {importing ? 'Importing...' : 'Upload CSV/Excel File'}
+          {importing ? 'Importing...' : 'Upload CSV File'}
           <input
             type="file"
-            accept=".csv, .xlsx, .xls"
+            accept=".csv"
             onChange={handleFileUpload}
             disabled={importing}
             className="hidden"

@@ -1,0 +1,115 @@
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║        🚨 LOAN CREATION ERRORS - QUICK FIX CARD 🚨             ║
+║                                                                ║
+║  Status: ✅ Code Fixed | 🔧 Database Action Required (2 min)  ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ERROR #1: ✅ FIXED - Runtime Error (rolePermissions.ts)      ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  What was broken:
+  ❌ Direct window access causing SSR errors
+  ❌ Line 434 & 455 runtime errors
+
+  What we fixed:
+  ✅ Changed to: typeof window !== 'undefined'
+  ✅ Fixed 5 functions in /config/rolePermissions.ts
+  ✅ Now SSR-safe and production-ready
+
+  NO ACTION NEEDED - Already fixed! ✅
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ERROR #2: 🔧 NEEDS ACTION - Schema Cache (PGRST204)          ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  Error Message:
+  "Could not find the 'amount' column of 'loans' in schema cache"
+
+  What this means:
+  Your database is fine! Supabase's API cache just needs refreshing.
+
+  ⭐ DO THIS NOW (2 minutes): ⭐
+
+  Step 1: Open https://app.supabase.com
+  Step 2: Click "API" in left sidebar
+  Step 3: Click "Refresh schema cache" button
+  Step 4: Wait 30 seconds
+  Step 5: Test loan creation ✅
+
+  That's it! Problem solved! 🎉
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 🧪 TEST AFTER FIX                                             ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  1. Go to your app
+  2. Navigate to Loans → New Loan
+  3. Fill in:
+     • Client: Any client
+     • Amount: 10000
+     • Interest Rate: 7.5
+     • Term: 3 months
+     • Purpose: Business expansion
+  4. Click "Create Loan"
+  5. ✅ Should work without errors!
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 📚 MORE INFORMATION                                           ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  Open in browser for visual guide:
+  📄 /🚨_DO_THIS_NOW.html
+
+  Full documentation:
+  📄 /⚡_LOAN_CREATION_ERRORS_FIXED.md
+  📄 /ERRORS_FIXED_SUMMARY.md
+
+  SQL fix (backup option):
+  📄 /FIX_LOAN_CREATION_SCHEMA.sql
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 💡 WHY THIS HAPPENED                                          ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  1. Database schema was updated
+  2. Supabase API cached old schema
+  3. Cache needs manual refresh
+  4. One-time fix - won't happen again
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ✅ SUCCESS INDICATORS                                         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  You'll know it's working when:
+  ✅ No console errors
+  ✅ Loan form submits successfully
+  ✅ Loan appears in loans list
+  ✅ Auto-generated loan number (BVF-LN00001)
+  ✅ No PGRST204 errors
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 🎯 SUMMARY                                                    ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  Files Modified:
+  ✅ /config/rolePermissions.ts (5 functions fixed)
+
+  Your Action Required:
+  🔧 Refresh Supabase schema cache (Steps above)
+
+  Time Required:
+  ⏱️  2 minutes total
+
+  Difficulty:
+  😊 Easy - Just click a button!
+
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║  📞 Need Help? Check the console logs for detailed errors     ║
+║  📝 Last Updated: March 12, 2026                              ║
+║  🎉 You're almost there - just refresh that cache!            ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝

@@ -9,7 +9,7 @@ console.log('\n\n');
 console.log('%c ⚠️  DATABASE ERROR - ACTION REQUIRED ⚠️ ', redBg);
 console.log('\n');
 console.log('%c ❌ Missing Column ', redBg);
-console.log('   pricing_config.trial_days');
+console.log('   pricing_configuration.trial_days');
 console.log('\n');
 console.log('%c ✅ EASY FIX - 4 STEPS ', greenBg);
 console.log('\n');

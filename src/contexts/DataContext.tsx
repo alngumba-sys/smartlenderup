@@ -15,12 +15,14 @@ import { initializeAutoBackup } from '../utils/dataBackup';
 // ✅ NEW: Supabase-First Architecture
 import { supabaseDataService } from '../services/supabaseDataService';
 import { supabase, isSupabaseAvailable, isPreviewEnvironment } from '../lib/supabase';
+import { autoCleanupDuplicateProducts } from '../utils/autoCleanupDuplicates';
+import { checkRLSOnStartup } from '../utils/rlsStartupCheck';
 // ✅ DEPRECATED: Old sync patterns (keeping for backwards compatibility during transition)
 import { saveProjectState, loadProjectState, type ProjectState } from '../utils/singleObjectSync';
 import { ensureSupabaseSync, type SyncResult } from '../utils/ensureSupabaseSync';
 import { migrateClientIds, applyMigration } from '../utils/migrateClientIds';
 import { getCurrencyCode } from '../utils/currencyUtils';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { showDatabaseError } from '../utils/toastUtils';
 import { 
   autoCheckAndMigrate, 
@@ -972,7 +974,7 @@ interface DataContextType {
   syncAllToSupabase: () => Promise<SyncResult>;
 }
 
-const DataContext = createContext<DataContextType | undefined>(undefined);
+export const DataContext = createContext<DataContextType | undefined>(undefined);
 
 // ============= PROVIDER COMPONENT =============
 
@@ -1006,6 +1008,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [collaterals, setCollaterals] = useState<any[]>([]);
   const [loanDocuments, setLoanDocuments] = useState<any[]>([]);
   const [creditScoringParameters, setCreditScoringParameters] = useState<CreditScoringParameter[]>([]);
+
+  // ============= ERROR HANDLING HELPER =============
+  /**
+   * Handle Supabase fetch errors gracefully
+   * Returns true if error was handled (table not found, network error, etc.)
+   */
+  const handleSupabaseFetchError = (error: any, tableName: string): boolean => {
+    const errorMessage = (error as any)?.message || '';
+    const errorCode = (error as any)?.code || '';
+    
+    // Check if table doesn't exist - this is OK for new installations
+    if (errorCode === 'PGRST205' || errorCode === '42P01' || 
+        errorMessage.includes('schema cache') || errorMessage.includes('does not exist')) {
+      console.log(`ℹ️ Table '${tableName}' not found - using empty array (normal for new installations)`);
+      return true;
+    }
+    
+    // Network errors - don't show scary messages
+    if (errorMessage.includes('Failed to fetch') || 
+        errorMessage.includes('NetworkError') ||
+        errorMessage.includes('network') ||
+        errorCode === 'ECONNREFUSED') {
+      console.warn(`⚠️ Network error loading ${tableName} - will retry later`);
+      return true;
+    }
+    
+    // Not a handled error
+    return false;
+  };
 
   // ============= SINGLE-OBJECT SYNC PATTERN =============
   // Debounced sync to avoid excessive API calls
@@ -1323,19 +1354,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
       
     } catch (error: any) {
       console.error('❌ Error initializing default shareholders:', error);
-      console.log('⚠️ Skipping shareholder initialization - shareholders table may not exist in Supabase yet');
-      console.log('');
-      console.log('═══════════════════════════════════════════════════════════════');
-      console.log('📖 TO FIX THIS ERROR:');
-      console.log('═══════════════════════════════════════════════════════════════');
-      console.log('1. Open your Supabase dashboard SQL Editor');
-      console.log('2. Copy the SQL from /SUPABASE_SETUP.sql');
-      console.log('3. Run the SQL to create the shareholders table');
-      console.log('4. Refresh this page');
-      console.log('');
-      console.log('See /SUPABASE_README.md for detailed instructions');
-      console.log('═══════════════════════════════════════════════════════════════');
-      console.log('');
+      
+      // Check if it's a table-not-found error (suppress noise)
+      if (error?.code === 'PGRST204' || error?.message?.includes('schema cache') || error?.message?.includes('Could not find')) {
+        console.log('');
+        console.log('⚠️ SHAREHOLDERS TABLE NOT FOUND IN DATABASE');
+        console.log('');
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('📖 QUICK FIX:');
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('1. Open Supabase Dashboard → SQL Editor');
+        console.log('2. Copy ALL contents from /supabase/COMPLETE_DATABASE_SETUP.sql');
+        console.log('3. Paste into SQL Editor and click "Run"');
+        console.log('4. Refresh this page');
+        console.log('═════════════��═════════════════════════════════════════════════');
+        console.log('');
+        
+        // Set empty array to prevent crashes
+        setShareholders([]);
+        return;
+      }
+      
+      console.log('⚠️ Skipping shareholder initialization due to unexpected error');
+      setShareholders([]);
     }
   };
   
@@ -1357,6 +1398,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
       console.log('   Organization ID:', currentUser.organizationId);
       console.log('   User:', currentUser.name);
       console.log('');
+      
+      // 🔍 Check RLS status on first load
+      await checkRLSOnStartup();
+      
+      // 🧹 AUTO-CLEANUP: Disabled until RLS is configured
+      // Uncomment after running /COPY_AND_RUN_THIS.sql in Supabase
+      // try {
+      //   await autoCleanupDuplicateProducts(currentUser.organizationId);
+      // } catch (cleanupError) {
+      //   console.warn('⚠️ Auto-cleanup failed (non-critical):', cleanupError);
+      // }
       
       try {
         console.log('🔄 Loading entire project state from Supabase...');
@@ -1520,7 +1572,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('❌ Error loading loan products from Supabase:', error);
-            showDatabaseError('Database not reachable. Check your internet connection.');
+            // ✅ IMPROVED: Better error detection
+            const errorMessage = (error as any)?.message || '';
+            const errorCode = (error as any)?.code || '';
+            
+            console.error('   Error message:', errorMessage);
+            console.error('   Error code:', errorCode);
+            console.error('   Full error object:', JSON.stringify(error, null, 2));
+            
+            // Check if table doesn't exist - this is OK, just use empty data
+            if (errorCode === 'PGRST205' || errorCode === '42P01' || errorMessage.includes('schema cache') || errorMessage.includes('does not exist')) {
+              console.log('ℹ️ Table not found - using empty array (this is normal for new installations)');
+            // Only show "database not reachable" for actual network errors
+            } else if (errorMessage.includes('Failed to fetch') || 
+                errorMessage.includes('NetworkError') ||
+                errorMessage.includes('network') ||
+                errorCode === 'ECONNREFUSED') {
+              showDatabaseError('Database not reachable. Check your internet connection.');
+            } else if (errorCode === 'PGRST301' || errorMessage.includes('JWT')) {
+              console.error('⚠️  Authentication error. User may not be properly authenticated.');
+            } else if (errorCode === '42501' || errorMessage.includes('permission denied')) {
+              console.error('⚠️  Permission denied. Check RLS policies.');
+            } else {
+              console.error('⚠️  Unknown error loading data:', errorMessage);
+            }
+            
             setLoanProducts([]);
           }
           
@@ -1575,7 +1651,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('❌ Error loading bank accounts from Supabase:', error);
-            showDatabaseError('Database not reachable. Check your internet connection.');
+            // ✅ IMPROVED: Better error detection
+            const errorMessage = (error as any)?.message || '';
+            const errorCode = (error as any)?.code || '';
+            
+            console.error('   Error message:', errorMessage);
+            console.error('   Error code:', errorCode);
+            
+            // Only show "database not reachable" for actual network errors
+            if (errorMessage.includes('Failed to fetch') || 
+                errorMessage.includes('NetworkError') ||
+                errorMessage.includes('network') ||
+                errorCode === 'ECONNREFUSED') {
+              showDatabaseError('Database not reachable. Check your internet connection.');
+            } else if (errorCode === '42P01' || errorMessage.includes('does not exist')) {
+              console.error('⚠️  Table or schema issue. Please run database migrations.');
+            } else if (errorCode === 'PGRST301' || errorMessage.includes('JWT')) {
+              console.error('⚠️  Authentication error. User may not be properly authenticated.');
+            } else if (errorCode === '42501' || errorMessage.includes('permission denied')) {
+              console.error('⚠️  Permission denied. Check RLS policies.');
+            } else {
+              console.error('⚠️  Unknown error loading data:', errorMessage);
+            }
+            
             setBankAccounts([]);
           }
           
@@ -1621,38 +1719,51 @@ export function DataProvider({ children }: { children: ReactNode }) {
               
               setShareholders(mappedShareholders);
               
-              // ✅ Initialize default shareholders if none exist
+              // ⚠️ DISABLED: Initialize default shareholders automatically
+              // Uncomment this AFTER creating shareholders table in Supabase
+              /*
               if (mappedShareholders.length === 0) {
                 console.log('🔧 Initializing default shareholders (Victor Muthama & Ben Mbuvi)...');
                 await initializeDefaultShareholders(currentUser.organizationId);
               }
+              */
             } else {
               console.log('ℹ️ No shareholders found in individual table');
-              console.log('🔧 Initializing default shareholders (Victor Muthama & Ben Mbuvi)...');
-              await initializeDefaultShareholders(currentUser.organizationId);
-              // Don't set to empty array - initializeDefaultShareholders will set the state
+              // ⚠️ DISABLED: Default shareholders initialization
+              // await initializeDefaultShareholders(currentUser.organizationId);
+              setShareholders([]);
             }
           } catch (error: any) {
             console.error('❌ Error loading shareholders from Supabase:', error);
             
-            // Check if it's a schema error
-            if (error?.message?.includes('column') && error?.message?.includes('does not exist')) {
+            // Check if it's a table-not-found error (PGRST204)
+            if (error?.code === 'PGRST204' || error?.message?.includes('schema cache') || error?.message?.includes('Could not find')) {
+              console.log('');
+              console.log('⚠️ SHAREHOLDERS TABLE NOT FOUND');
+              console.log('');
+              console.log('═══════════════════════════════════════════════════════════════');
+              console.log('📖 DATABASE SETUP REQUIRED:');
+              console.log('═══════════════════════════════════════════════════════════════');
+              console.log('1. Go to Supabase Dashboard → SQL Editor');
+              console.log('2. Open /supabase/COMPLETE_DATABASE_SETUP.sql in your code editor');
+              console.log('3. Copy the ENTIRE file contents');
+              console.log('4. Paste into Supabase SQL Editor');
+              console.log('5. Click "Run" or press Ctrl+Enter');
+              console.log('6. Refresh this page');
+              console.log('═══════════════════════════════════════════════════════════════');
+              console.log('');
+              
+              // Don't show toast error - just set empty array
+              setShareholders([]);
+            } else if (error?.message?.includes('column') && error?.message?.includes('does not exist')) {
               console.log('⚠️ SCHEMA ERROR: shareholders table is missing columns');
-              console.log('📖 See SUPABASE_README.md for setup instructions');
-              if (!isPreviewEnvironment()) {
-                toast.error('Shareholders table not set up. See console for instructions.');
-              }
-            } else if (error?.code === 'PGRST204' || error?.message?.includes('schema cache')) {
-              console.log('⚠️ SCHEMA ERROR: shareholders table not found or has wrong schema');
-              console.log('📖 See SUPABASE_README.md for setup instructions');
-              if (!isPreviewEnvironment()) {
-                toast.error('Shareholders table not found. See console for setup instructions.');
-              }
+              console.log('📖 Run /supabase/COMPLETE_DATABASE_SETUP.sql to fix');
+              setShareholders([]);
             } else {
+              // Other database errors (network issues, etc.)
               showDatabaseError('Database not reachable. Check your internet connection.');
+              setShareholders([]);
             }
-            
-            setShareholders([]);
           }
           
           // ✅ CRITICAL: Load funding transactions from individual table ONLY (NOT from project_states)
@@ -1700,7 +1811,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('❌ Error loading funding transactions from Supabase:', error);
-            showDatabaseError('Database not reachable. Check your internet connection.');
+            // ✅ IMPROVED: Better error detection
+            const errorMessage = (error as any)?.message || '';
+            const errorCode = (error as any)?.code || '';
+            
+            console.error('   Error message:', errorMessage);
+            console.error('   Error code:', errorCode);
+            
+            // Only show "database not reachable" for actual network errors
+            if (errorMessage.includes('Failed to fetch') || 
+                errorMessage.includes('NetworkError') ||
+                errorMessage.includes('network') ||
+                errorCode === 'ECONNREFUSED') {
+              showDatabaseError('Database not reachable. Check your internet connection.');
+            } else if (errorCode === '42P01' || errorMessage.includes('does not exist')) {
+              console.error('⚠️  Table or schema issue. Please run database migrations.');
+            } else if (errorCode === 'PGRST301' || errorMessage.includes('JWT')) {
+              console.error('⚠️  Authentication error. User may not be properly authenticated.');
+            } else if (errorCode === '42501' || errorMessage.includes('permission denied')) {
+              console.error('⚠️  Permission denied. Check RLS policies.');
+            } else {
+              console.error('⚠️  Unknown error loading data:', errorMessage);
+            }
+            
             setFundingTransactions([]);
           }
           
@@ -1744,7 +1877,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('❌ Error loading expenses from Supabase:', error);
-            showDatabaseError('Database not reachable. Check your internet connection.');
+            // ✅ IMPROVED: Better error detection
+            const errorMessage = (error as any)?.message || '';
+            const errorCode = (error as any)?.code || '';
+            
+            console.error('   Error message:', errorMessage);
+            console.error('   Error code:', errorCode);
+            
+            // Only show "database not reachable" for actual network errors
+            if (errorMessage.includes('Failed to fetch') || 
+                errorMessage.includes('NetworkError') ||
+                errorMessage.includes('network') ||
+                errorCode === 'ECONNREFUSED') {
+              showDatabaseError('Database not reachable. Check your internet connection.');
+            } else if (errorCode === '42P01' || errorMessage.includes('does not exist')) {
+              console.error('⚠️  Table or schema issue. Please run database migrations.');
+            } else if (errorCode === 'PGRST301' || errorMessage.includes('JWT')) {
+              console.error('⚠️  Authentication error. User may not be properly authenticated.');
+            } else if (errorCode === '42501' || errorMessage.includes('permission denied')) {
+              console.error('⚠️  Permission denied. Check RLS policies.');
+            } else {
+              console.error('⚠️  Unknown error loading data:', errorMessage);
+            }
+            
             setExpenses([]);
           }
           
@@ -1837,7 +1992,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('❌ Error loading clients from Supabase:', error);
-            showDatabaseError('Database not reachable. Check your internet connection.');
+            // ✅ IMPROVED: Better error detection
+            const errorMessage = (error as any)?.message || '';
+            const errorCode = (error as any)?.code || '';
+            
+            console.error('   Error message:', errorMessage);
+            console.error('   Error code:', errorCode);
+            
+            // Only show "database not reachable" for actual network errors
+            if (errorMessage.includes('Failed to fetch') || 
+                errorMessage.includes('NetworkError') ||
+                errorMessage.includes('network') ||
+                errorCode === 'ECONNREFUSED') {
+              showDatabaseError('Database not reachable. Check your internet connection.');
+            } else if (errorCode === '42P01' || errorMessage.includes('does not exist')) {
+              console.error('⚠️  Table or schema issue. Please run database migrations.');
+            } else if (errorCode === 'PGRST301' || errorMessage.includes('JWT')) {
+              console.error('⚠️  Authentication error. User may not be properly authenticated.');
+            } else if (errorCode === '42501' || errorMessage.includes('permission denied')) {
+              console.error('⚠️  Permission denied. Check RLS policies.');
+            } else {
+              console.error('⚠️  Unknown error loading data:', errorMessage);
+            }
+            
             setClients([]);
             console.log('   ⚠️  Clients state set to empty array due to error');
           }
@@ -2089,6 +2266,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
               
               setLoans(mappedLoans);
               console.log('   ✅ Loans state updated with', mappedLoans.length, 'loans');
+              
+              // 🔧 AUTO-FIX: Check for missing loan products and create them
+              const loanProductIds = [...new Set(mappedLoans.map((l: any) => l.productId).filter(Boolean))];
+              const existingProductIds = loanProducts.map((p: any) => p.id);
+              const missingProductIds = loanProductIds.filter(id => !existingProductIds.includes(id));
+              
+              if (missingProductIds.length > 0) {
+                console.log('⚠️ WARNING: Found', missingProductIds.length, 'loans with missing products');
+                console.log('   Missing product IDs:', missingProductIds);
+                console.log('   These loans reference products that do not exist in loan_products table');
+                // ❌ DISABLED: Auto-creation of placeholder products
+                // This was creating too many "Migrated Loan Product" entries
+                // Users should manually create proper loan products or fix the product_id references
+              }
+              
+
             } else {
               console.log('ℹ️ No loans found in individual table');
               setLoans([]);
@@ -2096,7 +2289,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('❌ Error loading loans from Supabase:', error);
-            showDatabaseError('Database not reachable. Check your internet connection.');
+            // ✅ IMPROVED: Better error detection
+            const errorMessage = (error as any)?.message || '';
+            const errorCode = (error as any)?.code || '';
+            
+            console.error('   Error message:', errorMessage);
+            console.error('   Error code:', errorCode);
+            
+            // Only show "database not reachable" for actual network errors
+            if (errorMessage.includes('Failed to fetch') || 
+                errorMessage.includes('NetworkError') ||
+                errorMessage.includes('network') ||
+                errorCode === 'ECONNREFUSED') {
+              showDatabaseError('Database not reachable. Check your internet connection.');
+            } else if (errorCode === '42P01' || errorMessage.includes('does not exist')) {
+              console.error('⚠️  Table or schema issue. Please run database migrations.');
+            } else if (errorCode === 'PGRST301' || errorMessage.includes('JWT')) {
+              console.error('⚠️  Authentication error. User may not be properly authenticated.');
+            } else if (errorCode === '42501' || errorMessage.includes('permission denied')) {
+              console.error('⚠️  Permission denied. Check RLS policies.');
+            } else {
+              console.error('⚠️  Unknown error loading data:', errorMessage);
+            }
+            
             setLoans([]);
             console.log('   ⚠️  Loans state set to empty array due to error');
           }
@@ -2157,7 +2372,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('❌ Error loading approvals from Supabase:', error);
-            showDatabaseError('Database not reachable. Check your internet connection.');
+            // ✅ IMPROVED: Better error detection
+            const errorMessage = (error as any)?.message || '';
+            const errorCode = (error as any)?.code || '';
+            
+            console.error('   Error message:', errorMessage);
+            console.error('   Error code:', errorCode);
+            
+            // Only show "database not reachable" for actual network errors
+            if (errorMessage.includes('Failed to fetch') || 
+                errorMessage.includes('NetworkError') ||
+                errorMessage.includes('network') ||
+                errorCode === 'ECONNREFUSED') {
+              showDatabaseError('Database not reachable. Check your internet connection.');
+            } else if (errorCode === '42P01' || errorMessage.includes('does not exist')) {
+              console.error('⚠️  Table or schema issue. Please run database migrations.');
+            } else if (errorCode === 'PGRST301' || errorMessage.includes('JWT')) {
+              console.error('⚠️  Authentication error. User may not be properly authenticated.');
+            } else if (errorCode === '42501' || errorMessage.includes('permission denied')) {
+              console.error('⚠️  Permission denied. Check RLS policies.');
+            } else {
+              console.error('⚠️  Unknown error loading data:', errorMessage);
+            }
+            
             setApprovals([]);
             console.log('   ⚠️  Approvals state set to empty array due to error');
           }
@@ -2225,7 +2462,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('❌ Error loading repayments from Supabase:', error);
-            showDatabaseError('Database not reachable. Check your internet connection.');
+            // ✅ IMPROVED: Better error detection
+            const errorMessage = (error as any)?.message || '';
+            const errorCode = (error as any)?.code || '';
+            
+            console.error('   Error message:', errorMessage);
+            console.error('   Error code:', errorCode);
+            
+            // Only show "database not reachable" for actual network errors
+            if (errorMessage.includes('Failed to fetch') || 
+                errorMessage.includes('NetworkError') ||
+                errorMessage.includes('network') ||
+                errorCode === 'ECONNREFUSED') {
+              showDatabaseError('Database not reachable. Check your internet connection.');
+            } else if (errorCode === '42P01' || errorMessage.includes('does not exist')) {
+              console.error('⚠️  Table or schema issue. Please run database migrations.');
+            } else if (errorCode === 'PGRST301' || errorMessage.includes('JWT')) {
+              console.error('⚠️  Authentication error. User may not be properly authenticated.');
+            } else if (errorCode === '42501' || errorMessage.includes('permission denied')) {
+              console.error('⚠️  Permission denied. Check RLS policies.');
+            } else {
+              console.error('⚠️  Unknown error loading data:', errorMessage);
+            }
+            
             setRepayments([]);
             console.log('   ⚠️  Repayments state set to empty array due to error');
           }
@@ -2337,7 +2596,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   description: je.description || '',
                   reference: je.reference || '',
                   sourceType: je.source_type || 'Manual Entry',
-                  sourceId: je.source_id,
+                  sourceId: je.reference, // ✅ FIXED: Use 'reference' column (source_id doesn't exist)
                   lines,
                   totalDebit: je.total_debit || lines.reduce((sum: number, l: any) => sum + l.debit, 0),
                   totalCredit: je.total_credit || lines.reduce((sum: number, l: any) => sum + l.credit, 0),
@@ -2526,7 +2785,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error('❌ Error loading data from Supabase:', error);
-        showDatabaseError('Database not reachable. Check your internet connection.');
+        // ✅ IMPROVED: Better error detection
+        const errorMessage = (error as any)?.message || '';
+        const errorCode = (error as any)?.code || '';
+        
+        console.error('   Error message:', errorMessage);
+        console.error('   Error code:', errorCode);
+        console.error('   Full error:', error);
+        
+        // Only show "database not reachable" for actual network errors
+        if (errorMessage.includes('Failed to fetch') || 
+            errorMessage.includes('NetworkError') ||
+            errorMessage.includes('network') ||
+            errorCode === 'ECONNREFUSED') {
+          showDatabaseError('Database not reachable. Check your internet connection.');
+        } else if (errorCode === '42P01' || errorMessage.includes('does not exist')) {
+          console.error('⚠️  Table or schema issue. Please run database migrations.');
+          console.error('⚠️  Check /supabase/COMPLETE_DATABASE_SETUP.sql');
+        } else if (errorCode === 'PGRST301' || errorMessage.includes('JWT')) {
+          console.error('⚠️  Authentication error. User may not be properly authenticated.');
+          console.error('⚠️  This usually means RLS is enabled but user is not logged in via Supabase Auth.');
+        } else if (errorCode === '42501' || errorMessage.includes('permission denied')) {
+          console.error('⚠️  Permission denied. Check RLS policies on your Supabase tables.');
+          console.error('⚠️  You may need to disable RLS or add proper policies.');
+        } else {
+          console.error('⚠️  Unknown database error. Full details above.');
+        }
         
         // ❌ NO FALLBACK - Set empty arrays, NO mock data
         setClients([]);
@@ -2634,12 +2918,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
           console.log(`      Opening: ${account.openingBalance}, Credits: ${totalCredits}, Debits: ${totalDebits}`);
           hasChanges = true;
           
-          // Update in Supabase
-          supabaseDataService.bankAccounts.update(
-            account.id,
-            { balance: correctBalance },
-            currentUser.organizationId
-          ).catch(err => console.error('Error updating balance:', err));
+          // Update in Supabase only if account has a valid UUID
+          if (account.id && account.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            supabaseDataService.bankAccounts.update(
+              account.id,
+              { balance: correctBalance },
+              currentUser.organizationId
+            ).catch(err => {
+              // Only log error if it's not a "0 rows" error (account doesn't exist in Supabase)
+              if (err?.code !== 'PGRST116') {
+                console.error('Error updating balance:', err);
+              }
+            });
+          }
           
           return { ...account, balance: correctBalance };
         }
@@ -3099,7 +3390,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (updates.county !== undefined) supabaseUpdates.county = updates.county;
       if (updates.occupation !== undefined) supabaseUpdates.occupation = updates.occupation;
       if (updates.employer !== undefined) supabaseUpdates.employer = updates.employer;
-      if (updates.institutionId !== undefined) supabaseUpdates.institution_id = updates.institutionId;
+      
+      // Handle UUID fields - convert empty string/undefined to null for UUID fields
+      if (updates.institutionId !== undefined) {
+        supabaseUpdates.institution_id = updates.institutionId === '' ? null : updates.institutionId;
+      }
+      if (updates.staffMemberId !== undefined) {
+        supabaseUpdates.staff_member_id = updates.staffMemberId === '' || updates.staffMemberId === undefined ? null : updates.staffMemberId;
+      }
+      
       // Skip creditScore - not in Supabase schema (frontend only)
       // if (updates.creditScore !== undefined) supabaseUpdates.credit_score = updates.creditScore;
       
@@ -4536,12 +4835,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
         console.log(`✅ Deleted ${existingProducts.length} existing loan products`);
       }
       
-      // ✅ 2. CREATE THE 3 DEFAULT LOAN PRODUCTS
+      // ✅ 2. CREATE THE 3 DEFAULT LOAN PRODUCTS WITH ORGANIZATION PREFIX
+      // Get organization code/prefix
+      const { data: orgData } = await supabase
+        .from('organizations')
+        .select('organization_code, organization_name')
+        .eq('id', currentUser.organizationId)
+        .maybeSingle();
+      
+      const orgPrefix = orgData?.organization_code?.toUpperCase() || 
+                       orgData?.organization_name?.substring(0, 3)?.toUpperCase() || 
+                       'ORG';
+      
       const defaultProducts = [
         {
           id: crypto.randomUUID(),
           organization_id: currentUser.organizationId,
-          product_code: 'ADVANCE-SALARY',
+          product_code: `${orgPrefix}-PROD00001`,
           product_name: 'ADVANCE SALARY',
           name: 'ADVANCE SALARY',
           description: 'Advance salary loan product',
@@ -4572,7 +4882,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         {
           id: crypto.randomUUID(),
           organization_id: currentUser.organizationId,
-          product_code: 'PERSONAL-LOAN',
+          product_code: `${orgPrefix}-PROD00002`,
           product_name: 'PERSONAL LOAN',
           name: 'PERSONAL LOAN',
           description: 'Personal loan product',
@@ -4603,7 +4913,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         {
           id: crypto.randomUUID(),
           organization_id: currentUser.organizationId,
-          product_code: 'BUSINESS-LOAN',
+          product_code: `${orgPrefix}-PROD00003`,
           product_name: 'BUSINESS LOAN',
           name: 'BUSINESS LOAN',
           description: 'Business loan product',
@@ -5478,7 +5788,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (isDuplicateError && retryCount < maxRetries - 1) {
         // Retry with a new entry number
         retryCount++;
-        console.warn(`⚠️ Duplicate journal entry number detected. Retrying (${retryCount}/${maxRetries})...`);
+        // Silent: duplicate journal entry number, retrying
         // Add a small delay before retrying
         await new Promise(resolve => setTimeout(resolve, 100 * retryCount));
         continue;
@@ -5641,9 +5951,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
       console.log('💾 Updating bank account in Supabase:', { id, updates: updatedAccount });
       await supabaseDataService.bankAccounts.update(id, updatedAccount, currentUser.organizationId);
       console.log('✅ Bank account updated in Supabase');
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error updating bank account in Supabase:', error);
-      toast.error('Failed to update bank account in database');
+      
+      // Check if it's a schema error (table/column doesn't exist)
+      if (error?.code === 'PGRST204' || error?.message?.includes('schema cache') || error?.message?.includes('Could not find')) {
+        console.log('⚠️ Bank accounts table has schema issues');
+        console.log('📖 Run /supabase/COMPLETE_DATABASE_SETUP.sql to fix');
+        // Don't show error toast - just log it
+      } else {
+        toast.error('Failed to update bank account in database');
+      }
+      
       // Revert local state
       setBankAccounts(bankAccounts);
     }
@@ -6924,10 +7243,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
 }
 
 // ============= CUSTOM HOOK =============
+// Version: 2025-01-11 - Fixed cache issue
 
 export function useData() {
   const context = useContext(DataContext);
   if (!context) {
+    console.error('🚨 DataContext is undefined! This means useData() was called outside DataProvider');
+    console.error('🔍 Debug info:', {
+      contextExists: !!context,
+      dataContextType: typeof DataContext
+    });
     throw new Error('useData must be used within a DataProvider');
   }
   return context;

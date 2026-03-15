@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { isValidUUID, generateUUID, ensureUUID } from '../utils/uuidUtils';
 import type {
   Client,
@@ -486,18 +486,19 @@ const transformLoanForSupabase = (loan: any): any => {
     'organization_id': 'organization_id',
     'clientId': 'client_id',
     'client_id': 'client_id',
-    'productId': 'loan_product_id', // ✅ Changed back to loan_product_id to match schema.sql
-    'loan_product_id': 'loan_product_id',
-    'product_id': 'loan_product_id', // ✅ Changed to loan_product_id
+    'productId': 'product_id', // ✅ FIXED: Database uses 'product_id' not 'loan_product_id'
+    'loan_product_id': 'product_id', // ✅ FIXED: Map app's loan_product_id to DB's product_id
+    'product_id': 'product_id',
     'principalAmount': 'principal_amount', // ✅ Changed to principal_amount to match schema.sql
     'amount': 'principal_amount', // ✅ Changed to principal_amount
     'interestRate': 'interest_rate',
     'interest_rate': 'interest_rate',
-    'term': 'duration_months', // ✅ Changed to duration_months to match schema.sql
-    'term_months': 'duration_months', // ✅ Changed to duration_months
+    'term': 'duration_months', // ✅ FIXED: schema.sql uses 'duration_months' not 'loan_term'
+    'term_months': 'duration_months',
     'term_period': 'duration_months',
     'loanTerm': 'duration_months',
-    'purpose': 'purpose',
+    'duration_months': 'duration_months',
+    'purpose': 'purpose', // ✅ FIXED: schema.sql uses 'purpose' not 'loan_purpose'
     'status': 'status',
     'applicationDate': 'application_date',
     'application_date': 'application_date',
@@ -505,21 +506,24 @@ const transformLoanForSupabase = (loan: any): any => {
     'approval_date': 'approved_at',
     'disbursementDate': 'disbursed_at',
     'disbursement_date': 'disbursed_at',
-    'firstRepaymentDate': 'first_payment_date',
-    'first_payment_date': 'first_payment_date',
-    'expected_repayment_date': 'first_payment_date',
+    // 'firstRepaymentDate': 'first_payment_date', // ❌ Column doesn't exist in all Supabase schemas
+    // 'first_payment_date': 'first_payment_date', // ❌ Column doesn't exist in all Supabase schemas
+    // 'expected_repayment_date': 'first_payment_date', // ❌ Column doesn't exist in all Supabase schemas
     'totalRepayable': 'total_amount',
     'total_payable': 'total_amount',
     'total_amount': 'total_amount',
-    'installmentAmount': 'monthly_installment',
+    'installmentAmount': 'monthly_installment', // ✅ FIXED: schema.sql uses 'monthly_installment' not 'monthly_repayment'
     'monthly_payment': 'monthly_installment',
-    'outstandingBalance': 'outstanding_balance',
+    'monthly_installment': 'monthly_installment',
+    'outstandingBalance': 'outstanding_balance', // ✅ FIXED: schema.sql uses 'outstanding_balance' not 'total_outstanding'
     'balance': 'outstanding_balance',
-    'paidAmount': 'paid_amount',
-    'principal_paid': 'paid_amount',
-    'amount_paid': 'paid_amount',
-    'interestPaid': 'interest_paid',
-    'interest_paid': 'interest_paid',
+    'outstanding_balance': 'outstanding_balance',
+    'paidAmount': 'amount_paid', // ✅ FIXED: schema.sql uses 'amount_paid' not 'paid_amount'
+    'principal_paid': 'amount_paid',
+    'paid_amount': 'amount_paid', // ✅ FIXED: Map app's paid_amount to DB's amount_paid
+    'amount_paid': 'amount_paid',
+    // 'interestPaid': 'interest_paid', // ❌ Column doesn't exist in schema, skipped above
+    // 'interest_paid': 'interest_paid', // ❌ Column doesn't exist in schema, skipped above
     'paymentMethod': 'disbursement_method',
     'payment_method': 'disbursement_method',
     'guarantorRequired': 'guarantor_required',
@@ -546,8 +550,9 @@ const transformLoanForSupabase = (loan: any): any => {
         key === 'interestOutstanding' || key === 'daysInArrears' || key === 'arrearsAmount' ||
         key === 'overdueAmount' || key === 'penaltyAmount' || key === 'createdBy' ||
         key === 'lastPaymentDate' || key === 'lastPaymentAmount' || key === 'nextPaymentDate' ||
-        key === 'nextPaymentAmount' || key === 'loanOfficer' || key === 'notes') {
-      return; // Skip these fields - 'notes' added to skip list
+        key === 'nextPaymentAmount' || key === 'loanOfficer' || key === 'notes' ||
+        key === 'interestPaid' || key === 'interest_paid') { // ✅ Added interestPaid - column doesn't exist in schema
+      return; // Skip these fields
     }
     
     // Keep the ID as-is (supports both UUID and custom formats like ABC-L00001)
@@ -574,9 +579,9 @@ const transformLoanForSupabase = (loan: any): any => {
     transformed._needsClientLookup = true;
   }
   
-  if (transformed.loan_product_id && !isValidUUID(transformed.loan_product_id)) {
+  if (transformed.product_id && !isValidUUID(transformed.product_id)) {
     // Silently flag for lookup - this is expected behavior when syncing to Supabase
-    transformed._originalProductId = transformed.loan_product_id;
+    transformed._originalProductId = transformed.product_id;
     transformed._needsProductLookup = true;
   }
   
@@ -595,24 +600,29 @@ const transformLoanForSupabase = (loan: any): any => {
   if (transformed.term_months === undefined || transformed.term_months === null || transformed.term_months === '') {
     transformed.term_months = 1;
   }
-  if (transformed.total_payable === undefined || transformed.total_payable === null || transformed.total_payable === '') {
-    transformed.total_payable = 0;
+  // Set defaults for financial fields using actual database column names
+  if (transformed.total_amount === undefined || transformed.total_amount === null || transformed.total_amount === '') {
+    transformed.total_amount = 0;
   }
-  if (transformed.monthly_payment === undefined || transformed.monthly_payment === null || transformed.monthly_payment === '') {
-    transformed.monthly_payment = 0;
+  if (transformed.monthly_installment === undefined || transformed.monthly_installment === null || transformed.monthly_installment === '') {
+    transformed.monthly_installment = 0;
   }
-  if (transformed.balance === undefined || transformed.balance === null || transformed.balance === '') {
-    transformed.balance = 0;
+  if (transformed.outstanding_balance === undefined || transformed.outstanding_balance === null || transformed.outstanding_balance === '') {
+    transformed.outstanding_balance = 0;
   }
-  if (transformed.principal_paid === undefined || transformed.principal_paid === null || transformed.principal_paid === '') {
-    transformed.principal_paid = 0;
+  if (transformed.paid_amount === undefined || transformed.paid_amount === null || transformed.paid_amount === '') {
+    transformed.paid_amount = 0;
   }
+  if (transformed.interest_amount === undefined || transformed.interest_amount === null || transformed.interest_amount === '') {
+    transformed.interest_amount = 0;
+  }
+  // Note: interest_paid column doesn't exist in actual schema
   if (transformed.interest_paid === undefined || transformed.interest_paid === null || transformed.interest_paid === '') {
     transformed.interest_paid = 0;
   }
   
   // Convert empty strings to null for date fields to prevent PostgreSQL errors
-  const dateFields = ['application_date', 'approval_date', 'disbursement_date', 'first_payment_date'];
+  const dateFields = ['application_date', 'approval_date', 'disbursement_date']; // Note: first_payment_date removed - not in all schemas
   dateFields.forEach(field => {
     if (transformed[field] === '' || transformed[field] === undefined) {
       transformed[field] = null;
@@ -630,23 +640,23 @@ const transformLoanFromSupabase = (loan: any): any => {
     id: loan.id,
     clientId: loan.client_id,
     clientName: loan.client_name || 'Unknown', // We'll need to join this or look it up
-    productId: loan.loan_product_id, // ✅ Changed back to loan_product_id to match schema.sql
+    productId: loan.product_id, // ✅ FIXED: Database uses 'product_id' not 'loan_product_id'
     productName: loan.product_name || 'Unknown', // We'll need to join this or look it up
     principalAmount: loan.principal_amount || 0, // ✅ Changed to principal_amount to match schema.sql
     interestRate: loan.interest_rate || 0,
-    term: loan.duration_months || 0, // ✅ Changed to duration_months to match schema.sql
+    term: loan.duration_months || 0, // ✅ FIXED: schema.sql uses 'duration_months' only
     termUnit: 'months',
     purpose: loan.purpose || '',
     status: loan.status || 'pending',
     applicationDate: loan.application_date || '',
     approvedDate: loan.approved_at || '', // ✅ Changed to approved_at to match schema.sql
     disbursementDate: loan.disbursed_at || '', // ✅ Changed to disbursed_at to match schema.sql
-    firstRepaymentDate: loan.first_payment_date || '',
+    // firstRepaymentDate: loan.first_payment_date || '', // ❌ Column doesn't exist in all Supabase schemas
     totalRepayable: loan.total_amount || 0,
-    installmentAmount: loan.monthly_installment || 0, // ✅ Changed to monthly_installment to match schema.sql
-    outstandingBalance: loan.outstanding_balance || 0, // ✅ Changed to outstanding_balance to match schema.sql
+    installmentAmount: loan.monthly_installment || 0, // ✅ FIXED: schema.sql uses 'monthly_installment' only
+    outstandingBalance: loan.outstanding_balance || 0, // ✅ FIXED: schema.sql uses 'outstanding_balance' only
     balance: loan.outstanding_balance || 0,
-    paidAmount: loan.paid_amount || 0,
+    paidAmount: loan.amount_paid || 0, // ✅ FIXED: Database uses 'amount_paid' not 'paid_amount'
     interestPaid: loan.interest_paid || 0,
     loanNumber: loan.loan_number || '',
     phase: loan.phase || 1,
@@ -994,11 +1004,156 @@ export const fetchClients = async (): Promise<Client[]> => {
   }
 };
 
+/**
+ * Ensures the organization exists in Supabase
+ * If it doesn't exist, creates it with default values
+ */
+const ensureOrganizationExists = async (orgId: string): Promise<boolean> => {
+  try {
+    console.log('🔍 [ORG-CHECK] Checking if organization exists:', orgId);
+    
+    // Check if organization exists by ID
+    const { data: existingOrg, error: fetchError } = await supabase
+      .from('organizations')
+      .select('id')
+      .eq('id', orgId)
+      .maybeSingle();
+    
+    // If organization exists, we're done
+    if (existingOrg) {
+      console.log('✅ [ORG-CHECK] Organization already exists:', orgId);
+      return true;
+    }
+    
+    // If there was an error other than "not found", log it and fail
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('❌ [ORG-CHECK] Error checking organization:', fetchError);
+      return false;
+    }
+    
+    // Organization doesn't exist - create it
+    console.log('📝 [ORG-CREATE] Organization not found, attempting to create:', orgId);
+    
+    // Get organization details from localStorage
+    const orgData = localStorage.getItem('current_organization');
+    
+    // Comprehensive organization details with all required fields based on schema
+    let orgDetails: any = {
+      organization_name: 'SmartLenderUp',
+      organization_type: 'mother_company',
+      email: 'admin@smartlenderup.com',
+      phone: '0700000000',
+      country: 'Kenya',
+      currency: 'KES',
+      status: 'active',
+      password_hash: '$2a$10$default.hash.for.auto.created.org',
+      // Additional fields that may be required
+      contact_person_email: 'admin@smartlenderup.com',
+      contact_person_phone: '0700000000',
+      contact_person_first_name: 'Admin',
+      contact_person_last_name: 'User',
+      contact_person_title: 'Administrator',
+      industry: 'Financial Services',
+      county: 'Nairobi',
+      town: 'Nairobi',
+      address: 'Nairobi, Kenya',
+      date_of_incorporation: '2024-01-01',
+      subscription_status: 'trial',
+      date_format: 'DD/MM/YYYY',
+      number_format: 'comma',
+      fiscal_year_start: '01-01'
+    };
+    
+    // Override with data from localStorage if available
+    if (orgData) {
+      try {
+        const parsed = JSON.parse(orgData);
+        orgDetails = {
+          ...orgDetails, // Keep all defaults
+          // Override with parsed data if present
+          organization_name: parsed.organization_name || parsed.name || orgDetails.organization_name,
+          email: parsed.email || orgDetails.email,
+          phone: parsed.phone || orgDetails.phone,
+          country: parsed.country || orgDetails.country,
+          status: parsed.status || orgDetails.status,
+          currency: parsed.currency || orgDetails.currency,
+          address: parsed.address || orgDetails.address,
+          password_hash: parsed.password_hash || orgDetails.password_hash,
+          username: parsed.username || null,
+          contact_person_email: parsed.contact_person_email || parsed.email || orgDetails.contact_person_email
+        };
+      } catch (e) {
+        console.error('Error parsing organization data:', e);
+      }
+    }
+    
+    console.log('📝 [ORG-CREATE] Creating with organization_name:', orgDetails.organization_name);
+    console.log('📝 [ORG-CREATE] Creating with email:', orgDetails.email);
+    
+    // Try using upsert instead of insert to handle potential conflicts
+    const { data, error } = await supabase
+      .from('organizations')
+      .upsert(
+        { id: orgId, ...orgDetails },
+        { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        }
+      )
+      .select();
+    
+    if (error) {
+      console.error('❌ [ORG-CREATE] FAILED to create organization!');
+      console.error('❌ [ORG-CREATE] Error code:', error.code);
+      console.error('❌ [ORG-CREATE] Error message:', error.message);
+      console.error('❌ [ORG-CREATE] Error details:', error.details);
+      console.error('❌ [ORG-CREATE] Full error object:', JSON.stringify(error, null, 2));
+      console.error('❌ [ORG-CREATE] Data attempted:', JSON.stringify({ id: orgId, organization_name: orgDetails.organization_name, email: orgDetails.email }, null, 2));
+      return false;
+    }
+    
+    console.log('✅ [ORG-CREATE] SUCCESS! Organization created:', orgId);
+    console.log('✅ [ORG-CREATE] Returned data:', data);
+    return true;
+  } catch (e) {
+    console.error('❌ [ORG-CREATE] Exception caught:', e);
+    return false;
+  }
+};
+
 export const createClient = async (client: Client): Promise<boolean> => {
   const orgId = getOrganizationId();
   
   if (!orgId) {
     console.error('❌ Cannot create client: No organization ID');
+    return false;
+  }
+  
+  console.log('🔍 [CLIENT-CREATE] Starting client creation for org:', orgId);
+  
+  // Ensure organization exists before creating client
+  console.log('🔍 [CLIENT-CREATE] Step 1: Ensuring organization exists...');
+  const orgExists = await ensureOrganizationExists(orgId);
+  console.log('🔍 [CLIENT-CREATE] Step 1 result: orgExists =', orgExists);
+  
+  if (!orgExists) {
+    console.error('❌ [CLIENT-CREATE] BLOCKED: Organization does not exist and could not be created');
+    return false;
+  }
+  
+  // Double-check that organization actually exists in database
+  console.log('🔍 [CLIENT-CREATE] Step 2: Double-checking organization in database...');
+  const { data: verifyOrg, error: verifyError } = await supabase
+    .from('organizations')
+    .select('id')
+    .eq('id', orgId)
+    .maybeSingle();
+  
+  console.log('🔍 [CLIENT-CREATE] Step 2 result: org found =', !!verifyOrg, 'error =', verifyError?.message);
+  
+  if (!verifyOrg) {
+    console.error('❌ [CLIENT-CREATE] CRITICAL: Organization does not exist in database even after creation!');
+    console.error('❌ [CLIENT-CREATE] This means ensureOrganizationExists returned true but did not create the org');
     return false;
   }
   
@@ -1009,28 +1164,53 @@ export const createClient = async (client: Client): Promise<boolean> => {
   delete transformedClient.creditScore;
   delete transformedClient.credit_score;
   
-  console.log('📤 Creating client in Supabase:');
-  console.log('📦 Full transformed client:', JSON.stringify({ ...transformedClient, organization_id: orgId }, null, 2));
+  console.log('📤 [CLIENT-CREATE] Step 3: Inserting client into Supabase...');
+  console.log('📦 [CLIENT-CREATE] Transformed client:', JSON.stringify({ ...transformedClient, organization_id: orgId }, null, 2));
   
-  // Use upsert to handle both insert and update cases
-  const { data, error } = await supabase
-    .from('clients')
-    .upsert(
-      { ...transformedClient, organization_id: orgId },
-      { 
-        onConflict: 'id',
-        ignoreDuplicates: false 
+  // Retry logic with exponential backoff
+  const maxRetries = 3;
+  let lastError = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Use upsert to handle both insert and update cases
+      const { data, error } = await supabase
+        .from('clients')
+        .upsert(
+          { ...transformedClient, organization_id: orgId },
+          { 
+            onConflict: 'id',
+            ignoreDuplicates: false 
+          }
+        )
+        .select();
+      
+      if (error) {
+        lastError = error;
+        
+        // If it's a foreign key error, try to ensure organization exists again
+        if (error.code === '23503' && attempt < maxRetries) {
+          console.log(`⚠️ Attempt ${attempt} failed, retrying...`);
+          await ensureOrganizationExists(orgId);
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+          continue;
+        }
+        
+        throw error;
       }
-    )
-    .select();
-  
-  if (error) {
-    console.error('❌ Error creating client:', error);
-    console.error('❌ Failed client data:', JSON.stringify({ ...transformedClient, organization_id: orgId }, null, 2));
-    return false;
+      
+      console.log('✅ Client synced to Supabase:', client.id, data);
+      return true;
+    } catch (error) {
+      if (attempt === maxRetries) {
+        console.error('❌ Error creating client:', lastError || error);
+        console.error('❌ Failed client data:', JSON.stringify({ ...transformedClient, organization_id: orgId }, null, 2));
+        return false;
+      }
+    }
   }
-  console.log('✅ Client synced to Supabase:', client.id, data);
-  return true;
+  
+  return false;
 };
 
 export const updateClient = async (id: string, updates: Partial<Client>): Promise<boolean> => {
@@ -1110,21 +1290,10 @@ export const fetchLoans = async (): Promise<Loan[]> => {
     return [];
   }
   
-  // Fetch loans with client and product information via joins
+  // ✅ FIXED: Fetch loans without foreign key joins (relationship not found in schema)
   const { data, error } = await supabase
     .from('loans')
-    .select(`
-      *,
-      clients:client_id (
-        id,
-        first_name,
-        last_name
-      ),
-      loan_products:product_id (
-        id,
-        name
-      )
-    `)
+    .select('*')
     .eq('organization_id', orgId);
   
   if (error) {
@@ -1196,13 +1365,13 @@ export const createLoan = async (loan: Loan): Promise<boolean> => {
       .single();
     
     if (productData) {
-      transformedLoan.loan_product_id = productData.id; // ✅ Changed back to loan_product_id
+      transformedLoan.product_id = productData.id; // ✅ FIXED: Database uses 'product_id' not 'loan_product_id'
       console.log(`✅ Found loan product UUID: ${productData.id}`);
       delete transformedLoan._needsProductLookup;
       delete transformedLoan._originalProductId;
     } else {
       console.error(`❌ Could not find loan product in Supabase: ${loan.productName}`);
-      delete transformedLoan.loan_product_id; // ✅ Changed back to loan_product_id
+      delete transformedLoan.product_id; // ✅ FIXED: Database uses 'product_id' not 'loan_product_id'
       delete transformedLoan._needsProductLookup;
       delete transformedLoan._originalProductId;
     }
@@ -1220,8 +1389,8 @@ export const createLoan = async (loan: Loan): Promise<boolean> => {
     return false;
   }
   
-  if (!transformedLoan.loan_product_id) { // ✅ Changed back to loan_product_id
-    console.error('❌ Cannot create loan: loan_product_id is required');
+  if (!transformedLoan.product_id) { // ✅ FIXED: Database uses 'product_id' not 'loan_product_id'
+    console.error('❌ Cannot create loan: product_id is required');
     return false;
   }
   
@@ -1229,7 +1398,7 @@ export const createLoan = async (loan: Loan): Promise<boolean> => {
   const { data: productExists } = await supabase
     .from('loan_products')
     .select('id')
-    .eq('id', transformedLoan.loan_product_id) // ✅ Changed back to loan_product_id
+    .eq('id', transformedLoan.product_id) // ✅ FIXED: Database uses 'product_id' not 'loan_product_id'
     .eq('organization_id', orgId)
     .single();
   

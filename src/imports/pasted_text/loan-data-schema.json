@@ -1,0 +1,284 @@
+[
+  {
+    "column_name": "amount_paid",
+    "data_type": "numeric",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "application_date",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "approval_date",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "approval_stage",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "approved_by",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "arrears_amount",
+    "data_type": "numeric",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "balance",
+    "data_type": "numeric",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "client_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "status": "✅"
+  },
+  {
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "created_by",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "current_approver_role_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "days_in_arrears",
+    "data_type": "integer",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "disbursed_at",
+    "data_type": "date",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "disbursement_account",
+    "data_type": "character varying",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "disbursement_date",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "disbursement_method",
+    "data_type": "character varying",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "disbursement_reference",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "duration_months",
+    "data_type": "integer",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "expected_repayment_date",
+    "data_type": "date",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "first_name",
+    "data_type": "character varying",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "first_payment_date",
+    "data_type": "date",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "status": "✅"
+  },
+  {
+    "column_name": "interest_rate",
+    "data_type": "numeric",
+    "is_nullable": "NO",
+    "status": "✅"
+  },
+  {
+    "column_name": "last_name",
+    "data_type": "character varying",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "loan_number",
+    "data_type": "character varying",
+    "is_nullable": "NO",
+    "status": "✅"
+  },
+  {
+    "column_name": "maturity_date",
+    "data_type": "date",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "monthly_installment",
+    "data_type": "numeric",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "organization_code",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "organization_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "status": "✅"
+  },
+  {
+    "column_name": "outstanding_balance",
+    "data_type": "numeric",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "outstanding_principal",
+    "data_type": "numeric",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "overdue_amount",
+    "data_type": "numeric",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "penalty_amount",
+    "data_type": "numeric",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "phase",
+    "data_type": "integer",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "principal_amount",
+    "data_type": "numeric",
+    "is_nullable": "NO",
+    "status": "✅"
+  },
+  {
+    "column_name": "processing_fee",
+    "data_type": "numeric",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "product_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "purpose",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "repayment_frequency",
+    "data_type": "character varying",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "staff_member_id",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "staff_member_name",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "status",
+    "data_type": "character varying",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "term_period",
+    "data_type": "integer",
+    "is_nullable": "NO",
+    "status": "✅"
+  },
+  {
+    "column_name": "term_period_unit",
+    "data_type": "character varying",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "total_amount",
+    "data_type": "numeric",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "total_repayable",
+    "data_type": "numeric",
+    "is_nullable": "YES",
+    "status": "✅"
+  },
+  {
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "status": "✅"
+  }
+]

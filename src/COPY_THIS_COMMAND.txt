@@ -1,0 +1,32 @@
+═══════════════════════════════════════════════════════════════
+              WEBASSEMBLY ERROR - FIXED
+═══════════════════════════════════════════════════════════════
+
+I excluded @supabase/supabase-js from Vite optimization.
+
+Now copy/paste ONE of these commands:
+
+
+Mac/Linux:
+──────────────────────────────────────────────────────────────
+
+pkill -9 node; rm -rf node_modules/.vite .vite dist; npm run dev
+
+
+Windows PowerShell:
+──────────────────────────────────────────────────────────────
+
+taskkill /F /IM node.exe; rm -r node_modules\.vite,.vite,dist -ErrorAction SilentlyContinue; npm run dev
+
+
+Windows CMD:
+──────────────────────────────────────────────────────────────
+
+START.bat
+
+
+═══════════════════════════════════════════════════════════════
+
+That's it. Copy, paste, done.
+
+If browser still shows error → F12 → Hard reload

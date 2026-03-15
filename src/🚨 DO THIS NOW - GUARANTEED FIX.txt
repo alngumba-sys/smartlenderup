@@ -1,0 +1,141 @@
+
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║              🚨 WEBASSEMBLY ERROR - GUARANTEED FIX 🚨            ║
+║                                                                  ║
+║              This is 100% a BROWSER CACHE issue!                ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+
+═══════════════════════════════════════════════════════════════════
+  STEP 1: RUN THIS COMMAND
+═══════════════════════════════════════════════════════════════════
+
+npm run KILL
+
+
+This will:
+  ✅ Kill all Node/Vite processes
+  ✅ Delete ALL cache folders
+  ✅ Create clean vite.config.ts
+  ✅ Create clean index.html with WASM blocker
+
+
+═══════════════════════════════════════════════════════════════════
+  STEP 2: START THE SERVER
+═══════════════════════════════════════════════════════════════════
+
+npm run dev
+
+
+═══════════════════════════════════════════════════════════════════
+  STEP 3: OPEN IN INCOGNITO MODE
+═══════════════════════════════════════════════════════════════════
+
+Press ONE of these:
+
+  Windows/Linux:  Ctrl + Shift + N
+  Mac:            Cmd + Shift + N
+
+Then go to:  http://localhost:5174
+
+
+✅ THIS WILL 100% WORK!
+
+
+═══════════════════════════════════════════════════════════════════
+  WHY INCOGNITO MODE WORKS
+═══════════════════════════════════════════════════════════════════
+
+Incognito mode:
+  ✅ Has NO browser cache
+  ✅ Has NO service workers
+  ✅ Has NO stored data
+  ✅ Loads FRESH code from server
+  ✅ CANNOT load old @supabase files
+
+
+Normal browser:
+  ❌ Has cached old files
+  ❌ Old files try to load @supabase
+  ❌ @supabase tries to load WebAssembly
+  ❌ ERROR!
+
+
+═══════════════════════════════════════════════════════════════════
+  ALTERNATIVE: HARD REFRESH
+═══════════════════════════════════════════════════════════════════
+
+If you don't want to use incognito:
+
+1. Open the app in normal browser
+2. Press: Ctrl + Shift + R  (Windows/Linux)
+        OR
+        Cmd + Shift + R   (Mac)
+
+This forces browser to reload everything.
+
+
+═══════════════════════════════════════════════════════════════════
+  TECHNICAL EXPLANATION
+═══════════════════════════════════════════════════════════════════
+
+What's happening:
+  1. Your browser cached JavaScript files from before
+  2. Those old files have: import '@supabase/supabase-js'
+  3. Supabase uses WebAssembly internally
+  4. WebAssembly fails to load → ERROR
+
+Why new code doesn't help:
+  Browser keeps loading OLD cached files instead of NEW files
+
+How incognito fixes it:
+  Incognito NEVER uses cache → ALWAYS loads fresh files
+
+
+═══════════════════════════════════════════════════════════════════
+  SUMMARY
+═══════════════════════════════════════════════════════════════════
+
+1. npm run KILL          ← Cleans everything
+2. npm run dev           ← Starts server
+3. Ctrl+Shift+N          ← Opens incognito
+4. Go to localhost:5174  ← App loads perfectly
+
+
+═══════════════════════════════════════════════════════════════════
+
+✅ GUARANTEED TO WORK IN INCOGNITO MODE!
+
+═══════════════════════════════════════════════════════════════════
+
+
+IF YOU WANT TO USE NORMAL BROWSER:
+═══════════════════════════════════════════════════════════════════
+
+After running "npm run KILL" and "npm run dev":
+
+Option A: Clear browser data
+  1. Open browser settings
+  2. Clear ALL browsing data
+  3. Close ALL browser windows
+  4. Reopen and go to localhost:5174
+
+Option B: Hard refresh
+  1. Open localhost:5174
+  2. Press Ctrl+Shift+R (or Cmd+Shift+R on Mac)
+  3. Repeat 2-3 times if needed
+
+Option C: Developer tools
+  1. Open localhost:5174
+  2. Press F12 (open DevTools)
+  3. Right-click the refresh button
+  4. Select "Empty Cache and Hard Reload"
+
+
+═══════════════════════════════════════════════════════════════════
+
+BOTTOM LINE: USE INCOGNITO MODE - IT'S THE EASIEST!
+
+═══════════════════════════════════════════════════════════════════

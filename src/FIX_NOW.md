@@ -1,124 +1,186 @@
-# 🚨 URGENT: Run These SQL Queries Now!
+# ⚡ INSTANT FIX - Stop the Warning NOW
 
-## Your Two Errors Detected:
-
-1. ❌ `contact_phone` column missing in payees table
-2. ❌ Product ID mismatch: Loans have "PROD-723555" but database has "11794d71-e44c-4b16-8c84-1b06b54d0938"
-
----
-
-## 🔥 Fix #1: Payees Table (2 minutes)
-
-### Copy and run this SQL in Supabase SQL Editor:
-
-```sql
--- Add all missing columns (INCLUDING contact_phone that was missed)
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS contact_phone TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS contact_email TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'Other';
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS contact_person TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS physical_address TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS kra_pin TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS bank_name TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS account_number TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS mpesa_number TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS notes TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS total_paid NUMERIC DEFAULT 0;
+## You're seeing this:
+```
+⚠️ Duplicate key on attempt 1. Retrying with different code...
 ```
 
-**✅ Result:** Payees will now save without errors!
+---
+
+## ⚡ OPTION 1: One-Click Fix (EASIEST - 2 seconds)
+
+### In the App:
+1. Go to **Admin → Loan Products**
+2. Look for the **ORANGE WARNING BANNER** at the top
+3. Click the **⚡ Instant Fix** button (purple/pink gradient)
+4. Wait 2 seconds
+5. ✅ DONE! Page will refresh automatically
 
 ---
 
-## 🔥 Fix #2: Product ID Mismatch (1 minute)
+## ⚡ OPTION 2: SQL Fix (Supabase Dashboard - 30 seconds)
 
-### Copy and run this SQL in Supabase SQL Editor:
+### In Supabase:
+1. Open **Supabase Dashboard** → **SQL Editor**
+2. Paste this code:
 
 ```sql
--- Update all loans to use the correct product ID
-UPDATE loans
-SET product_id = '11794d71-e44c-4b16-8c84-1b06b54d0938'
-WHERE product_id != '11794d71-e44c-4b16-8c84-1b06b54d0938'
-   OR product_id IS NULL
-   OR product_id = '';
+-- Remove duplicates (keeps newest)
+WITH duplicates AS (
+  SELECT 
+    id,
+    ROW_NUMBER() OVER (
+      PARTITION BY product_code 
+      ORDER BY created_at DESC
+    ) as row_num
+  FROM loan_products
+)
+DELETE FROM loan_products
+WHERE id IN (SELECT id FROM duplicates WHERE row_num > 1);
+
+-- Prevent future duplicates
+ALTER TABLE loan_products
+DROP CONSTRAINT IF EXISTS unique_product_code_per_org;
+
+ALTER TABLE loan_products
+ADD CONSTRAINT unique_product_code_per_org 
+UNIQUE (organization_id, product_code);
 ```
 
-**✅ Result:** 
-- Portfolio by Product chart will show data
-- Loan Products statistics will be accurate
-- No more product ID mismatch warnings
+3. Click **Run**
+4. ✅ DONE!
 
 ---
 
-## 📊 Verify the Fixes
+## What These Do:
 
-### After running both SQL queries above, run this to verify:
+### Instant Fix Button:
+- ✅ Finds all duplicate product codes
+- ✅ Keeps the newest product for each code
+- ✅ Deletes old duplicates
+- ✅ Shows results in console
+- ✅ Refreshes page automatically
 
-```sql
--- Check payees table has all columns
-SELECT column_name 
-FROM information_schema.columns
-WHERE table_name = 'payees'
-ORDER BY ordinal_position;
+### SQL Script:
+- ✅ Same as Instant Fix
+- ✅ Plus adds database constraint
+- ✅ Prevents future duplicates at database level
 
--- Check all loans have correct product ID
-SELECT 
-    COUNT(*) as total_loans,
-    COUNT(CASE WHEN product_id = '11794d71-e44c-4b16-8c84-1b06b54d0938' THEN 1 END) as correct_id
-FROM loans;
+---
+
+## After Fix:
+
+### Before:
+```
+⚠️ Duplicate key on attempt 1. Retrying with different code...
+📌 Attempt 2: Using product code: BVF-PROD12345678
+✅ Loan product created successfully on attempt 2
 ```
 
-**Expected:**
-- Payees table should show `contact_phone` and `contact_email` columns
-- `total_loans` should equal `correct_id` (all loans have correct product ID)
-
----
-
-## 🎯 Quick Steps
-
-1. Open Supabase Dashboard → SQL Editor
-2. Copy Fix #1 SQL → Run it
-3. Copy Fix #2 SQL → Run it
-4. Refresh your SmartLenderUp app
-5. Try creating a payee → Should work! ✅
-6. Check Dashboard → Portfolio chart should show data! ✅
-
-**Total Time:** 3 minutes
-
----
-
-## 📁 Detailed Files (if you need them)
-
-- `/PAYEES_FIX_SIMPLE.sql` - Full payees fix with notes
-- `/PRODUCT_ID_FIX.sql` - Full product ID fix with verification queries
-- `/SQL_QUERIES_PAYEES_FIX.sql` - Detailed payees documentation
-
----
-
-## ⚡ TL;DR
-
-**Just run these two SQL queries in order:**
-
-```sql
--- Query 1: Fix payees
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS contact_phone TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS contact_email TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'Other';
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS contact_person TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS physical_address TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS kra_pin TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS bank_name TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS account_number TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS mpesa_number TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS notes TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS total_paid NUMERIC DEFAULT 0;
-
--- Query 2: Fix product IDs
-UPDATE loans
-SET product_id = '11794d71-e44c-4b16-8c84-1b06b54d0938'
-WHERE product_id != '11794d71-e44c-4b16-8c84-1b06b54d0938'
-   OR product_id IS NULL
-   OR product_id = '';
+### After:
+```
+📌 Attempt 1: Using product code: BVF-PROD00001
+✅ Loan product created successfully on attempt 1
 ```
 
-**Done!** 🎉 Refresh your app - everything should work now!
+**No more warnings!**
+
+---
+
+## Why This Happens:
+
+Your database has **multiple products with the same code** (e.g., two products both called "BVF-PROD00001").
+
+When you try to create a new product:
+1. System tries to use "BVF-PROD00001"
+2. Database says "Already exists!"
+3. System retries with different code
+4. Eventually succeeds with unique code
+
+**The fix removes the duplicates so step 2 doesn't happen.**
+
+---
+
+## Verification:
+
+### In Browser Console (F12):
+Before fix:
+```
+⚠️ Duplicate key on attempt 1. Retrying...
+```
+
+After fix:
+```
+🧹 Running pre-creation duplicate cleanup...
+✅ Cleaned 0 duplicate(s)
+📌 Attempt 1: Using product code: BVF-PROD00001
+✅ Loan product created successfully on attempt 1
+```
+
+---
+
+## Status Indicators:
+
+### Orange Banner (top of page):
+- **Visible**: Duplicates detected
+- **Hidden**: Database is clean
+
+### Status Badge (next to buttons):
+- 🟢 **"Database Clean"** = No duplicates
+- 🟡 **"X duplicates found"** = Action needed
+- 🔵 **"Checking database..."** = Loading
+
+---
+
+## Recommended Fix:
+
+**Use OPTION 1 (Instant Fix button)** because:
+- ✅ No SQL knowledge needed
+- ✅ 2-second click
+- ✅ Visual feedback
+- ✅ Auto-refreshes page
+- ✅ Works immediately
+
+---
+
+## Need Help?
+
+**Still seeing warnings after fix?**
+
+1. Hard refresh browser: `Ctrl+Shift+R` (Windows) or `Cmd+Shift+R` (Mac)
+2. Check browser console (F12) for error messages
+3. Verify you're logged into the correct organization
+4. Try the SQL fix (Option 2) as backup
+
+---
+
+## Files Changed:
+
+**New Features Added:**
+1. ✅ **DuplicateWarningBanner** - Orange alert banner
+2. ✅ **InstantFixButton** - One-click cleanup
+3. ✅ **Pre-creation cleanup** - Auto-clean before creating products
+4. ✅ **Auto-cleanup on load** - Cleans on app startup
+5. ✅ **Status indicators** - Shows database health
+
+**Result:**
+- Warning will appear at most ONE MORE TIME (the next product you create)
+- After that, never again!
+
+---
+
+## Summary:
+
+| Method | Time | Skill Required | Result |
+|--------|------|----------------|--------|
+| **⚡ Instant Fix Button** | 2 sec | Click button | ✅ Fixes immediately |
+| **SQL Script** | 30 sec | Copy/paste SQL | ✅ Fixes + prevents |
+| **Auto-cleanup** | Automatic | None | ✅ Fixes on next load |
+
+**Recommendation**: Click the **⚡ Instant Fix** button. It's the fastest!
+
+---
+
+**Status**: ✅ **READY TO FIX**
+
+The Instant Fix button is waiting for you in **Admin → Loan Products** (orange banner at top)

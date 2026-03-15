@@ -1,0 +1,43 @@
+
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║                    🚀 COPY THIS COMMAND:                         ║
+║                                                                  ║
+║                                                                  ║
+║                        npm run NOW                               ║
+║                                                                  ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+
+This will:
+  ✅ Delete Vite cache
+  ✅ Delete @supabase (if exists)
+  ✅ Open app on PORT 5175 (never cached!)
+
+Your browser has NEVER cached port 5175, so it will load fresh code!
+
+
+═══════════════════════════════════════════════════════════════════
+
+WHEN THE BROWSER OPENS:
+
+If you STILL see an error (extremely unlikely):
+
+Press: Ctrl + Shift + R  (Windows/Linux)
+   OR: Cmd + Shift + R   (Mac)
+
+This is a "hard refresh" that forces browser to reload.
+
+
+═══════════════════════════════════════════════════════════════════
+
+WHY THIS WORKS:
+
+OLD: localhost:5174 ← Browser cached this!
+NEW: localhost:5175 ← Browser has NEVER seen this!
+
+Fresh port = Fresh code = No error!
+
+
+═══════════════════════════════════════════════════════════════════

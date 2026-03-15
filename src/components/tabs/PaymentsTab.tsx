@@ -4,7 +4,7 @@ import { useData } from '../../contexts/DataContext';
 import { CollectionActivityModal } from '../CollectionActivityModal';
 import { RecordPaymentModal } from '../modals/RecordPaymentModal';
 import { ViewToggle } from '../ViewToggle';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
 
@@ -26,8 +26,6 @@ export function PaymentsTab() {
     if (!isConnected) {
       return; // Block the operation if offline
     }
-
-    console.log('Payment recorded:', paymentData);
     
     // Find the loan and client
     const loan = loans.find(l => l.id === paymentData.loanId);
@@ -38,12 +36,12 @@ export function PaymentsTab() {
     ) : null;
     
     if (!loan || !client) {
-      console.error('Loan or client lookup failed:', { 
+      const lookupResult = { 
         loanFound: !!loan, 
         clientFound: !!client,
         loanClientId: loan?.clientId,
         availableClients: clients.map(c => ({ id: c.id, clientNumber: c.clientNumber, client_number: c.client_number }))
-      });
+      };
       toast.error('Error recording payment', {
         description: 'Loan or client not found',
         duration: 4000,
@@ -89,11 +87,8 @@ export function PaymentsTab() {
       });
 
       // ✅ Refresh data from Supabase to ensure UI is in sync with database
-      console.log('🔄 Refreshing data after payment...');
       await refreshData();
-      console.log('✅ Data refreshed successfully');
     } catch (error) {
-      console.error('❌ Error recording payment:', error);
       // Error toast is already shown by addRepayment
     }
   };

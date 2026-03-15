@@ -1,129 +1,37 @@
 -- ============================================
 -- CREATE PROJECT_STATES TABLE
--- Single-Object Sync Pattern for SmartLenderUp
 -- ============================================
-
--- Drop existing table if you want to start fresh (CAREFUL!)
--- DROP TABLE IF EXISTS project_states;
+-- This table stores the entire organization state as a JSON blob
+-- for fast loading and saving (alternative to individual table queries)
+-- ============================================
 
 -- Create the project_states table
 CREATE TABLE IF NOT EXISTS project_states (
   id TEXT PRIMARY KEY,
-  organization_id TEXT NOT NULL,
+  organization_id UUID NOT NULL,
   state JSONB NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  
-  -- Add a unique constraint on organization_id
-  CONSTRAINT unique_org_state UNIQUE (organization_id)
+  CONSTRAINT fk_organization 
+    FOREIGN KEY (organization_id) 
+    REFERENCES organizations(id) 
+    ON DELETE CASCADE
 );
 
--- Create indexes for performance
-CREATE INDEX IF NOT EXISTS idx_project_states_org_id ON project_states(organization_id);
-CREATE INDEX IF NOT EXISTS idx_project_states_updated_at ON project_states(updated_at);
+-- Create index for faster lookups by organization
+CREATE INDEX IF NOT EXISTS idx_project_states_org 
+  ON project_states(organization_id);
 
--- Create a GIN index for JSONB queries (optional, for advanced querying)
-CREATE INDEX IF NOT EXISTS idx_project_states_state_gin ON project_states USING GIN (state);
+-- Create index for faster lookups by updated_at
+CREATE INDEX IF NOT EXISTS idx_project_states_updated 
+  ON project_states(updated_at DESC);
 
--- Enable Row Level Security (RLS)
-ALTER TABLE project_states ENABLE ROW LEVEL SECURITY;
+-- Disable RLS for testing
+ALTER TABLE project_states DISABLE ROW LEVEL SECURITY;
 
--- Create RLS policies
--- Policy: Users can only see their organization's state
-CREATE POLICY "Users can view their organization's state"
-  ON project_states
-  FOR SELECT
-  USING (
-    organization_id IN (
-      SELECT organization_id::text FROM users WHERE id = auth.uid()
-    )
-  );
+-- Add comment
+COMMENT ON TABLE project_states IS 'Stores entire organization state as JSON for fast bulk operations';
 
--- Policy: Users can insert their organization's state
-CREATE POLICY "Users can insert their organization's state"
-  ON project_states
-  FOR INSERT
-  WITH CHECK (
-    organization_id IN (
-      SELECT organization_id::text FROM users WHERE id = auth.uid()
-    )
-  );
-
--- Policy: Users can update their organization's state
-CREATE POLICY "Users can update their organization's state"
-  ON project_states
-  FOR UPDATE
-  USING (
-    organization_id IN (
-      SELECT organization_id::text FROM users WHERE id = auth.uid()
-    )
-  );
-
--- Policy: Users can delete their organization's state
-CREATE POLICY "Users can delete their organization's state"
-  ON project_states
-  FOR DELETE
-  USING (
-    organization_id IN (
-      SELECT organization_id::text FROM users WHERE id = auth.uid()
-    )
-  );
-
--- Create a function to automatically update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_project_states_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Create trigger to auto-update updated_at
-CREATE TRIGGER project_states_updated_at
-  BEFORE UPDATE ON project_states
-  FOR EACH ROW
-  EXECUTE FUNCTION update_project_states_updated_at();
-
--- ============================================
--- VERIFICATION
--- ============================================
-
--- Check if table was created
-SELECT 
-  table_name,
-  (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'project_states') as column_count
-FROM information_schema.tables 
-WHERE table_name = 'project_states';
-
--- Check indexes
-SELECT indexname, indexdef 
-FROM pg_indexes 
-WHERE tablename = 'project_states';
-
--- ============================================
--- COMPLETE! ✅
--- ============================================
-
-/*
-Usage Examples:
-
-1. Insert/Update state (upsert):
-INSERT INTO project_states (id, organization_id, state)
-VALUES ('org_state_123', '123', '{"clients": [], "loans": []}'::jsonb)
-ON CONFLICT (id) DO UPDATE SET
-  state = EXCLUDED.state,
-  updated_at = NOW();
-
-2. Load state:
-SELECT state, updated_at 
-FROM project_states 
-WHERE organization_id = '123';
-
-3. Check state size:
-SELECT 
-  id,
-  organization_id,
-  pg_size_pretty(pg_column_size(state)) as state_size,
-  updated_at
-FROM project_states;
-*/
+-- Success message
+SELECT '✅ project_states table created successfully!' as status;
+SELECT '🔍 You can now save/load organization data as JSON blobs' as info;

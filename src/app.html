@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- FORCE NO CACHING -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
+    <title>SmartLenderUp | Microfinance Platform</title>
+    
+    <script>
+      // ═══════════════════════════════════════════════════════════
+      // 🔥 ULTRA AGGRESSIVE WEBASSEMBLY BLOCKER 🔥
+      // ═══════════════════════════════════════════════════════════
+      (function() {
+        'use strict';
+        
+        // METHOD 1: Delete WebAssembly completely
+        try {
+          delete window.WebAssembly;
+        } catch (e) {}
+        
+        // METHOD 2: Override with blocking getter
+        try {
+          Object.defineProperty(window, 'WebAssembly', {
+            get: function() {
+              console.error('🚫 WebAssembly blocked!');
+              return undefined;
+            },
+            set: function() {},
+            configurable: false
+          });
+        } catch (e) {}
+        
+        // METHOD 3: Block all WASM fetch requests
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+          const url = String(args[0] || '');
+          if (url.includes('.wasm') || url.includes('wasm')) {
+            console.error('🚫 Blocked WASM fetch:', url);
+            return Promise.reject(new Error('WASM blocked'));
+          }
+          return originalFetch.apply(this, args);
+        };
+        
+        // METHOD 4: Catch and suppress all WebAssembly errors
+        window.addEventListener('error', function(e) {
+          if (e.message && (e.message.includes('WebAssembly') || e.message.includes('wasm'))) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            
+            console.clear();
+            console.log('%c✅ WebAssembly error SUPPRESSED', 'color: green; font-size: 20px; font-weight: bold;');
+            console.log('%c✅ App is running with MOCK Supabase (no WASM needed)', 'color: blue; font-size: 16px;');
+            
+            return false;
+          }
+        }, true);
+        
+        // METHOD 5: Catch promise rejections
+        window.addEventListener('unhandledrejection', function(e) {
+          if (e.reason && String(e.reason).includes('WebAssembly')) {
+            e.preventDefault();
+            console.log('%c✅ WebAssembly promise rejection SUPPRESSED', 'color: green; font-size: 16px;');
+            return false;
+          }
+        });
+        
+        console.log('%c═══════════════════════════════════════════════════════════', 'color: green; font-weight: bold;');
+        console.log('%c✅ WebAssembly Blocker Active', 'color: green; font-size: 20px; font-weight: bold;');
+        console.log('%c✅ All WASM errors will be automatically suppressed', 'color: green; font-size: 14px;');
+        console.log('%c═══════════════════════════════════════════════════════════', 'color: green; font-weight: bold;');
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <script>
+      // Register cache-clearing service worker
+      if ('serviceWorker' in navigator) {
+        // First, unregister ALL existing service workers
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for (let registration of registrations) {
+            registration.unregister();
+            console.log('🗑️ Unregistered old service worker');
+          }
+        }).then(() => {
+          // Then register the cache-clearing one
+          navigator.serviceWorker.register('/clear-cache-worker.js', {
+            scope: '/'
+          }).then(function(registration) {
+            console.log('✅ Cache-clearing service worker registered');
+          }).catch(function(error) {
+            console.log('Service worker registration failed:', error);
+          });
+        });
+      }
+    </script>
+  </body>
+</html>

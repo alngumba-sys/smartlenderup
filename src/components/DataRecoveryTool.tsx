@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, AlertCircle, Download, Upload, Database, RefreshCw, CheckCircle } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface StorageData {
   key: string;

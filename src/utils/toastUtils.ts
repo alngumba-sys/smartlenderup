@@ -1,7 +1,8 @@
 /**
- * Toast utility wrappers that respect preview environment
+ * Utility functions for showing toast messages
+ * Ensures consistent error handling across the app
  */
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { isPreviewEnvironment } from '../lib/supabase';
 
 /**

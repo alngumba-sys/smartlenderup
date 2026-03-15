@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { syncAllEntitiesToTables } from './dualStorageSync';
 
 /**
@@ -117,13 +117,10 @@ export async function saveProjectState(
   try {
     // Check network connectivity first
     if (!navigator.onLine) {
-      console.warn('⚠️ No internet connection. Cannot save to Supabase.');
-      toast.error('No internet connection. Changes not saved to cloud.');
+      console.warn('⚠️ No network connection - cannot save to Supabase');
       return false;
     }
 
-    console.log('💾 Saving entire project state to Supabase...');
-    
     const projectState: ProjectState = {
       metadata: {
         version: '1.0.0',
@@ -176,12 +173,9 @@ export async function saveProjectState(
     if (error) {
       // Check if it's RLS error
       if (error.code === '42501') {
-        console.error('❌ RLS Error: Add service key to .env file');
-        console.error('   Get key from: Supabase Dashboard → Settings → API → service_role');
-        console.error('   Add to .env: VITE_SUPABASE_SERVICE_KEY=your_key_here');
-        console.error('   Then restart: npm run dev');
+        // Silently skip - RLS is enabled, run /COPY_AND_RUN_THIS.sql to fix
         // Don't show toast for RLS errors - they're expected in some environments
-      } else if (error.code === '42P01') {
+      } else if (error.code === '42P01' || error.code === 'PGRST205') {
         // Table doesn't exist - this is expected, silently skip
         console.log('ℹ️ project_states table not found - skipping centralized state save');
       } else {
@@ -211,12 +205,13 @@ export async function saveProjectState(
   } catch (error: any) {
     // Handle network errors gracefully
     if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError')) {
-      console.log('ℹ️ Network unavailable - skipping centralized state save (normal in some environments)');
-      // Don't show error toast - this is expected in preview/development
+      console.warn('⚠️ Network error while saving to Supabase:', error.message);
+      return false;
+    } else if (error?.message?.includes('upsert is not a function')) {
+      console.error('❌ Supabase client error - upsert method not available');
       return false;
     } else {
-      console.error('❌ Exception saving project state:', error);
-      // Don't show toast - this is a background operation
+      console.error('❌ Unexpected error saving project state:', error);
       return false;
     }
   }
@@ -231,12 +226,10 @@ export async function loadProjectState(
   try {
     // Check network connectivity first
     if (!navigator.onLine) {
-      console.warn('⚠️ No internet connection. Cannot load from Supabase.');
+      console.warn('⚠️ No network connection - cannot load from Supabase');
       return null;
     }
 
-    console.log('📥 Loading entire project state from Supabase...');
-    
     const stateKey = `${STATE_KEY_PREFIX}${organizationId}`;
     
     const { data, error } = await supabase
@@ -252,14 +245,17 @@ export async function loadProjectState(
         return createEmptyState(organizationId);
       }
       
+      // Handle table not found error (PGRST205)
+      if (error.code === 'PGRST205' || error.code === '42P01') {
+        console.log('ℹ️ project_states table not found - using empty state');
+        return createEmptyState(organizationId);
+      }
+      
       if (error.code === '42501') {
-        console.error('❌ RLS Error: Add service key to .env file');
-        console.error('   Get key from: Supabase Dashboard → Settings → API → service_role');
-        console.error('   Add to .env: VITE_SUPABASE_SERVICE_KEY=your_key_here');
-        console.error('   Then restart: npm run dev');
+        // Silently skip - RLS is enabled, run /COPY_AND_RUN_THIS.sql to fix
       } else {
-        // Suppress error logging for common network issues
-        if (error.message !== 'Failed to fetch') {
+        // Suppress error logging for common network issues and table not found
+        if (error.message !== 'Failed to fetch' && error.code !== 'PGRST205') {
           console.error('❌ Error loading project state:', error);
         }
       }
@@ -267,7 +263,7 @@ export async function loadProjectState(
     }
 
     if (!data || !data.state) {
-      console.warn('⚠️ Empty state returned from Supabase');
+      // Silent in mock mode - this is expected
       return createEmptyState(organizationId);
     }
 

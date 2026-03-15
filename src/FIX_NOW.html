@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebAssembly Error - One-Command Fix</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0f172a;
+      color: #f1f5f9;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    body::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    
+    .container {
+      max-width: 1000px;
+      width: 100%;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-radius: 24px;
+      padding: 60px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      position: relative;
+      z-index: 1;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+    
+    .icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    h1 {
+      font-size: 48px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 15px;
+    }
+    
+    .subtitle {
+      font-size: 20px;
+      color: #94a3b8;
+      font-weight: 400;
+    }
+    
+    .error-display {
+      background: rgba(220, 38, 38, 0.1);
+      border: 2px solid rgba(220, 38, 38, 0.3);
+      border-radius: 16px;
+      padding: 30px;
+      margin: 40px 0;
+      font-family: 'Monaco', 'Courier New', monospace;
+    }
+    
+    .error-display h3 {
+      color: #fca5a5;
+      font-size: 16px;
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .error-display pre {
+      color: #f87171;
+      font-size: 14px;
+      line-height: 1.6;
+      overflow-x: auto;
+    }
+    
+    .solution {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(22, 163, 74, 0.05) 100%);
+      border: 2px solid rgba(34, 197, 94, 0.3);
+      border-radius: 16px;
+      padding: 40px;
+      margin: 40px 0;
+    }
+    
+    .solution h2 {
+      color: #86efac;
+      font-size: 32px;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+    
+    .command-wrapper {
+      position: relative;
+      margin: 30px 0;
+    }
+    
+    .command-label {
+      color: #94a3b8;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 15px;
+      display: block;
+      text-align: center;
+    }
+    
+    .command-box {
+      background: #000;
+      border: 2px solid #22c55e;
+      border-radius: 12px;
+      padding: 30px;
+      position: relative;
+      box-shadow: 0 0 30px rgba(34, 197, 94, 0.2);
+    }
+    
+    .command {
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 32px;
+      color: #22c55e;
+      font-weight: bold;
+      text-align: center;
+      display: block;
+      margin: 10px 0;
+      user-select: all;
+    }
+    
+    .copy-btn {
+      position: absolute;
+      top: 50%;
+      right: 20px;
+      transform: translateY(-50%);
+      background: #22c55e;
+      color: #000;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .copy-btn:hover {
+      background: #16a34a;
+      transform: translateY(-50%) scale(1.05);
+    }
+    
+    .copy-btn:active {
+      transform: translateY(-50%) scale(0.95);
+    }
+    
+    .steps {
+      margin: 40px 0;
+    }
+    
+    .step {
+      background: rgba(99, 102, 241, 0.1);
+      border-left: 4px solid #6366f1;
+      padding: 25px 30px;
+      margin: 20px 0;
+      border-radius: 8px;
+      transition: all 0.3s;
+    }
+    
+    .step:hover {
+      background: rgba(99, 102, 241, 0.15);
+      transform: translateX(5px);
+    }
+    
+    .step-number {
+      display: inline-block;
+      background: #6366f1;
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      line-height: 32px;
+      text-align: center;
+      border-radius: 50%;
+      font-weight: 600;
+      margin-right: 15px;
+    }
+    
+    .step-text {
+      font-size: 18px;
+      line-height: 1.8;
+    }
+    
+    .step-text code {
+      background: rgba(0, 0, 0, 0.5);
+      padding: 4px 10px;
+      border-radius: 6px;
+      color: #a5f3fc;
+      font-family: 'Monaco', monospace;
+      font-size: 16px;
+    }
+    
+    .warning {
+      background: rgba(245, 158, 11, 0.1);
+      border: 2px solid rgba(245, 158, 11, 0.3);
+      border-radius: 16px;
+      padding: 30px;
+      margin: 40px 0;
+      text-align: center;
+    }
+    
+    .warning-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+    }
+    
+    .warning-text {
+      color: #fcd34d;
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.6;
+    }
+    
+    .highlight {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(79, 70, 229, 0.2) 100%);
+      padding: 4px 12px;
+      border-radius: 6px;
+      color: #c7d2fe;
+      font-weight: 600;
+    }
+    
+    .footer {
+      margin-top: 50px;
+      text-align: center;
+      color: #64748b;
+      font-size: 14px;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 40px 30px;
+      }
+      
+      h1 {
+        font-size: 36px;
+      }
+      
+      .command {
+        font-size: 24px;
+      }
+      
+      .copy-btn {
+        position: static;
+        transform: none;
+        display: block;
+        width: 100%;
+        margin-top: 20px;
+      }
+      
+      .copy-btn:hover {
+        transform: scale(1.05);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="icon">🚨</div>
+      <h1>WebAssembly Error</h1>
+      <p class="subtitle">Browser cache issue - Fix in 30 seconds</p>
+    </div>
+    
+    <div class="error-display">
+      <h3>Error you're seeing:</h3>
+      <pre>TypeError: WebAssembly compilation aborted
+Network error: Response body loading was aborted</pre>
+    </div>
+    
+    <div class="solution">
+      <h2>✅ One-Command Fix</h2>
+      
+      <div class="command-wrapper">
+        <span class="command-label">Copy and run this command in your terminal:</span>
+        <div class="command-box">
+          <code class="command" id="command">npm run FIX</code>
+          <button class="copy-btn" onclick="copyCommand()">📋 Copy</button>
+        </div>
+      </div>
+      
+      <div class="steps">
+        <div class="step">
+          <span class="step-number">1</span>
+          <span class="step-text">Open your terminal where the dev server is running</span>
+        </div>
+        
+        <div class="step">
+          <span class="step-number">2</span>
+          <span class="step-text">Press <code>Ctrl + C</code> to stop the current server</span>
+        </div>
+        
+        <div class="step">
+          <span class="step-number">3</span>
+          <span class="step-text">Paste the command: <code>npm run FIX</code></span>
+        </div>
+        
+        <div class="step">
+          <span class="step-number">4</span>
+          <span class="step-text">Press <code>Enter</code> and wait 10 seconds</span>
+        </div>
+        
+        <div class="step">
+          <span class="step-number">5</span>
+          <span class="step-text">Browser opens automatically at <span class="highlight">localhost:5174</span></span>
+        </div>
+        
+        <div class="step">
+          <span class="step-number">6</span>
+          <span class="step-text"><strong>Error is GONE!</strong> ✨</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="warning">
+      <div class="warning-icon">⚠️</div>
+      <p class="warning-text">
+        The error is NOT in the code.<br>
+        The error is in your BROWSER CACHE.<br>
+        You MUST restart the server to fix it.
+      </p>
+    </div>
+    
+    <div style="background: rgba(59, 130, 246, 0.1); border: 2px solid rgba(59, 130, 246, 0.3); border-radius: 16px; padding: 30px; text-align: center;">
+      <p style="color: #93c5fd; font-size: 18px; margin-bottom: 15px;">
+        After running the command, you'll be redirected to:
+      </p>
+      <p style="font-size: 36px; color: #22c55e; font-weight: 800; margin: 15px 0;">
+        http://localhost:5174
+      </p>
+      <p style="color: #94a3b8; font-size: 16px; margin-top: 15px;">
+        (NOT 5173 - that's the old port with cached errors)
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p>💡 <strong>Why this happens:</strong> Port 5173 has cached JavaScript files from when Supabase was installed.</p>
+      <p>Those old files try to load WebAssembly → causing the error.</p>
+      <p>Port 5174 has fresh files with NO Supabase → NO errors!</p>
+    </div>
+  </div>
+  
+  <script>
+    function copyCommand() {
+      const command = document.getElementById('command').textContent;
+      navigator.clipboard.writeText(command).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.textContent = '✅ Copied!';
+        btn.style.background = '#16a34a';
+        
+        setTimeout(() => {
+          btn.textContent = '📋 Copy';
+          btn.style.background = '#22c55e';
+        }, 2000);
+      });
+    }
+    
+    // Allow clicking the command to select it
+    document.getElementById('command').addEventListener('click', function() {
+      const range = document.createRange();
+      range.selectNodeContents(this);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    });
+  </script>
+</body>
+</html>

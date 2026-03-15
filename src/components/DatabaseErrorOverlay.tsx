@@ -12,12 +12,12 @@ export function DatabaseErrorOverlay() {
 2. Click your SmartLenderUp project
 3. Click "SQL Editor" on the left sidebar
 4. Click "New Query"
-5. Open /RUN-THIS-IN-SUPABASE.sql from your project
+5. Open /supabase/COMPLETE_DATABASE_SETUP.sql from your project
 6. Copy ALL the SQL code
 7. Paste it in Supabase SQL Editor
 8. Click the green "RUN" button
 9. Wait for ✅ success messages
-10. Refresh this page (Ctrl+Shift+R)`;
+10. Refresh this page (Ctrl+Shift+R or F5)`;
     
     // Try modern clipboard API first, fallback to older method
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -137,16 +137,24 @@ export function DatabaseErrorOverlay() {
             }}
           >
             <p className="text-sm mb-2" style={{ color: '#fca5a5' }}>
-              Missing:
+              Common Missing Items:
             </p>
             <ul className="space-y-1 text-sm" style={{ color: '#ef4444' }}>
               <li className="flex items-center gap-2">
                 <span className="size-1.5 rounded-full bg-current" />
-                <code className="font-mono">pricing_config.trial_days</code> column
+                <code className="font-mono">funding_transactions.user_id</code> column
               </li>
               <li className="flex items-center gap-2">
                 <span className="size-1.5 rounded-full bg-current" />
-                <code className="font-mono">contact_messages</code> table
+                <code className="font-mono">loans.outstanding_principal</code> column
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-current" />
+                <code className="font-mono">clients.business_name</code> column
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-current" />
+                And potentially 30+ other tables/columns...
               </li>
             </ul>
           </div>
@@ -222,7 +230,7 @@ export function DatabaseErrorOverlay() {
                       border: '1px solid rgba(16, 185, 129, 0.3)'
                     }}
                   >
-                    /RUN-THIS-IN-SUPABASE.sql
+                    /supabase/COMPLETE_DATABASE_SETUP.sql
                   </code>
                 </div>
               </div>

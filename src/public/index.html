@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartLenderUp - Auto Cache Cleaner</title>
+    
+    <!-- NUCLEAR CACHE PREVENTION -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <script>
+        // ═══════════════════════════════════════════════════════════
+        // 🔥 NUCLEAR CACHE CLEARER - RUNS BEFORE ANYTHING ELSE 🔥
+        // ═══════════════════════════════════════════════════════════
+        
+        (function() {
+            'use strict';
+            
+            const CACHE_CLEARED_FLAG = 'bv_funguo_cache_cleared_v3';
+            const CURRENT_VERSION = '3.0.0';
+            
+            // Check if we've already cleared cache for this version
+            const cachedVersion = sessionStorage.getItem(CACHE_CLEARED_FLAG);
+            
+            if (cachedVersion !== CURRENT_VERSION) {
+                console.log('🔥 CLEARING ALL CACHES...');
+                
+                // Clear all storage
+                try {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    
+                    // Clear all cookies
+                    document.cookie.split(";").forEach(function(c) { 
+                        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+                    });
+                    
+                    // Unregister all service workers
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                            for (let registration of registrations) {
+                                registration.unregister();
+                            }
+                        });
+                    }
+                    
+                    // Clear Cache API
+                    if ('caches' in window) {
+                        caches.keys().then(function(names) {
+                            for (let name of names) {
+                                caches.delete(name);
+                            }
+                        });
+                    }
+                    
+                    console.log('✅ Cache cleared!');
+                    
+                } catch (e) {
+                    console.error('Cache clear error:', e);
+                }
+                
+                // Set flag AFTER clearing
+                sessionStorage.setItem(CACHE_CLEARED_FLAG, CURRENT_VERSION);
+                
+                // Force reload from network (bypass cache)
+                console.log('🔄 Reloading from network...');
+                setTimeout(() => {
+                    window.location.href = '/app.html?t=' + Date.now();
+                }, 100);
+                
+                // Show loading message
+                document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <style>
+                            body {
+                                margin: 0;
+                                padding: 0;
+                                font-family: system-ui, -apple-system, sans-serif;
+                                background: linear-gradient(135deg, #667eea, #764ba2);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                height: 100vh;
+                            }
+                            .loader {
+                                text-align: center;
+                                color: white;
+                            }
+                            .spinner {
+                                border: 8px solid rgba(255,255,255,0.3);
+                                border-top: 8px solid white;
+                                border-radius: 50%;
+                                width: 80px;
+                                height: 80px;
+                                animation: spin 1s linear infinite;
+                                margin: 0 auto 30px;
+                            }
+                            @keyframes spin {
+                                0% { transform: rotate(0deg); }
+                                100% { transform: rotate(360deg); }
+                            }
+                            h1 {
+                                font-size: 32px;
+                                margin: 0 0 15px 0;
+                            }
+                            p {
+                                font-size: 18px;
+                                opacity: 0.9;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="loader">
+                            <div class="spinner"></div>
+                            <h1>🧹 Clearing Cache...</h1>
+                            <p>Fixing WebAssembly error</p>
+                            <p style="margin-top: 10px; font-size: 14px;">This will take 2 seconds...</p>
+                        </div>
+                    </body>
+                    </html>
+                `);
+                
+                // Stop execution
+                throw new Error('Cache clearing - reloading...');
+            }
+            
+            // If we get here, cache is already cleared - continue to app
+            console.log('✅ Cache already cleared for v' + CURRENT_VERSION);
+            
+        })();
+    </script>
+</head>
+<body>
+    <div style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        font-family: system-ui;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+    ">
+        <div style="text-align: center;">
+            <div style="font-size: 64px; margin-bottom: 20px;">🚀</div>
+            <h1 style="font-size: 32px; margin: 0 0 10px 0;">Loading SmartLenderUp...</h1>
+            <p style="opacity: 0.8;">Please wait</p>
+        </div>
+    </div>
+    
+    <script>
+        // Redirect to app after a brief moment
+        setTimeout(() => {
+            window.location.href = '/app.html?t=' + Date.now();
+        }, 500);
+    </script>
+</body>
+</html>

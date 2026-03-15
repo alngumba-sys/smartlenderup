@@ -1,0 +1,42 @@
+╔════════════════════════════════════════════════════════════╗
+║                                                            ║
+║              🔴 WEBASSEMBLY ERROR? 🔴                     ║
+║                                                            ║
+║              VISIT THIS URL RIGHT NOW:                     ║
+║                                                            ║
+╚════════════════════════════════════════════════════════════╝
+
+
+http://localhost:5174/instant-fix.html
+
+
+═══════════════════════════════════════════════════════════════
+
+WHAT IT DOES:
+
+1. Shows a big button
+2. Click the button
+3. Cache clears automatically
+4. App loads with NO error
+5. Done! ✅
+
+═══════════════════════════════════════════════════════════════
+
+TO OPEN IT:
+
+→ Copy the URL above
+→ Paste into your browser
+→ Click the big "FIX IT NOW" button
+→ Wait 3 seconds
+→ Error is GONE forever!
+
+═══════════════════════════════════════════════════════════════
+
+OR EVEN SIMPLER:
+
+Press Ctrl+Shift+N (or Cmd+Shift+N on Mac)
+Then visit: http://localhost:5174
+
+(Incognito = no cache = no error!)
+
+═══════════════════════════════════════════════════════════════

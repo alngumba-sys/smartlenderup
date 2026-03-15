@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting to Port 5174...</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255,255,255,0.1);
+            padding: 60px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 { font-size: 3em; margin-bottom: 20px; }
+        p { font-size: 1.5em; margin: 20px 0; }
+        .code {
+            background: rgba(0,0,0,0.3);
+            padding: 20px 30px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 1.8em;
+            margin: 30px 0;
+            display: inline-block;
+        }
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 6px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 30px auto;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .manual {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid rgba(255,255,255,0.3);
+        }
+        .manual h2 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+        }
+        button {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 20px 40px;
+            font-size: 1.3em;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 10px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚠️ Wrong Port!</h1>
+        <p>You're on port <strong>5173</strong> (old, has cached files)</p>
+        <p>Redirecting to port <strong>5174</strong>...</p>
+        
+        <div class="spinner"></div>
+        
+        <div class="code" id="countdown">5</div>
+        
+        <div class="manual">
+            <h2>Manual Options:</h2>
+            <button onclick="window.location.href='http://localhost:5174'">
+                Go to Port 5174 Now
+            </button>
+            <button onclick="openIncognito()">
+                Open in Incognito
+            </button>
+        </div>
+        
+        <p style="margin-top: 30px; font-size: 1.2em;">
+            💡 <strong>Tip:</strong> Bookmark http://localhost:5174 for future use!
+        </p>
+    </div>
+    
+    <script>
+        // Countdown and redirect
+        let seconds = 5;
+        const countdownEl = document.getElementById('countdown');
+        
+        const interval = setInterval(() => {
+            seconds--;
+            countdownEl.textContent = seconds;
+            
+            if (seconds <= 0) {
+                clearInterval(interval);
+                countdownEl.textContent = 'Redirecting...';
+                window.location.href = 'http://localhost:5174';
+            }
+        }, 1000);
+        
+        function openIncognito() {
+            alert(
+                'To open in incognito:\n\n' +
+                '1. Press Ctrl+Shift+N (Windows/Linux)\n' +
+                '   or Cmd+Shift+N (Mac)\n\n' +
+                '2. Type: localhost:5174\n\n' +
+                '3. Press Enter\n\n' +
+                '✅ ERROR WILL BE GONE!'
+            );
+        }
+    </script>
+</body>
+</html>

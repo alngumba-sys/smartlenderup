@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Search, Users, UserCheck, AlertCircle } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface AssignClientsModalProps {
   institution: {

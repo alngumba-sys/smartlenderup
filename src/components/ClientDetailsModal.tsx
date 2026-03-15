@@ -41,6 +41,12 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
     return null;
   }
 
+  // ✅ FIXED: Only count loans that have been disbursed (exclude approval workflow loans)
+  const disbursedLoans = clientLoans.filter(l => {
+    const status = l.status?.toLowerCase();
+    return status === 'disbursed' || status === 'active' || status === 'paid' || status === 'closed' || status === 'in arrears';
+  });
+
   const activeLoans = clientLoans.filter(l => {
     const status = l.status?.toLowerCase();
     return status === 'active' || status === 'in arrears' || status === 'disbursed';
@@ -49,7 +55,9 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
     const status = l.status?.toLowerCase();
     return status === 'paid' || status === 'closed';
   });
-  const totalBorrowed = clientLoans.reduce((sum, l) => sum + (l.principalAmount || l.approvedAmount || 0), 0);
+  
+  // ✅ FIXED: Only count loans that have been actually disbursed (not just applications)
+  const totalBorrowed = disbursedLoans.reduce((sum, l) => sum + (l.principalAmount || l.approvedAmount || 0), 0);
   
   // ✅ FIXED: Calculate outstanding correctly as (totalRepayable - paidAmount) for active loans only
   const totalOutstanding = activeLoans.reduce((sum, l) => {
@@ -297,7 +305,7 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
                   <p className="text-2xl font-bold text-black mb-1">
                     {currencySymbol} {safeNumber(totalBorrowed, 0).toLocaleString()}
                   </p>
-                  <p className="text-xs text-gray-600">{clientLoans.length} total loans</p>
+                  <p className="text-xs text-gray-600">{disbursedLoans.length} total loans</p>
                   <div className="mt-3 pt-3 border-t border-gray-300">
                     <p className="text-xs text-gray-600">Previous: {currencySymbol} {safeNumber(totalBorrowed * 0.88, 0).toLocaleString()}</p>
                   </div>
@@ -454,7 +462,7 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-gray-600">Total Loans</span>
-                        <span className="text-xs font-bold text-black">{clientLoans.length}</span>
+                        <span className="text-xs font-bold text-black">{disbursedLoans.length}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-gray-600">Active Loans</span>
@@ -553,7 +561,7 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
                     <div className="space-y-2 mb-4">
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-gray-600">Total Score</span>
-                        <span className="text-xs font-bold text-black">{scoreBreakdown.total}</span>
+                        <span className="text-xs font-bold text-black">{client.creditScore || 300}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-gray-600">Base Score</span>

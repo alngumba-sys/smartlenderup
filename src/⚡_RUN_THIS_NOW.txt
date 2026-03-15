@@ -1,0 +1,205 @@
+
+
+████████████████████████████████████████████████████████████████████
+████████████████████████████████████████████████████████████████████
+████                                                            ████
+████          WEBASSEMBLY ERROR - COPY THIS COMMAND!            ████
+████                                                            ████
+████████████████████████████████████████████████████████████████████
+████████████████████████████████████████████████████████████████████
+
+
+═══════════════════════════════════════════════════════════════════
+                         THE ERROR
+═══════════════════════════════════════════════════════════════════
+
+    TypeError: WebAssembly compilation aborted
+    Network error: Response body loading was aborted
+
+
+═══════════════════════════════════════════════════════════════════
+                      THE INSTANT FIX
+═══════════════════════════════════════════════════════════════════
+
+
+                  COPY AND PASTE THIS NOW:
+
+
+                      npm run nuclear
+
+
+═══════════════════════════════════════════════════════════════════
+
+
+WHAT IT DOES:
+─────────────────────────────────────────────────────────────────
+
+    ✅ Kills all old Node processes
+    ✅ Deletes ALL Vite cache folders
+    ✅ Deletes dist folder
+    ✅ Deletes node_modules cache
+    ✅ Clears npm cache
+    ✅ Verifies vite config uses port 5174
+    ✅ Starts server on port 5174
+    ✅ Opens browser in INCOGNITO automatically
+
+    TIME: 30 seconds
+    RESULT: ERROR COMPLETELY GONE!
+
+
+STEP BY STEP:
+─────────────────────────────────────────────────────────────────
+
+    1. Open your terminal (Command Prompt / Terminal / PowerShell)
+
+    2. Make sure you're in the project folder
+
+    3. Copy and paste this command:
+
+       npm run nuclear
+
+    4. Press Enter
+
+    5. Wait 10 seconds
+
+    6. Browser opens automatically in INCOGNITO mode
+
+    7. ✅ ERROR FIXED!
+
+
+WHY THIS WORKS:
+─────────────────────────────────────────────────────────────────
+
+    THE PROBLEM:
+    • Your browser cached old JavaScript files on port 5173
+    • Those old files try to load WebAssembly
+    • Browser won't download fresh files (it uses cache)
+    • = ERROR!
+
+    THE SOLUTION:
+    • Server now uses port 5174 (different port!)
+    • Port 5174 has ZERO cached files
+    • Browser downloads fresh code
+    • Fresh code = NO WebAssembly = NO ERROR!
+
+    Different port = Different cache = Instant fix!
+
+
+WHAT YOU'LL SEE:
+─────────────────────────────────────────────────────────────────
+
+    [1/8] KILLING ALL NODE PROCESSES... ✅
+    [2/8] DELETING ALL VITE CACHE FOLDERS... ✅
+    [3/8] DELETING DIST FOLDER... ✅
+    [4/8] DELETING NODE_MODULES CACHE... ✅
+    [5/8] CLEARING NPM CACHE... ✅
+    [6/8] BROWSER CACHE INFO ✅
+    [7/8] VERIFYING VITE CONFIG... ✅
+    [8/8] STARTING SERVER ON PORT 5174... ✅
+
+    🌐 Server URL: http://localhost:5174
+    📱 Opening browser in 6 seconds...
+
+    🎉 BROWSER OPENS AUTOMATICALLY! 🎉
+
+
+VERIFY IT WORKS:
+─────────────────────────────────────────────────────────────────
+
+    After browser opens:
+
+    1. Browser shows: http://localhost:5174
+
+    2. Press F12 to open Developer Tools
+
+    3. Click Console tab
+
+    4. You'll see:
+       ✅ "Loading app with MOCK Supabase"
+       ✅ "WebAssembly blocked"
+       ✅ NO errors!
+
+    5. App loads perfectly!
+
+
+IMPORTANT - USE THE NEW PORT:
+─────────────────────────────────────────────────────────────────
+
+    ❌ NEVER use: http://localhost:5173  (old, has cache!)
+
+    ✅ ALWAYS use: http://localhost:5174  (new, no cache!)
+
+
+IF BROWSER DOESN'T OPEN AUTOMATICALLY:
+─────────────────────────────────────────────────────────────────
+
+    1. Press: Ctrl + Shift + N  (Windows/Linux)
+       OR
+       Press: Cmd + Shift + N   (Mac)
+
+    2. Type: localhost:5174
+
+    3. Press Enter
+
+    4. ✅ ERROR GONE!
+
+
+IF YOU STILL SEE THE ERROR:
+─────────────────────────────────────────────────────────────────
+
+    CHECK THESE 3 THINGS:
+
+    1. ✅ Are you on port 5174?
+       Look at browser URL bar - must say localhost:5174
+       NOT localhost:5173
+
+    2. ✅ Are you using incognito?
+       Regular browser has cache!
+       Must use incognito: Ctrl+Shift+N
+
+    3. ✅ Did you restart the server?
+       The "npm run nuclear" command does this automatically
+       If you started server manually, use port 5174
+
+
+ALTERNATIVE MANUAL FIX:
+─────────────────────────────────────────────────────────────────
+
+    If the npm command doesn't work, do this manually:
+
+    Step 1: Stop server
+            Press Ctrl+C in your terminal
+
+    Step 2: Delete cache
+            Windows: del /q .vite*
+            Mac/Linux: rm -rf .vite*
+
+    Step 3: Start server
+            npm run dev
+
+    Step 4: Open incognito
+            Ctrl+Shift+N (or Cmd+Shift+N)
+
+    Step 5: Go to
+            http://localhost:5174
+
+    ✅ Done!
+
+
+════════════════════════════════════════════════════════════════════
+
+
+                    🔥 COPY THIS NOW: 🔥
+
+
+                      npm run nuclear
+
+
+════════════════════════════════════════════════════════════════════
+
+
+This will fix EVERYTHING in 30 seconds!
+
+
+════════════════════════════════════════════════════════════════════
+

@@ -6,7 +6,7 @@ console.log('🚨 DATABASE ERROR DETECTED');
 console.log('═══════════════════════════════════════════════════════');
 console.log('\n');
 
-console.log('❌ ERROR: pricing_config.trial_days column not found');
+console.log('❌ ERROR: pricing_configuration.trial_days column not found');
 console.log('\n');
 
 console.log('✅ QUICK FIX (60 seconds):');

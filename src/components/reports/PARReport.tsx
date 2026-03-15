@@ -89,7 +89,6 @@ export function PARReport({ dateRange }: ReportProps) {
       <div className={`rounded-lg shadow-lg p-6 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <img src={logoImage} alt="Organization Logo" className="h-12 w-auto object-contain" />
           <div>
             <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Portfolio at Risk (PAR) Report</h2>
             <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>

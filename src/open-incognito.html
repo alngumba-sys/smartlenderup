@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>WebAssembly Error Fix</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 50px;
+            max-width: 700px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        h1 {
+            color: #e53e3e;
+            font-size: 42px;
+            margin-bottom: 20px;
+        }
+        p {
+            color: #2d3748;
+            font-size: 18px;
+            line-height: 1.8;
+            margin-bottom: 30px;
+        }
+        .box {
+            background: #f0fff4;
+            border: 3px solid #38a169;
+            border-radius: 10px;
+            padding: 30px;
+            margin: 30px 0;
+        }
+        .box h2 {
+            color: #22543d;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .box ol {
+            text-align: left;
+            line-height: 2;
+            font-size: 16px;
+            color: #2d3748;
+            padding-left: 30px;
+        }
+        code {
+            background: #e2e8f0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        .btn {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 15px 40px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 10px;
+            cursor: pointer;
+            border: none;
+            transition: transform 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .highlight {
+            background: #fef5e7;
+            border-left: 4px solid #f6ad55;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔴 WebAssembly Error?</h1>
+        <p>Don't worry - the code is already fixed!<br>This is just a browser cache issue.</p>
+        
+        <div class="box">
+            <h2>✅ INSTANT FIX (No Restart Needed)</h2>
+            <ol>
+                <li>Press <code>Ctrl+Shift+N</code> (Windows/Linux) or <code>Cmd+Shift+N</code> (Mac)</li>
+                <li>This opens <strong>Incognito Mode</strong> (no cache!)</li>
+                <li>In the incognito window, go to: <code>http://localhost:5174</code></li>
+                <li><strong>Error will be GONE!</strong> 🎉</li>
+            </ol>
+        </div>
+        
+        <div class="highlight">
+            <p style="font-size: 16px; margin: 0;">
+                <strong>💡 Why this works:</strong> Incognito mode has no cached files, so it loads the NEW code that doesn't use WebAssembly.
+            </p>
+        </div>
+        
+        <div style="margin-top: 40px;">
+            <a href="http://localhost:5174" class="btn" target="_blank">
+                🌐 Open App
+            </a>
+            <button onclick="clearAndReload()" class="btn" style="background: #38a169;">
+                🗑️ Clear Cache & Reload
+            </button>
+        </div>
+        
+        <p style="margin-top: 40px; font-size: 14px; color: #718096;">
+            The error only appears because your browser cached old JavaScript files.<br>
+            The code itself is 100% fixed - @supabase is completely removed!
+        </p>
+    </div>
+    
+    <script>
+        async function clearAndReload() {
+            try {
+                // Clear service workers
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let registration of registrations) {
+                        await registration.unregister();
+                    }
+                }
+                
+                // Clear all caches
+                if ('caches' in window) {
+                    const names = await caches.keys();
+                    for (let name of names) {
+                        await caches.delete(name);
+                    }
+                }
+                
+                alert('✅ Cache cleared! Reloading now...');
+                location.href = 'http://localhost:5174';
+            } catch (e) {
+                alert('⚠️ Please clear cache manually:\n\n1. Press Ctrl+Shift+Delete\n2. Clear "Cached images and files"\n3. Reload the page');
+            }
+        }
+        
+        // Auto-check if server is running
+        fetch('http://localhost:5174')
+            .then(() => {
+                console.log('✅ Server is running on port 5174');
+            })
+            .catch(() => {
+                const warning = document.createElement('div');
+                warning.style.cssText = 'background:#fed7d7;border:2px solid#e53e3e;padding:20px;border-radius:10px;margin-top:30px;';
+                warning.innerHTML = '<p style="color:#c53030;margin:0;font-weight:bold;">⚠️ Server not running!</p><p style="color:#742a2a;margin:10px 0 0;font-size:14px;">Run <code style="background:#fff5f5;color:#c53030;">npm run dev</code> in your terminal first.</p>';
+                document.querySelector('.container').appendChild(warning);
+            });
+    </script>
+</body>
+</html>

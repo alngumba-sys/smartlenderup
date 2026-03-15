@@ -1,7 +1,7 @@
+import { toast } from 'sonner';
+import { useData } from '../contexts/DataContext';
 import { useState } from 'react';
 import { CheckCircle, XCircle, Eye, Clock, User, DollarSign } from 'lucide-react';
-import { useData } from '../contexts/DataContext';
-import { toast } from 'sonner@2.0.3';
 
 interface ClientLoanNotificationCardProps {
   notification: any;

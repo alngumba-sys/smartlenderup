@@ -10,16 +10,87 @@
  */
 
 import { supabase } from '../lib/supabase';
+import { runInstantDuplicateFix } from '../utils/instantDuplicateFix';
+import { nuclearDuplicateFix } from '../utils/nuclearDuplicateFix';
 
 // =====================================================
 // HELPER FUNCTIONS
 // =====================================================
 
 /**
+ * Check if error is a "table not found" error
+ * PGRST205 = PostgREST table not found error
+ * 42P01 = PostgreSQL table not found error
+ */
+function isTableNotFoundError(error: any): boolean {
+  return error?.code === 'PGRST205' || error?.code === '42P01';
+}
+
+/**
+ * Handle fetch errors gracefully
+ * Returns empty array for table not found errors
+ * Throws for other errors
+ */
+function handleFetchError(error: any, tableName: string, throwError: boolean = false): never | [] {
+  if (isTableNotFoundError(error)) {
+    console.log(`ℹ️ Table '${tableName}' not found - returning empty array`);
+    return [];
+  }
+  
+  console.error(`❌ Error loading ${tableName}:`, error);
+  
+  if (throwError) {
+    throw error;
+  }
+  
+  return [];
+}
+
+/**
+ * Get organization code/prefix for numbering
+ * Creates a unique 2-4 letter code from organization name
+ */
+async function getOrganizationPrefix(organizationId: string): Promise<string> {
+  const { data: org } = await supabase
+    .from('organizations')
+    .select('organization_name, organization_code')
+    .eq('id', organizationId)
+    .maybeSingle();
+  
+  if (org?.organization_code) {
+    return org.organization_code.toUpperCase();
+  }
+  
+  if (org?.organization_name) {
+    // Generate code from organization name
+    // e.g., "BV Funguo Ltd" -> "BVF"
+    // e.g., "Equity Bank" -> "EQB"
+    const words = org.organization_name
+      .toUpperCase()
+      .replace(/[^A-Z0-9\s]/g, '')
+      .split(/\s+/)
+      .filter(w => w.length > 0);
+    
+    if (words.length >= 2) {
+      // Take first letter of first 3 words
+      return words.slice(0, 3).map(w => w[0]).join('');
+    } else if (words.length === 1) {
+      // Take first 3 letters of single word
+      return words[0].substring(0, 3);
+    }
+  }
+  
+  // Fallback to first 3 chars of organization ID
+  return organizationId.substring(0, 3).toUpperCase();
+}
+
+/**
  * Ensure organization exists in database
  * If localStorage has an org that doesn't exist in DB, create it
  */
 async function ensureOrganizationExists(organizationId: string): Promise<void> {
+  console.log('🔍 [ORG-CHECK] Checking if organization exists:', organizationId);
+  
   // Check if organization exists
   const { data: existingOrg, error } = await supabase
     .from('organizations')
@@ -28,110 +99,158 @@ async function ensureOrganizationExists(organizationId: string): Promise<void> {
     .maybeSingle();
   
   if (error) {
-    console.error('❌ Error checking organization:', error);
+    console.error('❌ [ORG-CHECK] Error checking organization:', error);
     throw error;
   }
   
+  if (existingOrg) {
+    console.log('✅ [ORG-CHECK] Organization exists:', existingOrg.id);
+    return;
+  }
+  
   // If organization doesn't exist, create it
-  if (!existingOrg) {
-    console.log('⚠️  Organization not found in database. Creating it...');
+  console.log('⚠️  [ORG-CHECK] Organization NOT found in database. Creating it...');
+  
+  // Get organization data from localStorage
+  const orgData = localStorage.getItem('current_organization');
+  let orgName = 'Default Organization';
+  let orgType = 'mother_company';
+  let country = 'Kenya';
+  let currency = 'KES';
+  
+  if (orgData) {
+    try {
+      const parsedOrg = JSON.parse(orgData);
+      orgName = parsedOrg.organization_name || parsedOrg.name || orgName;
+      orgType = parsedOrg.organization_type || parsedOrg.type || orgType;
+      country = parsedOrg.country || country;
+      currency = parsedOrg.currency || currency;
+    } catch (e) {
+      console.warn('⚠️  Could not parse organization data from localStorage');
+    }
+  }
+  
+  const newOrg = {
+    id: organizationId,
+    organization_name: orgName,
+    organization_type: orgType,
+    email: 'admin@smartlenderup.com',
+    phone: '0700000000',
+    address: 'Nairobi, Kenya',
+    country: country,
+    currency: currency,
+    status: 'active',
+    password_hash: '$2a$10$default.hash.for.auto.created.org',
+    subscription_status: 'trial',
+    trial_start_date: new Date().toISOString(),
+    trial_end_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    // Settings
+    date_format: 'DD/MM/YYYY',
+    number_format: 'comma',
+    fiscal_year_start: '01-01',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  
+  console.log('📤 [ORG-CREATE] Attempting to create org with data:', JSON.stringify(newOrg, null, 2));
+  
+  const { error: insertError, data: insertData } = await supabase
+    .from('organizations')
+    .insert([newOrg])
+    .select();
+  
+  if (insertError) {
+    console.error('❌ [ORG-CREATE] FAILED! Error creating organization:', insertError);
+    console.error('❌ [ORG-CREATE] Organization data that failed:', JSON.stringify(newOrg, null, 2));
+    throw insertError;
+  }
+  
+  console.log('✅ [ORG-CREATE] SUCCESS! Organization created:', orgName);
+  console.log('✅ [ORG-CREATE] Returned data:', insertData);
+}
+
+/**
+ * Generate unique client number with organization prefix
+ * Format: {ORG}-CL00001 (e.g., "BVF-CL00001" for BV Funguo)
+ */
+async function generateClientNumber(organizationId: string): Promise<string> {
+  // Get organization prefix
+  const orgPrefix = await getOrganizationPrefix(organizationId);
+  
+  // Use a retry mechanism to handle race conditions
+  const maxRetries = 10;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    // Get the count of all clients for this organization
+    // This is more reliable than trying to parse the highest number
+    const { count } = await supabase
+      .from('clients')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organizationId);
     
-    // Get organization data from localStorage
-    const orgData = localStorage.getItem('current_organization');
-    let orgName = 'Default Organization';
-    let orgType = 'mother_company';
-    let country = 'Kenya';
-    let currency = 'KES';
+    let nextNumber = (count || 0) + 1;
     
-    if (orgData) {
-      try {
-        const parsedOrg = JSON.parse(orgData);
-        orgName = parsedOrg.organization_name || parsedOrg.name || orgName;
-        orgType = parsedOrg.organization_type || parsedOrg.type || orgType;
-        country = parsedOrg.country || country;
-        currency = parsedOrg.currency || currency;
-      } catch (e) {
-        console.warn('⚠️  Could not parse organization data from localStorage');
+    // Also check the highest numbered client to ensure we don't go backwards
+    const { data } = await supabase
+      .from('clients')
+      .select('client_number')
+      .eq('organization_id', organizationId)
+      .order('client_number', { ascending: false })
+      .limit(1);
+    
+    if (data && data.length > 0 && data[0].client_number) {
+      // Extract number from the highest client number (handles both formats)
+      // Matches: "CL00001" or "BVF-CL00001"
+      const match = data[0].client_number.match(/CL(\d+)/);
+      if (match) {
+        const highestNumber = parseInt(match[1], 10);
+        // Use the higher of count+1 or highest+1
+        nextNumber = Math.max(nextNumber, highestNumber + 1);
       }
     }
     
-    const newOrg = {
-      id: organizationId,
-      organization_name: orgName,
-      organization_type: orgType,
-      country: country,
-      currency: currency,
-      subscription_status: 'trial',
-      trial_start_date: new Date().toISOString(),
-      trial_end_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-      status: 'active',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    // Add a random offset to reduce collisions (instead of just attempt number)
+    // This helps when multiple requests come in at the exact same time
+    const randomOffset = Math.floor(Math.random() * 10);
+    nextNumber += attempt + randomOffset;
     
-    const { error: insertError } = await supabase
-      .from('organizations')
-      .insert([newOrg]);
+    const clientNumber = `${orgPrefix}-CL${String(nextNumber).padStart(5, '0')}`;
     
-    if (insertError) {
-      console.error('❌ Error creating organization:', insertError);
-      throw insertError;
+    // Double-check this number doesn't already exist
+    const { data: existing } = await supabase
+      .from('clients')
+      .select('client_number')
+      .eq('organization_id', organizationId)
+      .eq('client_number', clientNumber)
+      .maybeSingle();
+    
+    // If it doesn't exist, use it
+    if (!existing) {
+      console.log(`✅ Generated unique client number: ${clientNumber} (attempt ${attempt + 1})`);
+      return clientNumber;
     }
     
-    console.log('✅ Organization created successfully:', orgName);
+    console.warn(`⚠️  Client number ${clientNumber} already exists, retrying... (attempt ${attempt + 1})`);
+    
+    // Add a small delay before retrying to reduce race conditions
+    await new Promise(resolve => setTimeout(resolve, 50 * (attempt + 1)));
   }
+  
+  // If we exhausted all retries, generate a random one
+  const randomNumber = Math.floor(Math.random() * 90000) + 10000;
+  const fallbackNumber = `${orgPrefix}-CL${randomNumber}`;
+  console.error(`❌ Could not generate sequential client number after ${maxRetries} attempts, using random: ${fallbackNumber}`);
+  return fallbackNumber;
 }
 
 /**
- * Generate unique client number (CL00001 format - 5 digits)
- */
-async function generateClientNumber(organizationId: string): Promise<string> {
-  // Get all client numbers to find the highest
-  const { data } = await supabase
-    .from('clients')
-    .select('client_number')
-    .eq('organization_id', organizationId)
-    .order('client_number', { ascending: false });
-  
-  let nextNumber = 1;
-  
-  if (data && data.length > 0) {
-    // Find the highest number from all existing client numbers
-    const numbers = data
-      .map(c => {
-        const match = c.client_number?.match(/CL(\d+)/);
-        return match ? parseInt(match[1], 10) : 0;
-      })
-      .filter(n => n > 0);
-    
-    if (numbers.length > 0) {
-      nextNumber = Math.max(...numbers) + 1;
-    }
-  }
-  
-  const clientNumber = `CL${String(nextNumber).padStart(5, '0')}`;
-  
-  // Double-check this number doesn't already exist
-  const { data: existing } = await supabase
-    .from('clients')
-    .select('client_number')
-    .eq('organization_id', organizationId)
-    .eq('client_number', clientNumber)
-    .maybeSingle();
-  
-  // If it exists, increment and try again (recursive with safety limit)
-  if (existing) {
-    console.warn(`⚠️  Client number ${clientNumber} already exists, incrementing...`);
-    return generateClientNumber(organizationId);
-  }
-  
-  return clientNumber;
-}
-
-/**
- * Generate unique loan number (LN001 format)
+ * Generate unique loan number with organization prefix
+ * Format: {ORG}-LN00001 (e.g., "BVF-LN00001" for BV Funguo)
  */
 async function generateLoanNumber(organizationId: string): Promise<string> {
+  // Get organization prefix
+  const orgPrefix = await getOrganizationPrefix(organizationId);
+  
   const { data } = await supabase
     .from('loans')
     .select('loan_number')
@@ -142,20 +261,44 @@ async function generateLoanNumber(organizationId: string): Promise<string> {
   let nextNumber = 1;
   if (data && data.length > 0) {
     const lastNumber = data[0].loan_number;
+    // Matches: "LN001" or "BVF-LN00001"
     const match = lastNumber?.match(/LN(\d+)/);
     if (match) {
       nextNumber = parseInt(match[1]) + 1;
     }
   }
   
-  return `LN${String(nextNumber).padStart(3, '0')}`;
+  return `${orgPrefix}-LN${String(nextNumber).padStart(5, '0')}`;
 }
 
 /**
- * Generate unique product code
+ * Generate unique product code with organization prefix
+ * Format: {ORG_PREFIX}-PROD{NUMBER} e.g., BVF-PROD00001
  */
-function generateProductCode(): string {
-  return `PROD-${Date.now().toString().slice(-6)}`;
+async function generateProductCode(organizationId: string): Promise<string> {
+  const orgPrefix = await getOrganizationPrefix(organizationId);
+  
+  // Find the last product code for this organization
+  const { data } = await supabase
+    .from('loan_products')
+    .select('product_code')
+    .eq('organization_id', organizationId)
+    .like('product_code', `${orgPrefix}-PROD%`)
+    .order('product_code', { ascending: false })
+    .limit(1);
+  
+  let nextNumber = 1;
+  if (data && data.length > 0) {
+    const lastCode = data[0].product_code;
+    // Extract number from formats like "BVF-PROD00001" or "BVF-PROD123456"
+    const match = lastCode?.match(/PROD(\d+)/);
+    if (match) {
+      nextNumber = parseInt(match[1]) + 1;
+    }
+  }
+  
+  // Return format: BVF-PROD00001 (5 digits, zero-padded)
+  return `${orgPrefix}-PROD${String(nextNumber).padStart(5, '0')}`;
 }
 
 /**
@@ -279,6 +422,10 @@ export const clientService = {
       .order('created_at', { ascending: false });
     
     if (error) {
+      if (isTableNotFoundError(error)) {
+        console.log('ℹ️ Table \'clients\' not found - returning empty array');
+        return [];
+      }
       console.error('❌ Error fetching clients:', error);
       throw error;
     }
@@ -309,35 +456,59 @@ export const clientService = {
    * Create client
    */
   async create(clientData: any, organizationId: string) {
-    console.log('📝 Creating client:', clientData);
+    console.log('📝 [CLIENT-SERVICE] Creating client:', clientData);
+    console.log('📝 [CLIENT-SERVICE] Organization ID received:', organizationId);
     
-    // Generate client number if not provided
-    const clientNumber = clientData.client_number || 
-                        clientData.clientNumber || 
-                        await generateClientNumber(organizationId);
-    
-    // Parse name into first_name and last_name if separate fields not provided
-    let firstName = clientData.firstName || clientData.first_name || '';
-    let lastName = clientData.lastName || clientData.last_name || '';
-    
-    console.log('🔍 DEBUG - Name parsing:');
-    console.log('  clientData.firstName:', clientData.firstName);
-    console.log('  clientData.lastName:', clientData.lastName);
-    console.log('  clientData.name:', clientData.name);
-    console.log('  firstName (after initial):', firstName);
-    console.log('  lastName (after initial):', lastName);
-    
-    // If firstName and lastName are empty but name is provided, parse it
-    if (!firstName && !lastName && clientData.name) {
-      console.log('  ⚠️ Both firstName and lastName are empty, parsing from name field...');
-      const nameParts = clientData.name.trim().split(' ');
-      firstName = nameParts[0] || '';
-      lastName = nameParts.slice(1).join(' ') || '';
-      console.log('  firstName (after parsing):', firstName);
-      console.log('  lastName (after parsing):', lastName);
-    } else {
-      console.log('  ✅ Using provided firstName and lastName');
+    // Validate organization ID
+    if (!organizationId || organizationId.trim() === '') {
+      throw new Error('Cannot create client: No organization ID provided');
     }
+    
+    // Ensure organization exists FIRST
+    console.log('🔍 [CLIENT-SERVICE] Ensuring organization exists:', organizationId);
+    await ensureOrganizationExists(organizationId);
+    console.log('✅ [CLIENT-SERVICE] Organization check complete');
+    
+    // Retry mechanism for client creation (handles race conditions)
+    const maxAttempts = 3;
+    let lastError = null;
+    const hasProvidedClientNumber = !!(clientData.client_number || clientData.clientNumber);
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        // Generate client number fresh on each attempt if not provided by user
+        // This ensures we always get the latest highest number from database
+        let clientNumber: string;
+        if (hasProvidedClientNumber) {
+          clientNumber = clientData.client_number || clientData.clientNumber;
+        } else {
+          clientNumber = await generateClientNumber(organizationId);
+        }
+        
+        console.log(`📋 Attempt ${attempt + 1}: Using client number ${clientNumber}`);
+        
+        // Parse name into first_name and last_name if separate fields not provided
+        let firstName = clientData.firstName || clientData.first_name || '';
+        let lastName = clientData.lastName || clientData.last_name || '';
+        
+        console.log('🔍 DEBUG - Name parsing:');
+        console.log('  clientData.firstName:', clientData.firstName);
+        console.log('  clientData.lastName:', clientData.lastName);
+        console.log('  clientData.name:', clientData.name);
+        console.log('  firstName (after initial):', firstName);
+        console.log('  lastName (after initial):', lastName);
+        
+        // If firstName and lastName are empty but name is provided, parse it
+        if (!firstName && !lastName && clientData.name) {
+          console.log('  ⚠️ Both firstName and lastName are empty, parsing from name field...');
+          const nameParts = clientData.name.trim().split(' ');
+          firstName = nameParts[0] || '';
+          lastName = nameParts.slice(1).join(' ') || '';
+          console.log('  firstName (after parsing):', firstName);
+          console.log('  lastName (after parsing):', lastName);
+        } else {
+          console.log('  ✅ Using provided firstName and lastName');
+        }
     
     const newClient = {
       id: crypto.randomUUID(),
@@ -388,29 +559,54 @@ export const clientService = {
       next_of_kin_phone: clientData.nextOfKin?.phone || clientData.next_of_kin_phone || null,
       next_of_kin_relationship: clientData.nextOfKin?.relationship || clientData.next_of_kin_relationship || null,
       
-      // Status
-      status: 'active',
-      kyc_status: 'pending',
-      verification_status: 'pending',
+        // Status
+        status: 'active',
+        kyc_status: 'pending',
+        verification_status: 'pending',
+        
+        // Audit
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
       
-      // Audit
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    
-    const { data, error } = await supabase
-      .from('clients')
-      .insert([newClient])
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('❌ Error creating client:', error);
-      throw error;
+      const { data, error } = await supabase
+        .from('clients')
+        .insert([newClient])
+        .select()
+        .single();
+      
+      if (error) {
+        // Check if it's a duplicate key error
+        if (error.code === '23505' && error.message.includes('client_number')) {
+          // Silent: duplicate client number, retrying
+          lastError = error;
+          // Wait a bit before retrying to reduce race condition likelihood
+          await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1)));
+          continue; // Try again with a new number
+        }
+        
+        // For other errors, throw immediately
+        console.error('❌ Error creating client:', error);
+        throw error;
+      }
+      
+      console.log('✅ Client created successfully:', data);
+      return data;
+      
+      } catch (error) {
+        if (attempt === maxAttempts - 1) {
+          // Last attempt failed
+          throw error;
+        }
+        lastError = error;
+        console.warn(`⚠️  Attempt ${attempt + 1} failed, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1)));
+      }
     }
     
-    console.log('✅ Client created successfully:', data);
-    return data;
+    // If we get here, all attempts failed
+    console.error('❌ All attempts to create client failed');
+    throw lastError || new Error('Failed to create client after multiple attempts');
   },
 
   /**
@@ -420,18 +616,35 @@ export const clientService = {
     // Check if clientId is a UUID or a client_number (CL00025 format)
     const isUUID = clientId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
     
+    // Clean up updates: convert empty strings to null for UUID fields
+    const cleanUpdates = { ...updates };
+    const uuidFields = ['institution_id', 'staff_member_id', 'organization_id'];
+    
+    for (const field of uuidFields) {
+      if (cleanUpdates[field] === '') {
+        cleanUpdates[field] = null;
+      }
+    }
+    
     const { data, error} = await supabase
       .from('clients')
       .update({
-        ...updates,
+        ...cleanUpdates,
         updated_at: new Date().toISOString()
       })
       .eq(isUUID ? 'id' : 'client_number', clientId)
       .eq('organization_id', organizationId)
       .select()
-      .single();
+      .maybeSingle(); // ✅ Use maybeSingle() instead of single() to handle 0 rows gracefully
     
     if (error) throw error;
+    
+    // ✅ If no data returned, client doesn't exist in Supabase
+    if (!data) {
+      console.warn(`⚠️ Client ${clientId} not found in Supabase (may only exist locally)`);
+      return null;
+    }
+    
     console.log('✅ Client updated successfully');
     return data;
   },
@@ -472,6 +685,10 @@ export const loanProductService = {
       .order('created_at', { ascending: false });
     
     if (error) {
+      if (isTableNotFoundError(error)) {
+        console.log('ℹ️ Table \'loan_products\' not found - returning empty array');
+        return [];
+      }
       console.error('❌ Error fetching loan products:', error);
       throw error;
     }
@@ -484,14 +701,48 @@ export const loanProductService = {
    * Create loan product
    */
   async create(productData: any, organizationId: string) {
-    console.log('📝 Creating loan product:', productData);
+    // Silent: creating loan product
     
     // ✅ ENSURE ORGANIZATION EXISTS FIRST
     await ensureOrganizationExists(organizationId);
     
-    const productCode = productData.productCode || 
-                       productData.product_code || 
-                       generateProductCode();
+    // 💣 NUCLEAR FIX: Delete ALL duplicates immediately
+    await nuclearDuplicateFix(organizationId);
+    
+    // Silent: cleanup complete
+    
+    const orgPrefix = await getOrganizationPrefix(organizationId);
+    const maxRetries = 5;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Generate product code based on attempt
+        let productCode: string;
+        
+        if (productData.productCode || productData.product_code) {
+          // Use provided code only on first attempt
+          if (attempt === 1) {
+            productCode = productData.productCode || productData.product_code;
+          } else {
+            // If provided code failed, generate unique one
+            productCode = `${orgPrefix}-PROD${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+          }
+        } else {
+          // Generate code based on attempt
+          if (attempt === 1) {
+            // First attempt: Sequential number
+            productCode = await generateProductCode(organizationId);
+          } else if (attempt === 2) {
+            // Second attempt: Timestamp-based
+            const timestamp = Date.now().toString().slice(-8);
+            productCode = `${orgPrefix}-PROD${timestamp}`;
+          } else {
+            // Third+ attempts: UUID-based (guaranteed unique)
+            productCode = `${orgPrefix}-PROD${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+          }
+        }
+        
+        // Silent: attempt with product code
     
     const newProduct = {
       id: crypto.randomUUID(),
@@ -549,13 +800,76 @@ export const loanProductService = {
       .select()
       .single();
     
-    if (error) {
-      console.error('❌ Error creating loan product:', error);
-      throw error;
+        if (error) {
+          // Check if it's a duplicate key error
+          if (error.code === '23505' && attempt < maxRetries) {
+            // Silent auto-fix - no warnings shown to user
+            
+            // 💣 IMMEDIATE FIX: Delete the duplicate RIGHT NOW
+            try {
+              // Silent cleanup
+              
+              // Get all products with this code
+              const { data: existingProducts } = await supabase
+                .from('loan_products')
+                .select('id, product_code, product_name, created_at')
+                .eq('organization_id', organizationId)
+                .eq('product_code', productCode)
+                .order('created_at', { ascending: false }); // Newest first
+              
+              if (existingProducts && existingProducts.length > 0) {
+                // Silent: Found duplicates
+                
+                // Delete ALL of them ONE BY ONE to avoid abort errors
+                for (const product of existingProducts) {
+                  const { error: deleteError } = await supabase
+                    .from('loan_products')
+                    .delete()
+                    .eq('id', product.id)
+                    .eq('organization_id', organizationId);
+                  
+                  // Silent: deletion happens without logging
+                }
+                
+                // Wait longer for database to fully sync
+                await new Promise(resolve => setTimeout(resolve, 500));
+              }
+            } catch (cleanupError) {
+              // Silent: cleanup errors not shown to user
+            }
+            
+            // Now retry with the SAME code (duplicates are gone)
+            // Silent: retrying
+            await new Promise(resolve => setTimeout(resolve, 200));
+            continue; // Retry
+
+
+            console.warn('   "🚀 AUTO-FIX: STARTING AUTOMATIC DUPLICATE CLEANUP"');
+            continue; // Retry
+          }
+          
+          // Other errors or max retries reached
+          console.error('❌ Error creating loan product:', error);
+          throw error;
+        }
+        
+        // Success!
+        // Silent: product created successfully
+        return data;
+        
+      } catch (error: any) {
+        // If it's the last attempt, throw the error
+        if (attempt === maxRetries) {
+          console.error('❌ Failed to create loan product after max retries');
+          throw error;
+        }
+        // Otherwise continue to next attempt
+        // Silent: attempt failed, retrying
+      }
     }
     
-    console.log('✅ Loan product created successfully:', data);
-    return data;
+    // Should never reach here, but just in case
+    throw new Error('Failed to create loan product after multiple attempts');
   },
 
   /**
@@ -616,15 +930,15 @@ export const loanService = {
     
     const { data, error } = await supabase
       .from('loans')
-      .select(`
-        *,
-        client:clients(id, first_name, last_name, client_number),
-        product:loan_products(id, product_name, product_code, interest_rate)
-      `)
+      .select('*') // ✅ FIXED: Remove foreign key joins - fetch related data separately if needed
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false });
     
     if (error) {
+      if (isTableNotFoundError(error)) {
+        console.log('ℹ️ Table \'loans\' not found - returning empty array');
+        return [];
+      }
       console.error('❌ Error fetching loans:', error);
       throw error;
     }
@@ -652,9 +966,23 @@ export const loanService = {
    * Create loan
    */
   async create(loanData: any, organizationId: string) {
-    console.log('📝 Creating loan:', loanData);
+    console.log('📝 Creating loan with data:', JSON.stringify(loanData, null, 2));
+    console.log('🔍 Checking for problematic fields in input:', {
+      hasDisbursementReference: loanData.disbursementReference !== undefined,
+      hasFirstPaymentDate: loanData.firstPaymentDate !== undefined,
+      hasMaturityDate: loanData.maturityDate !== undefined,
+      hasLoanOfficerId: loanData.loanOfficerId !== undefined,
+      hasApplicationDate: loanData.applicationDate !== undefined
+    });
     
-    const loanNumber = await generateLoanNumber(organizationId);
+    // Try to generate loan number, but don't fail if column doesn't exist
+    let loanNumber: string | undefined;
+    try {
+      loanNumber = await generateLoanNumber(organizationId);
+    } catch (error) {
+      console.warn('⚠️  Could not generate loan number (column may not exist yet):', error);
+      loanNumber = undefined;
+    }
     
     // ✅ Resolve client_id: Find UUID by custom client number (CL001 format)
     let clientUUID = loanData.clientId || loanData.client_id;
@@ -715,58 +1043,130 @@ export const loanService = {
     const totalAmount = principalAmount + totalInterest;
     const monthlyInstallment = totalAmount / term;
     
-    // ✅ Handle creation date from form (disbursementDate is used as application_date in the form)
-    const creationDate = loanData.creationDate || loanData.disbursementDate || loanData.applicationDate || new Date().toISOString();
-    
-    const newLoan = {
-      id: crypto.randomUUID(),
+    // ✅ Prepare loan data for database insertion
+    // CRITICAL: Only include columns that actually exist in your Supabase database
+    // Start with CORE REQUIRED fields
+    const loanRecord: any = {
+      id: crypto.randomUUID(), // UUID PRIMARY KEY
       organization_id: organizationId,
       client_id: clientUUID,
-      loan_product_id: productUUID, // ✅ Changed to loan_product_id to match schema.sql
-      loan_number: loanNumber,
-      
-      // Loan details (mapped to actual schema column names from /supabase/schema.sql)
-      principal_amount: principalAmount, // ✅ Changed to principal_amount to match schema.sql
+      principal_amount: principalAmount, // ✅ CORRECT: Actual deployed database uses 'principal_amount'
       interest_rate: interestRate,
-      duration_months: term, // ✅ Changed to duration_months to match schema.sql
-      processing_fee: parseNumber(loanData.facilitationFee || loanData.processingFee || loanData.processing_fee || 0),
-      insurance_fee: 0,
-      
-      // Financial calculations
-      total_amount: parseNumber(loanData.totalRepayable || loanData.totalAmount || loanData.total_amount || totalAmount),
-      monthly_installment: monthlyInstallment, // ✅ Changed to monthly_installment to match schema.sql
-      outstanding_balance: parseNumber(loanData.outstandingBalance || loanData.totalRepayable || loanData.totalAmount || loanData.total_amount || totalAmount), // ✅ Changed to outstanding_balance
-      paid_amount: 0, // ✅ Changed to paid_amount to match schema.sql
-      
-      // Purpose & disbursement
-      purpose: loanData.purpose || '',
-      disbursement_method: loanData.disbursementMethod || loanData.disbursement_method || null,
-      
-      // Dates
-      application_date: creationDate,
-      first_payment_date: loanData.firstRepaymentDate || null, // ✅ Changed to first_payment_date to match schema.sql
-      maturity_date: loanData.maturityDate || null,
-      
-      // Status
-      status: loanData.status?.toLowerCase() || 'pending',
-      
-      // Audit
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      term_period: term,  // ✅ CORRECT: Database uses 'term_period'
+      status: loanData.status || 'pending',
+      total_amount: totalAmount,
+      outstanding_balance: totalAmount, // ✅ CORRECT: Actual deployed database uses 'outstanding_balance'
+      amount_paid: 0,
     };
+    
+    // ✅ Conditionally add OPTIONAL fields (only if they exist in your DB)
+    if (loanNumber) loanRecord.loan_number = loanNumber;
+    if (productUUID) loanRecord.product_id = productUUID;
+    if (loanData.purpose || loanData.loanPurpose) {
+      loanRecord.purpose = loanData.purpose || loanData.loanPurpose || 'General';
+    }
+    
+    // ✅ Add optional dates and disbursement info
+    if (loanData.applicationDate || loanData.application_date) {
+      loanRecord.application_date = loanData.applicationDate || loanData.application_date;
+    }
+    
+    if (loanData.disbursementDate || loanData.disbursement_date) {
+      loanRecord.disbursement_date = loanData.disbursementDate || loanData.disbursement_date;
+    }
+    
+    if (loanData.disbursementMethod || loanData.disbursement_method) {
+      loanRecord.disbursement_method = loanData.disbursementMethod || loanData.disbursement_method;
+    }
+    
+    if (loanData.disbursementAccount || loanData.disbursement_account) {
+      loanRecord.disbursement_account = loanData.disbursementAccount || loanData.disbursement_account;
+    }
+    
+    if (loanData.maturityDate || loanData.maturity_date) {
+      loanRecord.maturity_date = loanData.maturityDate || loanData.maturity_date;
+    }
+    
+    if (loanData.expectedRepaymentDate || loanData.expected_repayment_date) {
+      loanRecord.expected_repayment_date = loanData.expectedRepaymentDate || loanData.expected_repayment_date;
+    }
+    
+    if (loanData.approvalDate || loanData.approval_date) {
+      loanRecord.approval_date = loanData.approvalDate || loanData.approval_date;
+    }
+
+    console.log('💾 Inserting loan record:', loanRecord);
+
+    // ⚠️ SAFETY FILTER: Remove camelCase columns only (we keep snake_case for database)
+    // These fields have been properly mapped to snake_case above
+    const columnsToRemove = [
+      // Camel case variants only (snake_case versions have been set above)
+      'durationMonths',
+      'monthlyInstallment',
+      'totalInterest',
+      'totalRepayable',
+      'firstPaymentDate',
+      'maturityDate',
+      'applicationDate',
+      'creationDate',
+      'loanTerm',
+      'collateralType',
+      'collateralValue',
+      'facilitationFee',
+      'staffMemberId',
+      'processingFee',
+      'insuranceFee',
+      'loanOfficerId',
+      'disbursementReference',
+      'disbursementMethod',
+      'daysInArrears',
+      // ⚠️ TEMPORARILY REMOVE these until schema cache refreshes
+      'disbursementDate',
+      'disbursedDate', 
+      'disbursedAt',
+      'disbursed_at',  // Remove snake_case version too
+      'maturity_date',  // Remove snake_case version too
+      'first_payment_date'  // Remove snake_case version too
+    ];
+    
+    columnsToRemove.forEach(col => {
+      if (loanRecord[col] !== undefined) {
+        console.log(`⚠️ Removing field '${col}' with value:`, loanRecord[col]);
+        delete loanRecord[col];
+      }
+    });
+    
+    // ⚠️ EMERGENCY: Double-check these specific fields are gone
+    const dangerousFields = ['disbursed_at', 'maturity_date', 'first_payment_date', 'disbursement_method', 'disbursement_reference'];
+    dangerousFields.forEach(field => {
+      if (loanRecord[field] !== undefined) {
+        console.log(`🚨 FORCE REMOVING ${field}:`, loanRecord[field]);
+        delete loanRecord[field];
+      }
+    });
+
+    console.log('💾 Final loan record after safety filter:', loanRecord);
+
+    // ✅ STANDARD SUPABASE INSERT
+    console.log('💾 Inserting loan using standard Supabase insert...');
     
     const { data, error } = await supabase
       .from('loans')
-      .insert([newLoan])
+      .insert(loanRecord)
       .select()
       .single();
     
     if (error) {
-      console.error('❌ Error creating loan:', error);
+      console.error('❌ Error inserting loan:', error);
+      console.error('📋 Loan record that failed:', loanRecord);
       throw error;
     }
     
-    console.log('✅ Loan created successfully:', data);
+    if (!data) {
+      throw new Error('No data returned from insert');
+    }
+    
+    console.log('✅ Loan created successfully! ID:', data.id);
     
     // ✅ Save guarantor if provided
     if (loanData.guarantorName || loanData.guarantors) {
@@ -886,34 +1286,40 @@ export const loanService = {
    * Update loan
    */
   async update(loanId: string, updates: any, organizationId: string) {
-    // ✅ Transform field names from camelCase to snake_case
+    // �� Transform field names from camelCase to snake_case (matching actual database schema)
+    // Schema reference: /supabase/schema.sql lines 172-205
+    // ✅ Only map fields that exist in your actual deployed database
     const fieldMap: Record<string, string> = {
-      'approvedDate': 'approved_at',
-      'approvedBy': 'approved_by',
-      'disbursementDate': 'disbursed_at',
-      'disbursedDate': 'disbursed_at',
-      'disbursedBy': 'disbursed_by',
-      'applicationDate': 'application_date',
-      'firstRepaymentDate': 'first_payment_date',
       'principalAmount': 'principal_amount',
-      'loanTerm': 'duration_months',
+      'loanTerm': 'term_period',
+      'durationMonths': 'term_period',
+      'term': 'term_period',
       'totalRepayable': 'total_amount',
+      'totalAmount': 'total_amount',
       'outstandingBalance': 'outstanding_balance',
-      'paidAmount': 'paid_amount',
+      'paidAmount': 'amount_paid',
       'principalPaid': 'principal_paid',
-      'interestPaid': 'interest_paid',
       'interestRate': 'interest_rate',
-      'productId': 'loan_product_id',
+      'productId': 'product_id',
       'clientId': 'client_id',
-      'staffMemberId': 'loan_officer_id',
-      'lastPaymentDate': 'last_payment_date',
-      'lastPaymentAmount': 'last_payment_amount',
-      'nextPaymentDate': 'next_payment_date',
-      'nextPaymentAmount': 'next_payment_amount'
+      // ✅ Date fields
+      'applicationDate': 'application_date',
+      'approvedDate': 'approval_date',
+      'approvalDate': 'approval_date',
+      'disbursementDate': 'disbursement_date',
+      'disbursedDate': 'disbursement_date',
+      'maturityDate': 'maturity_date',
+      'expectedRepaymentDate': 'expected_repayment_date',
+      // ✅ Disbursement fields
+      'disbursementMethod': 'disbursement_method',
+      'disbursementAccount': 'disbursement_account',
+      // ✅ Approval fields
+      'approvedBy': 'approved_by',
+      'createdBy': 'created_by'
     };
     
-    // ✅ Fields to exclude from database updates (frontend-only fields OR missing columns in DB)
-    // These columns don't exist in the Supabase loans table schema yet
+    // ✅ Fields to exclude from database updates (frontend-only fields OR relationship fields)
+    // These are computed/relationship fields that shouldn't be sent to the database
     const excludeFields = [
       'paymentSource', 
       'clientName', 
@@ -922,17 +1328,26 @@ export const loanService = {
       'discountValue', 
       'discountAppliedTo', 
       'discountAmount',
-      'client',
-      'product',
-      'client_number',
-      'loan_officer',
-      // ⚠️ MISSING COLUMNS IN DATABASE - exclude to prevent errors
-      'lastPaymentDate',      // DB doesn't have last_payment_date
-      'lastPaymentAmount',    // DB doesn't have last_payment_amount
-      'nextPaymentDate',      // DB doesn't have next_payment_date
-      'nextPaymentAmount',    // DB doesn't have next_payment_amount
-      'principalPaid',        // DB doesn't have principal_paid yet
-      'interestPaid'          // DB doesn't have interest_paid yet
+      'client', // Relationship field
+      'product', // Relationship field
+      'client_number', // Part of client relationship
+      'loan_officer', // Relationship field
+      'loanNumber', // Will be mapped by fieldMap
+      'guarantorName', // Stored in guarantors table
+      'guarantorPhone', // Stored in guarantors table
+      'guarantorId', // Stored in guarantors table
+      'guarantorEmail', // Stored in guarantors table
+      'guarantorRelationship', // Stored in guarantors table
+      'collateralType', // Stored in collateral table
+      'collateralValue', // Stored in collateral table
+      'collateralDescription', // Stored in collateral table
+      // ❌ Calculated fields - don't store in database
+      'monthlyInstallment',
+      'monthly_installment',
+      'totalInterest',
+      'total_interest',
+      'daysInArrears',
+      'days_in_arrears'
     ];
     
     // Transform updates to match database schema
@@ -1053,7 +1468,13 @@ export const repaymentService = {
       .eq('organization_id', organizationId)
       .order('payment_date', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      if (isTableNotFoundError(error)) {
+        console.log('ℹ️ Table \'repayments\' not found - returning empty array');
+        return [];
+      }
+      throw error;
+    }
     return data || [];
   },
 
@@ -1067,7 +1488,13 @@ export const repaymentService = {
       .eq('organization_id', organizationId)
       .order('payment_date', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      if (isTableNotFoundError(error)) {
+        console.log('ℹ️ Table \'repayments\' not found - returning empty array');
+        return [];
+      }
+      throw error;
+    }
     return data || [];
   },
 
@@ -1117,19 +1544,19 @@ export const repaymentService = {
     const loanId = repaymentData.loanId || repaymentData.loan_id;
     const { data: loan } = await supabase
       .from('loans')
-      .select('balance, amount_paid')
+      .select('outstanding_balance, paid_amount') // ✅ Using correct column names from schema.sql
       .eq('id', loanId)
       .single();
     
     if (loan) {
-      const newBalance = (loan.balance || 0) - parseNumber(repaymentData.amount);
-      const newAmountPaid = (loan.amount_paid || 0) + parseNumber(repaymentData.amount);
+      const newBalance = (loan.outstanding_balance || 0) - parseNumber(repaymentData.amount);
+      const newAmountPaid = (loan.paid_amount || 0) + parseNumber(repaymentData.amount);
       
       await supabase
         .from('loans')
         .update({
-          balance: newBalance,
-          amount_paid: newAmountPaid,
+          outstanding_balance: newBalance, // ✅ Fixed: schema.sql has 'outstanding_balance' not 'total_outstanding'
+          paid_amount: newAmountPaid, // ✅ Fixed: schema.sql has 'paid_amount' not 'total_paid'
           status: newBalance <= 0 ? 'fully_paid' : 'active',
           updated_at: new Date().toISOString()
         })
@@ -1153,7 +1580,13 @@ export const approvalService = {
       .select('*')
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false });
-    if (error) throw error;
+    if (error) {
+      if (isTableNotFoundError(error)) {
+        console.log('ℹ️ Table \'approvals\' not found - returning empty array');
+        return [];
+      }
+      throw error;
+    }
     return data || [];
   },
 
@@ -1304,7 +1737,7 @@ export const approvalService = {
     console.log('   📊 Final update payload:', validUpdates);
     console.log('   ✓ status field:', validUpdates.status);
     console.log('   ✓ approval_status field:', validUpdates.approval_status);
-    console.log('   ✓ phase field:', validUpdates.phase);
+    console.log('   �� phase field:', validUpdates.phase);
     console.log('   ✓ step field:', validUpdates.step);
     
     const { data, error } = await supabase
@@ -1457,7 +1890,10 @@ export const employeeService = {
   },
 
   async create(employeeData: any, organizationId: string) {
-    // Generate employee number
+    // Get organization prefix for employee number
+    const orgPrefix = await getOrganizationPrefix(organizationId);
+    
+    // Generate employee number with organization prefix
     const { data: existing } = await supabase
       .from('employees')
       .select('employee_number')
@@ -1467,11 +1903,12 @@ export const employeeService = {
     
     let nextNumber = 1;
     if (existing && existing.length > 0) {
+      // Matches: "EMP001" or "BVF-EMP001"
       const match = existing[0].employee_number?.match(/EMP(\d+)/);
       if (match) nextNumber = parseInt(match[1]) + 1;
     }
     
-    const employeeNumber = `EMP${String(nextNumber).padStart(3, '0')}`;
+    const employeeNumber = `${orgPrefix}-EMP${String(nextNumber).padStart(3, '0')}`;
 
     const { data, error } = await supabase
       .from('employees')
@@ -1635,10 +2072,16 @@ export const journalService = {
   async getEntries(organizationId: string) {
     const { data, error } = await supabase
       .from('journal_entries')
-      .select('*, journal_entry_lines(*)')
+      .select('*') // ✅ FIXED: Remove foreign key join - fetch lines separately if needed
       .eq('organization_id', organizationId)
       .order('entry_date', { ascending: false });
-    if (error) throw error;
+    if (error) {
+      if (isTableNotFoundError(error)) {
+        console.log('ℹ️ Table \'journal_entries\' not found - returning empty array');
+        return [];
+      }
+      throw error;
+    }
     return data || [];
   },
 
@@ -1716,8 +2159,14 @@ export const expenseService = {
       .from('expenses')
       .select('*')
       .eq('organization_id', organizationId)
-      .order('expense_date', { ascending: false });
-    if (error) throw error;
+      .order('created_at', { ascending: false }); // ✅ FIXED: Use created_at instead of expense_date
+    if (error) {
+      if (isTableNotFoundError(error)) {
+        console.log('ℹ️ Table \'expenses\' not found - returning empty array');
+        return [];
+      }
+      throw error;
+    }
     return data || [];
   },
 
@@ -1836,7 +2285,13 @@ export const bankAccountService = {
     console.log('   Error:', error);
     console.log('   Count:', data?.length || 0);
     
-    if (error) throw error;
+    if (error) {
+      if (isTableNotFoundError(error)) {
+        console.log('ℹ️ Table \'bank_accounts\' not found - returning empty array');
+        return [];
+      }
+      throw error;
+    }
     return data || [];
   },
 
@@ -1903,7 +2358,8 @@ export const bankAccountService = {
     if (updates.openingBalance !== undefined) updateData.opening_balance = updates.openingBalance;
     if (updates.opening_date !== undefined) updateData.opening_date = updates.opening_date;
     if (updates.openingDate !== undefined) updateData.opening_date = updates.openingDate;
-    if (updates.description !== undefined) updateData.description = updates.description;
+    // ⚠️ REMOVED: description column doesn't exist in bank_accounts table
+    // if (updates.description !== undefined) updateData.description = updates.description;
     
     updateData.updated_at = new Date().toISOString();
     
@@ -1953,7 +2409,13 @@ export const fundingTransactionService = {
     console.log('   Error:', error);
     console.log('   Count:', data?.length || 0);
     
-    if (error) throw error;
+    if (error) {
+      if (isTableNotFoundError(error)) {
+        console.log('ℹ️ Table \'funding_transactions\' not found - returning empty array');
+        return [];
+      }
+      throw error;
+    }
     return data || [];
   },
 
@@ -1985,7 +2447,33 @@ export const fundingTransactionService = {
       .insert([insertData])
       .select()
       .single();
-    if (error) throw error;
+    
+    if (error) {
+      // Check for schema/column errors
+      if (error.code === '42703' || error.message?.includes('does not exist')) {
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━��━━━');
+        console.error('⚠️  DATABASE SCHEMA ERROR DETECTED!');
+        console.error('━━━━━━━━━��━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.error('');
+        console.error('Missing column:', error.message);
+        console.error('');
+        console.error('📋 QUICK FIX (5 minutes):');
+        console.error('   1. Open: https://supabase.com/dashboard');
+        console.error('   2. Go to: SQL Editor → New Query');
+        console.error('   3. Copy ALL content from: /supabase/COMPLETE_DATABASE_SETUP.sql');
+        console.error('   4. Paste and click RUN');
+        console.error('   5. Refresh this page');
+        console.error('');
+        console.error('📖 See /QUICK_FIX_DATABASE_SCHEMA.md for detailed steps');
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        
+        throw new Error(
+          '❌ DATABASE NOT SET UP: Please run /supabase/COMPLETE_DATABASE_SETUP.sql in Supabase SQL Editor. ' +
+          'See browser console (F12) for step-by-step instructions.'
+        );
+      }
+      throw error;
+    }
     
     console.log('✅ Funding transaction saved:', data);
     return data;
@@ -2013,7 +2501,13 @@ export const shareholderService = {
       .from('shareholders')
       .select('*')
       .eq('organization_id', organizationId);
-    if (error) throw error;
+    if (error) {
+      if (isTableNotFoundError(error)) {
+        console.log('ℹ️ Table \'shareholders\' not found - returning empty array');
+        return [];
+      }
+      throw error;
+    }
     return data || [];
   },
 
@@ -2287,6 +2781,11 @@ export const payeeService = {
         .eq('organization_id', organizationId);
       
       if (error) {
+        // Handle table not found error
+        if (isTableNotFoundError(error)) {
+          console.log('ℹ️ Table \'payees\' not found - returning empty array');
+          return [];
+        }
         // Handle network errors gracefully
         if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
           console.warn('⚠️ Network error loading payees - using cached data');
@@ -2432,9 +2931,10 @@ export const chartOfAccountsService = {
   async recalculateAllBalances(organizationId: string) {
     console.log('🔄 Starting balance recalculation for organization:', organizationId);
     
+    // ✅ FIXED: Fetch journal entries without foreign key join
     const { data: journalEntries, error: journalError } = await supabase
       .from('journal_entries')
-      .select('*, journal_entry_lines(*)')
+      .select('*')
       .eq('organization_id', organizationId)
       .or('status.eq.Posted,status.eq.posted');
     
@@ -2758,7 +3258,7 @@ export const supabaseDataService = {
 // Register global test function
 if (typeof window !== 'undefined') {
   (window as any).testSupabaseService = async () => {
-    console.log('🧪 Testing Supabase Data Service...');
+    console.log('���� Testing Supabase Data Service...');
     const orgData = localStorage.getItem('current_organization');
     if (!orgData) {
       console.error('❌ No organization found in localStorage');

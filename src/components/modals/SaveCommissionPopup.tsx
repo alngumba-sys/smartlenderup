@@ -3,7 +3,7 @@ import { X, Save } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../lib/supabase';
 import { getOrganizationId } from '../../utils/organizationUtils';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface SaveCommissionPopupProps {
   isOpen: boolean;

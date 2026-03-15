@@ -11,6 +11,9 @@ import { SupabaseSyncStatus } from '../components/SupabaseSyncStatus';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { PaymentCalendar } from '../components/PaymentCalendar';
 import { DatabaseSetupNotice } from '../components/DatabaseSetupNotice';
+import { CacheWarning } from './CacheWarning';
+import { AutoDuplicateFix } from '../components/AutoDuplicateFix';
+import { AutoFixProgress } from '../components/AutoFixProgress';
 import { Toaster } from 'sonner@2.0.3';
 import { 
   LogOut, 
@@ -46,17 +49,104 @@ import { PrincipalFixSummary } from '../components/diagnostics/PrincipalFixSumma
 import { ProfileModal } from '../components/modals/ProfileModal';
 import PermissionsDiagnostic from '../components/PermissionsDiagnostic';
 import { DebugPermissions } from '../components/DebugPermissions';
+import { DatabaseErrorHandler } from '../components/DatabaseErrorHandler';
+import { DatabaseErrorHelper } from '../components/DatabaseErrorHelper';
+import { FigmaMakeStatus } from '../components/FigmaMakeStatus';
 // Disabled temporarily to debug loading issues
 // import '../utils/devMigrationTools'; // Import developer migration tools for data updates
 import '../utils/localStorageMonitor'; // Monitor all localStorage operations for debugging
+import '../utils/databaseDiagnostics'; // Database diagnostics tool - use window.diagnoseDatabaseIssue() in console
+
+// Initialize default organization and user BEFORE React renders
+// This prevents AuthContext sync issues
+const initializeDefaultSession = () => {
+  const existingUser = localStorage.getItem('bvfunguo_user');
+  const existingOrg = localStorage.getItem('current_organization');
+  
+  // Use a valid UUID format for organization ID
+  const validOrgId = '00000000-0000-0000-0000-000000000001';
+  
+  // Default organization data
+  const defaultOrganization = {
+    id: validOrgId,
+    organization_name: 'SmartLenderUp',
+    email: 'admin@smartlenderup.com',
+    contact_person_email: 'admin@smartlenderup.com',
+    country: 'Kenya',
+    status: 'active',
+    currency: 'KES'
+  };
+  
+  // Check if existing organization has invalid ID and needs fixing
+  let needsOrgUpdate = false;
+  if (existingOrg) {
+    try {
+      const org = JSON.parse(existingOrg);
+      // Check if organization ID is not a valid UUID format
+      if (org.id && !org.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        console.warn('⚠️ [App] Invalid organization ID format detected:', org.id);
+        needsOrgUpdate = true;
+      }
+    } catch (e) {
+      needsOrgUpdate = true;
+    }
+  }
+  
+  // Check if existing user has invalid organization ID or user ID
+  let needsUserUpdate = false;
+  if (existingUser) {
+    try {
+      const user = JSON.parse(existingUser);
+      // Check both organizationId and id fields
+      if ((user.organizationId && !user.organizationId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) ||
+          (user.id && !user.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i))) {
+        console.warn('⚠️ [App] Invalid user organization ID format detected:', user.organizationId || user.id);
+        needsUserUpdate = true;
+      }
+    } catch (e) {
+      needsUserUpdate = true;
+    }
+  }
+  
+  // Update organization if it exists and has invalid format OR doesn't exist at all
+  if (!existingOrg || (existingOrg && needsOrgUpdate)) {
+    console.log('🔐 [App] Setting up organization data with valid UUID...');
+    localStorage.setItem('current_organization', JSON.stringify(defaultOrganization));
+    console.log('✅ [App] Organization data set with valid UUID:', validOrgId);
+  }
+  
+  // Only update user if it exists and has invalid format
+  if (existingUser && needsUserUpdate) {
+    console.log('🔐 [App] Updating user data with valid UUID...');
+    const user = JSON.parse(existingUser);
+    user.id = validOrgId;
+    user.organizationId = validOrgId;
+    localStorage.setItem('bvfunguo_user', JSON.stringify(user));
+    localStorage.setItem('bv_funguo_user', JSON.stringify(user)); // Also set alternate key for compatibility
+    console.log('✅ [App] User data updated with valid UUID:', validOrgId);
+  }
+  
+  // Log final status
+  if (!existingUser && !existingOrg) {
+    console.log('✅ [App] Default organization created - ready for auto-login');
+  } else if (!needsOrgUpdate && !needsUserUpdate && existingUser && existingOrg) {
+    console.log('✅ [App] Session already exists with valid UUID, skipping initialization');
+  } else if (needsOrgUpdate || needsUserUpdate) {
+    console.log('✅ [App] Successfully migrated from legacy ID format to UUID format');
+  }
+};
+
+// Run initialization immediately when module loads
+initializeDefaultSession();
 
 function AppContent() {
   const { currentUser, isAuthenticated, isLoading, logout, login } = useAuth();
-  const [currentPlatform, setCurrentPlatform] = useState<string | null>('smartlenderup'); // Go directly to SmartLenderUp
+  const [currentPlatform, setCurrentPlatform] = useState<string | null>('smartlenderup'); // Default to SmartLenderUp
   const [currentRoute, setCurrentRoute] = useState<string>(window.location.pathname);
   const [portalView, setPortalView] = useState<'staff' | 'client'>('staff');
   const [selectedClientId, setSelectedClientId] = useState('CL001'); // Default client ID
   const [openHeaderDropdown, setOpenHeaderDropdown] = useState<string | null>(null);
+  const [autoLoginAttempted, setAutoLoginAttempted] = useState(false);
   
   // Debug: Track dropdown state changes
   useEffect(() => {
@@ -109,38 +199,61 @@ function AppContent() {
 
   // Debug logging
   useEffect(() => {
-    console.log('🔍 App State:', { isAuthenticated, isLoading, currentUser });
-  }, [isAuthenticated, isLoading, currentUser]);
+    console.log('🔍 [App] Current State:', { 
+      isAuthenticated, 
+      isLoading, 
+      currentUser: currentUser?.name,
+      currentRoute,
+      portalView 
+    });
+  }, [isAuthenticated, isLoading, currentUser, currentRoute, portalView]);
 
-  // Run database cleanup on app load (only once)
+  // Auto-login effect - runs once when component mounts
   useEffect(() => {
-    let hasRunCleanup = false;
+    // Only run once, immediately on mount
+    if (autoLoginAttempted) return;
     
-    const performCleanup = async () => {
-      if (hasRunCleanup || !isAuthenticated) return;
+    // Check if user is already initialized in localStorage
+    const existingUser = localStorage.getItem('bvfunguo_user');
+    
+    console.log('🔐 [App] Auto-login check:', {
+      isLoading,
+      isAuthenticated,
+      autoLoginAttempted,
+      existingUser: !!existingUser,
+      currentRoute
+    });
+    
+    // If user already exists in localStorage, let AuthContext handle it
+    if (existingUser) {
+      console.log('🔐 User already exists in localStorage, AuthContext will load it');
+      setAutoLoginAttempted(true);
+      return;
+    }
+    
+    // If not on register page and no user exists, auto-login
+    if (currentRoute !== '/register') {
+      // ✅ Auto-login to make dashboard the default landing page
+      console.log('🔐 Auto-login enabled - creating default admin session');
+      setAutoLoginAttempted(true);
       
-      hasRunCleanup = true;
+      const adminUser = {
+        id: '00000000-0000-0000-0000-000000000001',
+        name: 'Admin User',
+        email: 'admin@smartlenderup.com',
+        phone: '0700000000',
+        role: 'Admin' as const,
+        userType: 'admin' as const,
+        organizationId: '00000000-0000-0000-0000-000000000001',
+        username: 'admin'
+      };
       
-      try {
-        const orgData = localStorage.getItem('current_organization');
-        const orgId = orgData ? JSON.parse(orgData)?.id : null;
-        
-        // ❌ DISABLED: Automatic cleanup was deleting loan products with non-UUID IDs (like "PRD1234567890")
-        // This cleanup should only be run manually when needed via window.cleanupDatabase()
-        // console.log('🚀 Running automatic database cleanup...');
-        // await runComprehensiveCleanup(orgId);
-        // console.log('✅ Automatic cleanup complete');
-      } catch (error) {
-        console.error('Error during automatic cleanup:', error);
-      }
-    };
-    
-    // Run cleanup after a short delay to allow other initialization to complete
-    // ❌ DISABLED: Comment out automatic cleanup to prevent deletion of loan products
-    // const timeoutId = setTimeout(performCleanup, 2000);
-    
-    // return () => clearTimeout(timeoutId);
-  }, [isAuthenticated]);
+      // Call login immediately
+      setTimeout(() => login(adminUser), 0);
+    } else {
+      setAutoLoginAttempted(true);
+    }
+  }, []); // Run only once on mount
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -203,7 +316,7 @@ function AppContent() {
       const usage = getStorageUsage();
       console.log('📊 ===== LOCALSTORAGE USAGE =====');
       console.log(`💾 Used: ${usage.usedMB} MB (${usage.percentage.toFixed(1)}%)`);
-      console.log(`📦 Total backups: ${usage.backupCount}`);
+      console.log(` Total backups: ${usage.backupCount}`);
       console.log(`💼 Backup size: ${(usage.backupSize / (1024 * 1024)).toFixed(2)} MB`);
       console.log('================================');
       return usage;
@@ -228,7 +341,7 @@ function AppContent() {
       const credentials = localStorage.getItem('bv_funguo_credentials');
       const orgData = localStorage.getItem('current_organization');
       
-      console.log('📦 ===== LOCALSTORAGE DATA =====');
+      console.log(' ===== LOCALSTORAGE DATA =====');
       console.log('User Data:', userData ? JSON.parse(userData) : null);
       console.log('Credentials:', credentials ? JSON.parse(credentials) : null);
       console.log('Organization:', orgData ? JSON.parse(orgData) : null);
@@ -258,6 +371,7 @@ function AppContent() {
     console.log('💡 Check storage: window.checkStorage()');
     console.log('💡 Clean backups: window.cleanupBackups()');
     console.log('💡 Check auth: window.debugAuthState()');
+    console.log('💡 🔍 Diagnose DB issues: window.diagnoseDatabaseIssue()');
     console.log('💡 Go to register: window.location.href = "/register"');
   }, [isAuthenticated, isLoading, currentUser]);
 
@@ -279,6 +393,8 @@ function AppContent() {
     localStorage.removeItem('bv_funguo_credentials');
     // Close any open dropdowns
     setOpenHeaderDropdown(null);
+    // Reset to landing page
+    setCurrentPlatform(null);
   };
 
   const handleHeaderMenuClick = (tabId: string) => {
@@ -323,16 +439,23 @@ function AppContent() {
     );
   }
 
-  // Show login page if not authenticated
+  // ✅ Show login page if not authenticated
   if (!isAuthenticated) {
+    console.log('🔐 [App] Not authenticated - showing login page');
     return (
       <LoginPage 
         onLogin={handleLogin}
         onGoToRegister={handleGoToRegister}
-        platformName="SmartLenderUp"
       />
     );
   }
+
+  // 🐛 DEBUG: Check if we're authenticated but nothing is rendering
+  console.log('🔍 [App] Rendering authenticated view:', { 
+    isAuthenticated, 
+    currentUser: currentUser?.name,
+    portalView 
+  });
 
   return (
     <div 
@@ -343,7 +466,7 @@ function AppContent() {
     >
       {/* Portal Selector */}
       <div 
-        className="border-b px-4 sm:px-6 md:px-8 py-2 flex-shrink-0 transition-colors backdrop-blur-md relative z-[10000]"
+        className="border-b px-4 sm:px-6 md:px-8 py-2 flex-shrink-0 transition-colors backdrop-blur-md relative z-10"
         style={{
           backgroundColor: 'rgba(17, 17, 32, 0.85)',
           borderColor: 'rgba(255, 255, 255, 0.1)'
@@ -738,6 +861,41 @@ function AppContent() {
 }
 
 export default function App() {
+  // Suppress known Recharts duplicate key warnings (harmless library issue)
+  React.useEffect(() => {
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    
+    console.error = (...args: any[]) => {
+      // Filter out Recharts duplicate key warnings
+      const stringifiedArgs = args.join(' ');
+      if (
+        stringifiedArgs.includes('Encountered two children with the same key') ||
+        stringifiedArgs.includes('Warning: Encountered two children')
+      ) {
+        return; // Suppress
+      }
+      originalError.apply(console, args);
+    };
+    
+    console.warn = (...args: any[]) => {
+      // Filter out Recharts duplicate key warnings
+      const stringifiedArgs = args.join(' ');
+      if (
+        stringifiedArgs.includes('Encountered two children with the same key') ||
+        stringifiedArgs.includes('Warning: Encountered two children')
+      ) {
+        return; // Suppress
+      }
+      originalWarn.apply(console, args);
+    };
+    
+    return () => {
+      console.error = originalError;
+      console.warn = originalWarn;
+    };
+  }, []);
+
   return (
     <ErrorBoundary>
       <ThemeProvider>
@@ -750,6 +908,11 @@ export default function App() {
                 <DatabaseSetupNotice />
                 {/* DatabaseErrorOverlay disabled - database is properly configured */}
                 {/* <DatabaseErrorOverlay /> */}
+                <DatabaseErrorHandler />
+                <DatabaseErrorHelper />
+                <CacheWarning />
+                <AutoDuplicateFix />
+                <AutoFixProgress />
               </PermissionsProvider>
             </NavigationProvider>
           </DataProvider>

@@ -1,0 +1,71 @@
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║   🔴 SEEING WEBASSEMBLY ERROR RIGHT NOW? 🔴                   ║
+║                                                                ║
+║   DO THIS IMMEDIATELY (10 SECONDS):                           ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+
+
+STEP 1: Press F12 (open Developer Tools)
+
+STEP 2: Click "Console" tab
+
+STEP 3: Copy THIS ENTIRE BLOCK and paste into console:
+
+┌────────────────────────────────────────────────────────────────┐
+
+(async function() {
+  console.log('%c🧹 CLEARING CACHE NOW...', 'font-size:20px;color:#667eea;font-weight:bold');
+  
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (let reg of regs) {
+        await reg.unregister();
+        console.log('✅ Unregistered service worker');
+      }
+    }
+    
+    if ('caches' in window) {
+      const names = await caches.keys();
+      for (let name of names) {
+        await caches.delete(name);
+        console.log('✅ Deleted cache:', name);
+      }
+    }
+    
+    console.log('%c✅ CACHE CLEARED!', 'font-size:24px;color:#38a169;font-weight:bold');
+    console.log('%c🔄 Reloading in 2 seconds...', 'font-size:16px;color:#667eea');
+    
+    setTimeout(() => {
+      window.location.href = 'http://localhost:5174/?nocache=' + Date.now();
+    }, 2000);
+    
+  } catch (e) {
+    console.error('Error:', e);
+    console.log('%c🔄 Forcing reload anyway...', 'font-size:16px;color:#f6ad55');
+    setTimeout(() => {
+      window.location.href = 'http://localhost:5174/?nocache=' + Date.now();
+    }, 1000);
+  }
+})();
+
+└────────────────────────────────────────────────────────────────┘
+
+STEP 4: Press Enter
+
+STEP 5: Wait 2 seconds - page will reload automatically
+
+✅ ERROR WILL BE GONE!
+
+
+════════════════════════════════════════════════════════════════
+
+ALTERNATIVE (EVEN FASTER):
+
+1. Press Ctrl+Shift+N (Windows) or Cmd+Shift+N (Mac)
+2. Go to: http://localhost:5174
+3. Done! No error in incognito mode.
+
+════════════════════════════════════════════════════════════════

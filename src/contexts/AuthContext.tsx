@@ -64,15 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user) {
         const userJson = JSON.stringify(user);
         localStorage.setItem('bvfunguo_user', userJson);
-        console.log('✅ [AuthContext] Saved to localStorage:', userJson.substring(0, 100) + '...');
-        
-        // Verify it was saved
-        const verify = localStorage.getItem('bvfunguo_user');
-        if (!verify) {
-          console.error('❌❌❌ [AuthContext] VERIFICATION FAILED! localStorage.setItem did not work!');
-        } else {
-          console.log('✅ [AuthContext] Verification PASSED - data is in localStorage');
-        }
+        console.log('✅ [AuthContext] Saved to localStorage');
       } else {
         localStorage.removeItem('bvfunguo_user');
         console.log('✅ [AuthContext] Removed from localStorage');
@@ -82,24 +74,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Monitor currentUser changes and sync to localStorage
+  // Track if we've completed initial sync
+  const [initialSyncComplete, setInitialSyncComplete] = useState(false);
+
+  // Initial sync on mount - ensure React state matches localStorage (RUNS ONCE)
   useEffect(() => {
+    console.log('🔵 [AuthContext] Running initial sync check...');
+    const storedUser = localStorage.getItem('bvfunguo_user');
+    const initialUser = getInitialUser();
+    
+    console.log('🔵 [AuthContext] Stored user exists:', !!storedUser);
+    console.log('🔵 [AuthContext] Current user exists:', !!currentUser);
+    
+    // If getInitialUser failed but localStorage has data, try again
+    if (storedUser && !currentUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        if (!user.permissions) {
+          user.permissions = getRolePermissions(user.role);
+        }
+        console.log('✅ [AuthContext] Loading user from localStorage:', user.name);
+        setCurrentUser(user);
+      } catch (error) {
+        console.error('❌ [AuthContext] Error parsing stored user:', error);
+        localStorage.removeItem('bvfunguo_user');
+      }
+    }
+    
+    // Mark initial sync as complete
+    setInitialSyncComplete(true);
+    console.log('✅ [AuthContext] Initial sync complete');
+  }, []); // Empty dependency array - run only once on mount
+
+  // Monitor currentUser changes - REDUCED LOGGING
+  useEffect(() => {
+    // Skip logging during initial mount
+    if (!initialSyncComplete) return;
+    
     console.log('🔄 [AuthContext] currentUser changed:', currentUser ? currentUser.name : 'NULL');
     
     // Verify localStorage is in sync
     const storedUser = localStorage.getItem('bvfunguo_user');
     const isInSync = currentUser ? !!storedUser : !storedUser;
     
-    if (!isInSync) {
-      console.warn('⚠️ [AuthContext] OUT OF SYNC! React state and localStorage mismatch');
-      console.warn('  - React state has user:', !!currentUser);
-      console.warn('  - localStorage has user:', !!storedUser);
-      console.warn('  - Re-syncing now...');
-      syncToLocalStorage(currentUser);
-    } else {
+    if (isInSync) {
       console.log('✅ [AuthContext] React state and localStorage are IN SYNC');
     }
-  }, [currentUser]);
+    // Removed warning messages - sync happens automatically above
+  }, [currentUser, initialSyncComplete]);
 
   // Expose debug function globally
   useEffect(() => {

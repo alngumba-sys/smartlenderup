@@ -24,6 +24,11 @@ export async function loadDisbursementPrincipals(organizationId: string): Promis
       .eq('organization_id', organizationId);
     
     if (loansError) {
+      // Handle table not found gracefully
+      if (loansError.code === 'PGRST205' || loansError.code === '42P01') {
+        console.log('ℹ️ Loans table not found - returning empty disbursement map');
+        return new Map();
+      }
       console.error('❌ Error loading loans:', loansError);
       return new Map();
     }
@@ -44,14 +49,19 @@ export async function loadDisbursementPrincipals(organizationId: string): Promis
     console.log(`📋 Created loan ID map with ${loanIdToNumber.size} entries`);
     
     // Query journal entries for loan disbursements
-    // These entries have source_type = 'Loan Disbursement' and contain the loan ID in source_id
+    // ✅ FIXED: source_id column doesn't exist - use reference column instead
     const { data: journalEntries, error } = await supabase
       .from('journal_entries')
-      .select('id, source_id, source_type, description, entry_date')
+      .select('id, reference, source_type, description, entry_date')
       .eq('organization_id', organizationId)
       .eq('source_type', 'Loan Disbursement');
     
     if (error) {
+      // Handle table not found gracefully
+      if (error.code === 'PGRST205' || error.code === '42P01' || error.code === '42703') {
+        console.log('ℹ️ Journal entries table not found or column missing - returning empty disbursement map');
+        return new Map();
+      }
       console.error('❌ Error loading journal entries:', error);
       return new Map();
     }
@@ -72,6 +82,11 @@ export async function loadDisbursementPrincipals(organizationId: string): Promis
         .in('journal_entry_id', journalEntryIds);
       
       if (linesError) {
+        // Handle table not found gracefully
+        if (linesError.code === 'PGRST205' || linesError.code === '42P01') {
+          console.log('ℹ️ Journal entry lines table not found - returning empty disbursement map');
+          return new Map();
+        }
         console.error('❌ Error loading journal entry lines:', linesError);
         return new Map();
       }
@@ -102,12 +117,13 @@ export async function loadDisbursementPrincipals(organizationId: string): Promis
       console.log(`📊 Journal Entry to Principal map has ${journalEntryToPrincipal.size} entries`);
       
       // Now map journal entries to loan numbers and extract principals
+      // ✅ FIXED: Use 'reference' column instead of 'source_id'
       journalEntries.forEach((entry: any) => {
-        if (entry.source_id && entry.id) {
+        if (entry.reference && entry.id) {
           const principal = journalEntryToPrincipal.get(entry.id);
-          const loanNumber = loanIdToNumber.get(entry.source_id);
+          const loanNumber = loanIdToNumber.get(entry.reference);
           
-          console.log(`  🔗 Journal Entry ${entry.id} -> Loan ID ${entry.source_id} -> Loan Number ${loanNumber} -> Principal ${principal}`);
+          console.log(`  🔗 Journal Entry ${entry.id} -> Loan ID ${entry.reference} -> Loan Number ${loanNumber} -> Principal ${principal}`);
           
           if (principal && loanNumber) {
             // If multiple disbursements for same loan, sum them

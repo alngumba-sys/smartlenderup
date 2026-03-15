@@ -1,4 +1,4 @@
-import { FileText, Upload, Download, Eye, Trash2, Filter, FolderOpen, Image, File, Search, User, Users } from 'lucide-react';
+import { FileText, Upload, Trash2, Download, Eye, Search, Filter, Calendar, User, Edit, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -27,9 +27,6 @@ export function DocumentsTab() {
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'grid' | 'client'>('table');
 
-  console.log('DocumentsTab - loanDocuments:', loanDocuments);
-  console.log('DocumentsTab - loans:', loans);
-  console.log('DocumentsTab - clients:', clients);
 
   // Transform loan documents to match the Document interface
   const transformedDocuments: Document[] = loanDocuments.map(doc => {

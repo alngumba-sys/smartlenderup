@@ -1,0 +1,54 @@
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║                    WEBASSEMBLY FIX                           ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+
+I EXCLUDED @supabase/supabase-js FROM VITE OPTIMIZATION
+(This prevents the WASM error)
+
+
+NOW RUN THIS:
+
+
+Mac/Linux:
+    chmod +x FIX_NOW.sh && ./FIX_NOW.sh
+
+
+Windows:
+    FIX_NOW.bat
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+WHAT THIS DOES:
+
+1. Kills Node
+2. Deletes .vite cache folder
+3. Starts dev server
+
+
+Takes 15 seconds.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+THEN:
+
+Open http://localhost:5173
+
+If still broken in browser → Press F12 → Hard reload
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+              ./FIX_NOW.sh    (Mac/Linux)
+                    OR
+               FIX_NOW.bat    (Windows)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { DollarSign, TrendingUp, Users, Calculator, Save, Edit2, FileText, UserPlus, Settings, Trash2, Search, Filter, Calendar, Plus } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { getCurrencyCode } from '../../utils/currencyUtils';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { AddPayeeModal } from '../modals/AddPayeeModal';
 import { StaffAssignmentsModal } from '../modals/StaffAssignmentsModal';

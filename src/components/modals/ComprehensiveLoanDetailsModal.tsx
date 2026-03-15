@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useData } from '../../contexts/DataContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { generateInstallments } from '../../data/dummyData';
 import { getCurrencyCode, formatCurrency } from '../../utils/currencyUtils';
 import { RecordPaymentModal } from './RecordPaymentModal';
@@ -212,10 +212,8 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
     ? Math.floor((today.getTime() - nextDue.getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
-  // Calculate credit score (simple example)
-  const creditScore = loan.status === 'Active' && totalPaid > 0 ? 
-    Math.min(850, 300 + Math.floor((totalPaid / loan.principalAmount) * 550)) : 
-    loan.status === 'Paid' ? 850 : 650;
+  // ✅ FIXED: Use client's actual credit score from Credit Scoring tab (single source of truth)
+  const creditScore = client.creditScore || 300;
 
   // Calculate risk rating
   const getRiskRating = () => {

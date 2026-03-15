@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Key, Phone, Eye, EyeOff, Shield } from 'lucide-react';
 import { supabase } from '../supabaseClient';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { getOrganizationId } from '../utils/organizationUtils';
 import { showDatabaseError } from '../utils/toastUtils';
 

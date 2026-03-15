@@ -3,7 +3,7 @@ import { Save, Globe, DollarSign, Shield, Bell, Mail, Database, Clock, RefreshCw
 import { db } from '../../utils/database';
 import { SchemaMigrationPanel } from '../SchemaMigrationPanel';
 import { migrateAllOrganizations } from '../../utils/migrateProjectStatesToTables';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { showDatabaseError } from '../../utils/toastUtils';
 

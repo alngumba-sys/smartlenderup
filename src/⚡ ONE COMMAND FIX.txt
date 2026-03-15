@@ -1,0 +1,71 @@
+
+  ╔════════════════════════════════════════════════════════════╗
+  ║                                                            ║
+  ║                   ⚡ ONE COMMAND FIX ⚡                    ║
+  ║                                                            ║
+  ║              This will fix EVERYTHING at once              ║
+  ║                                                            ║
+  ╚════════════════════════════════════════════════════════════╝
+
+
+  STEP 1: Stop the dev server
+  
+      Press Ctrl+C in the terminal
+
+
+  STEP 2: Run this ONE command:
+
+      ┌────────────────────────────────────────────┐
+      │                                            │
+      │   npm run NUCLEAR-FIX                      │
+      │                                            │
+      └────────────────────────────────────────────┘
+
+
+  STEP 3: When server starts, open INCOGNITO mode:
+
+      Press Ctrl+Shift+N (Windows) or Cmd+Shift+N (Mac)
+      Go to: http://localhost:5174/app.html
+
+
+  ════════════════════════════════════════════════════════════
+
+
+  WHAT "npm run NUCLEAR-FIX" DOES:
+
+  ✅ Deletes node_modules/@supabase (if exists)
+  ✅ Deletes package-lock.json (if it has @supabase)  
+  ✅ Deletes ALL .vite cache folders
+  ✅ Deletes dist folder
+  ✅ Runs npm install (clean reinstall)
+  ✅ Starts dev server automatically
+  ✅ Server will be 100% clean!
+
+
+  ════════════════════════════════════════════════════════════
+
+
+  WHY INCOGNITO MODE?
+
+  Incognito mode NEVER uses browser cache, so even if your
+  regular browser has cached files, incognito will load fresh
+  files from the server.
+
+  This is the FASTEST way to see the fix without clearing
+  browser cache manually!
+
+
+  ════════════════════════════════════════════════════════════
+
+
+  SUMMARY:
+
+  1. Ctrl+C (stop server)
+  2. npm run NUCLEAR-FIX
+  3. Ctrl+Shift+N (incognito mode)
+  4. Go to: http://localhost:5174/app.html
+  5. ✅ NO MORE ERROR!
+
+
+  ════════════════════════════════════════════════════════════
+

@@ -20,9 +20,24 @@ const NavigationContext = createContext<NavigationContextType | undefined>(undef
 export function NavigationProvider({ children }: { children: ReactNode }) {
   // Initialize with the first visible tab based on permissions
   const [activeTab, setActiveTab] = useState(() => {
+    // Debug: Check localStorage state during initialization
+    const userData = localStorage.getItem('bvfunguo_user');
+    console.log('🎯 NavigationProvider: Initializing...');
+    console.log('🎯 NavigationProvider: User data exists?', !!userData);
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        console.log('🎯 NavigationProvider: User:', user.name, user.role, user.userType);
+        console.log('🎯 NavigationProvider: Permissions:', user.permissions);
+      } catch (e) {
+        console.error('🎯 NavigationProvider: Error parsing user:', e);
+      }
+    }
+    
     const firstTab = getFirstVisibleTabRoute();
     console.log('🎯 NavigationProvider: Setting initial tab to', firstTab);
-    return firstTab;
+    // Ensure we always have a valid tab - default to 'dashboard' if empty
+    return firstTab || 'dashboard';
   });
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
@@ -34,7 +49,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     const handleStorageChange = () => {
       const firstTab = getFirstVisibleTabRoute();
       console.log('🔄 User permissions changed, updating tab to', firstTab);
-      setActiveTab(firstTab);
+      setActiveTab(firstTab || 'dashboard');
     };
 
     // Listen for storage changes (when user logs in/out)

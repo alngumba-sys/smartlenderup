@@ -14,7 +14,7 @@ interface LoanRolloverModalProps {
 
 export function LoanRolloverModal({ isOpen, onClose, loanId }: LoanRolloverModalProps) {
   const { loans, clients, refreshData } = useData();
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   const currencyCode = getCurrencyCode();
   
   const loan = loans.find(l => l.id === loanId);
@@ -55,7 +55,7 @@ export function LoanRolloverModal({ isOpen, onClose, loanId }: LoanRolloverModal
   };
 
   const handleSubmit = async () => {
-    if (!user) {
+    if (!currentUser) {
       toast.error('User not authenticated');
       return;
     }

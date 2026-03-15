@@ -1,145 +1,126 @@
-# Quick Fix Guide - SmartLenderUp Platform
+# Quick Fix Guide for Loan Creation Error
 
-## 🚨 Immediate Action Required
-
-### Issue 1: Payees Not Saving ❌
-
-**Symptom:** Error message "Could not find the 'contact_email' column of 'payees'" OR "Could not find the 'contact_phone' column of 'payees'"
-
-**Fix:** Run this SQL in Supabase SQL Editor (copy and paste all at once):
-
-```sql
--- Add all missing columns to payees table (INCLUDING contact_phone)
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS contact_phone TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS contact_email TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'Other';
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS contact_person TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS physical_address TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS kra_pin TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS bank_name TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS account_number TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS mpesa_number TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS notes TEXT;
-ALTER TABLE payees ADD COLUMN IF NOT EXISTS total_paid NUMERIC DEFAULT 0;
+## Current Error
+```
+PGRST204: Could not find the 'disbursement_reference' column of 'loans' in the schema cache
 ```
 
-**Important:** Run ALL the ALTER TABLE commands at once. Don't run the constraint section - it's optional.
+## Root Cause
+Your Supabase database is missing several columns that the application expects.
 
-**Verification:** Try creating a new payee - should work without errors.
+## SOLUTION (Choose ONE):
 
----
+### ✅ OPTION 1: Add Missing Columns (RECOMMENDED)
 
-### Issue 2: Portfolio by Product Chart Empty 📊
+**Step 1:** Run this SQL in your Supabase SQL Editor:
 
-**Symptom:** Chart shows "No active loans with outstanding balances for existing products"
+Go to `/CHECK_AND_ADD_MISSING_COLUMNS.sql` and run it in Supabase.
 
-**Diagnosis:** Run this SQL to check if loans match products:
+This will:
+- Show you what columns currently exist
+- Add any missing columns automatically
+- Verify everything is correct
 
-```sql
--- Check if product IDs match
-SELECT 
-    l.loan_number,
-    l.product_id AS loan_product_id,
-    p.product_name,
-    CASE 
-        WHEN p.id IS NULL THEN '❌ NO MATCH'
-        ELSE '✅ MATCH'
-    END AS status
-FROM loans l
-LEFT JOIN products p ON l.product_id = p.id
-WHERE l.organization_id = (SELECT id FROM organizations LIMIT 1);
-```
+**Step 2:** Refresh Supabase Schema Cache
+1. Go to Supabase Dashboard → **API**
+2. Click **"Refresh schema cache"**
+3. Wait 30 seconds
 
-**Fix (if loans don't match products):**
-
-1. Get your product ID:
-```sql
-SELECT id, product_name FROM products;
-```
-
-2. Update loans with the correct product ID:
-```sql
--- REPLACE 'your-product-id-here' with actual product ID from step 1
-UPDATE loans
-SET product_id = 'your-product-id-here'
-WHERE product_id NOT IN (SELECT id FROM products);
-```
-
-**Verification:** Refresh the dashboard - Portfolio by Product should now show data.
+**Step 3:** Try creating a loan again
 
 ---
 
-### Issue 3: Loan Product Statistics Showing Zeros 📉
+### ⚙️ OPTION 2: Use Minimal Columns Only (If Option 1 doesn't work)
 
-**Symptom:** Product cards show "Total Loans: 0, Active: 0, Disbursed: KES 0"
+If you can't add columns, the code has been updated to only use core required fields.
 
-**This is the same issue as #2** - If loans don't have matching product IDs, they won't show in product statistics.
+**What changed:**
+- Removed optional fields that don't exist in your database
+- Only uses: `principal_amount`, `interest_rate`, `duration_months`, `status`, `total_amount`, `monthly_installment`, `outstanding_balance`, `paid_amount`
 
-**Fix:** Same as Issue #2 above - update loans to have correct product IDs.
-
----
-
-## 📝 Complete SQL Scripts
-
-For detailed SQL queries and diagnosis, see:
-- `/SQL_QUERIES_PAYEES_FIX.sql` - Complete payees table fixes
-- `/SQL_QUERIES_PORTFOLIO_DIAGNOSIS.sql` - Detailed portfolio diagnostics
+**To enable more fields later:** Uncomment lines in `/services/supabaseDataService.ts` around line 858-863 after adding those columns to your database.
 
 ---
 
-## ✅ Verification Checklist
+## What Columns Your Database Needs
 
-After running the SQL queries above:
+### ✅ CORE REQUIRED (Must have):
+- `id` (UUID PRIMARY KEY)
+- `organization_id` (UUID)
+- `client_id` (UUID)
+- `principal_amount` (DECIMAL)
+- `interest_rate` (DECIMAL)
+- `duration_months` (INTEGER)
+- `status` (TEXT)
+- `total_amount` (DECIMAL)
+- `monthly_installment` (DECIMAL)
+- `outstanding_balance` (DECIMAL)
+- `paid_amount` (DECIMAL)
 
-- [ ] Payees can be created without errors
-- [ ] Portfolio by Product chart shows loan distribution
-- [ ] Loan Product cards show correct Total Loans count
-- [ ] Loan Product cards show correct Active loans count
-- [ ] Loan Product cards show correct Disbursed amount
-- [ ] No console errors about missing columns
-- [ ] No console warnings about product ID mismatches
+### 🔧 OPTIONAL (Nice to have):
+- `loan_number` (TEXT)
+- `loan_product_id` (UUID)
+- `loan_officer_id` (UUID)
+- `purpose` (TEXT)
+- `application_date` (DATE/TIMESTAMP)
+- `processing_fee` (DECIMAL)
+- `insurance_fee` (DECIMAL)
+- `notes` (TEXT)
+- `disbursement_method` (TEXT)
+- `disbursement_reference` (TEXT)
+- `first_payment_date` (DATE)
+- `maturity_date` (DATE)
+- `days_in_arrears` (INTEGER)
+- `approved_by` (UUID)
+- `approved_at` (TIMESTAMP)
+- `disbursed_by` (UUID)
+- `disbursed_at` (TIMESTAMP)
+- `reviewed_by` (UUID)
+- `reviewed_at` (TIMESTAMP)
+- `created_at` (TIMESTAMP)
+- `updated_at` (TIMESTAMP)
 
 ---
 
-## 🔍 How to Check Browser Console
+## Testing After Fix
 
-1. Open your app in Chrome/Firefox
-2. Press `F12` or right-click → Inspect
-3. Click "Console" tab
-4. Look for warnings like:
-   ```
-   ⚠️ PRODUCT ID MISMATCH DETECTED
+1. **Create a simple loan:**
+   - Client: Select any existing client
+   - Product: Select any existing product
+   - Amount: 50000
+   - Interest Rate: 7.5
+   - Term: 12 months
+
+2. **Check console for errors:**
+   - Should see "✅ Loan created successfully"
+   - No PGRST204 errors
+
+3. **Verify in Supabase:**
+   ```sql
+   SELECT * FROM loans ORDER BY created_at DESC LIMIT 1;
    ```
 
-If you see this warning, it means loans have product IDs that don't match any existing products. Use the SQL fix above to correct it.
+---
+
+## Still Not Working?
+
+If you still get PGRST204 errors after trying both options:
+
+1. **Copy the EXACT error message** from the console
+2. **Run this SQL to check your schema:**
+   ```sql
+   SELECT column_name, data_type 
+   FROM information_schema.columns 
+   WHERE table_name = 'loans' 
+   ORDER BY ordinal_position;
+   ```
+3. **Compare with the column list above**
+4. **Add the missing column** or tell me which column is causing the error
 
 ---
 
-## 📞 Still Having Issues?
-
-1. Check that loans have status: `Active`, `Disbursed`, or `In Arrears`
-2. Verify organization_id matches in both loans and products tables
-3. Ensure at least one loan has `outstanding_balance > 0`
-4. Check browser console for specific error messages
-
----
-
-## 🎯 Summary
-
-**Root Cause of All Issues:**
-1. Missing database columns (payees table)
-2. Product ID mismatches (loans referencing non-existent products)
-
-**Solution:**
-1. Run the payees SQL fix (5 minutes)
-2. Run the portfolio diagnosis SQL (5 minutes)
-3. Fix any product ID mismatches found
-4. Refresh the app
-
-**Total Time:** ~15 minutes
-
----
-
-Last Updated: 2026-01-03
-Platform: SmartLenderUp
-Environment: Production
+## Files Modified
+- ✅ `/services/supabaseDataService.ts` - Simplified loan creation
+- ✅ `/CHECK_AND_ADD_MISSING_COLUMNS.sql` - SQL to add missing columns
+- ✅ `/QUICK_FIX_GUIDE.md` - This guide
+- ✅ `/LOAN_SCHEMA_FIX_DOCUMENTATION.md` - Complete technical documentation

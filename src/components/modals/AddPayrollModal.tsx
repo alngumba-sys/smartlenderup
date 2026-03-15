@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useData, PayrollEmployee } from '../../contexts/DataContext';
 import { getCurrencyCode, getMobileMoneyProviders } from '../../utils/currencyUtils';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
 import { AddPayeeModal } from './AddPayeeModal';
 

@@ -17,7 +17,6 @@ export function GroupsTab() {
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
 
   const handleNewGroup = (groupData: any) => {
-    console.log('New group created:', groupData);
     
     // Create the complete group object
     const newGroup = {

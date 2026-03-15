@@ -1,0 +1,61 @@
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║         🔴 STILL SEEING WEBASSEMBLY ERROR? 🔴                   ║
+║                                                                  ║
+║         Copy and paste this into your browser console:          ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+
+(async function() {
+  console.log('🧹 Clearing all caches...');
+  
+  // Clear service workers
+  if ('serviceWorker' in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    for (let registration of registrations) {
+      await registration.unregister();
+      console.log('✅ Service worker unregistered');
+    }
+  }
+  
+  // Clear all caches
+  if ('caches' in window) {
+    const names = await caches.keys();
+    for (let name of names) {
+      await caches.delete(name);
+      console.log('✅ Cache deleted:', name);
+    }
+  }
+  
+  console.log('✅ DONE! Now reloading...');
+  
+  // Wait a moment then reload
+  setTimeout(() => {
+    location.reload(true);
+  }, 1000);
+})();
+
+
+═══════════════════════════════════════════════════════════════════
+
+HOW TO USE:
+
+1. Open browser DevTools (press F12)
+2. Click "Console" tab
+3. Copy the ENTIRE script above (starting with "(async")
+4. Paste it into the console
+5. Press Enter
+6. Page will reload automatically
+7. Error will be GONE! ✅
+
+═══════════════════════════════════════════════════════════════════
+
+OR EVEN EASIER:
+
+Just press Ctrl+Shift+N (or Cmd+Shift+N on Mac) and visit:
+http://localhost:5174
+
+Incognito mode has no cache = no error!
+
+═══════════════════════════════════════════════════════════════════

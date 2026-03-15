@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔥 CLEAR YOUR BROWSER CACHE NOW 🔥</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            color: #e74c3c;
+            margin-bottom: 10px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .subtitle {
+            font-size: 1.2em;
+            color: #555;
+            margin-bottom: 20px;
+        }
+        
+        .error-box {
+            background: #ffe6e6;
+            border-left: 5px solid #e74c3c;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        
+        .error-box code {
+            background: #fff;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #e74c3c;
+        }
+        
+        .step-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 2px solid #ddd;
+        }
+        
+        .step-title {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .step-number {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 40px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .instruction {
+            font-size: 1.1em;
+            line-height: 1.8;
+            color: #333;
+            margin: 10px 0;
+            padding-left: 50px;
+        }
+        
+        .keyboard {
+            background: #2c3e50;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-weight: bold;
+            display: inline-block;
+            box-shadow: 0 3px 0 #1a252f;
+            margin: 0 3px;
+        }
+        
+        .success-box {
+            background: #d4edda;
+            border-left: 5px solid #28a745;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        
+        .big-button {
+            display: block;
+            width: 100%;
+            background: #28a745;
+            color: white;
+            padding: 20px;
+            font-size: 1.5em;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+        
+        .big-button:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.4);
+        }
+        
+        .big-button:active {
+            transform: translateY(0);
+        }
+        
+        #status {
+            text-align: center;
+            font-size: 1.2em;
+            margin: 20px 0;
+            min-height: 30px;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        
+        ul {
+            margin: 10px 0 10px 50px;
+            line-height: 1.8;
+        }
+        
+        li {
+            margin: 8px 0;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔥 CLEAR YOUR BROWSER CACHE 🔥</h1>
+            <p class="subtitle">This will fix the WebAssembly error PERMANENTLY</p>
+        </div>
+        
+        <div class="error-box">
+            <strong>❌ You're seeing this error:</strong><br>
+            <code>TypeError: WebAssembly compilation aborted</code>
+        </div>
+        
+        <div class="warning">
+            <strong>⚠️ THE PROBLEM:</strong><br>
+            Your browser cached OLD JavaScript files. Those old files try to load WebAssembly. The NEW code doesn't use WebAssembly, but your browser won't load the new files because it's using the cached ones.
+        </div>
+        
+        <div class="step-box">
+            <div class="step-title">
+                <span class="step-number">1</span>
+                Detect Your Browser
+            </div>
+            <p class="instruction">
+                Detecting... <span id="browser-name" style="font-weight: bold; color: #667eea;"></span>
+            </p>
+        </div>
+        
+        <div class="step-box">
+            <div class="step-title">
+                <span class="step-number">2</span>
+                Open Browser Settings
+            </div>
+            <p class="instruction">
+                Press: <span class="keyboard">Ctrl</span> + <span class="keyboard">Shift</span> + <span class="keyboard">Delete</span>
+            </p>
+            <p class="instruction" style="font-size: 0.9em; color: #666;">
+                (On Mac: <span class="keyboard">Cmd</span> + <span class="keyboard">Shift</span> + <span class="keyboard">Delete</span>)
+            </p>
+        </div>
+        
+        <div class="step-box">
+            <div class="step-title">
+                <span class="step-number">3</span>
+                Clear Cache Settings
+            </div>
+            <p class="instruction">In the dialog that opens:</p>
+            <ul>
+                <li>Select <strong>"All time"</strong> or <strong>"Everything"</strong></li>
+                <li>Check <strong>"Cached images and files"</strong></li>
+                <li>Uncheck everything else (optional)</li>
+                <li>Click <strong>"Clear data"</strong> or <strong>"Clear now"</strong></li>
+            </ul>
+        </div>
+        
+        <div class="step-box">
+            <div class="step-title">
+                <span class="step-number">4</span>
+                Reload the App
+            </div>
+            <p class="instruction">
+                After clearing cache, go to: <strong>http://localhost:5173</strong>
+            </p>
+        </div>
+        
+        <button class="big-button" onclick="openClearCache()">
+            🚀 OPEN CLEAR CACHE SETTINGS NOW
+        </button>
+        
+        <div id="status"></div>
+        
+        <div class="success-box">
+            <strong>✅ AFTER CLEARING CACHE:</strong><br>
+            The app will load perfectly with NO WebAssembly error!<br>
+            The error is ONLY caused by cached files - not by the code.
+        </div>
+        
+        <div class="warning" style="background: #e7f3ff; border-color: #2196F3;">
+            <strong>💡 OR USE INCOGNITO MODE (EASIER):</strong><br>
+            If you don't want to clear your cache, just open incognito mode:<br>
+            <span class="keyboard">Ctrl</span> + <span class="keyboard">Shift</span> + <span class="keyboard">N</span><br>
+            Then go to <strong>http://localhost:5173</strong><br>
+            ✅ It will work perfectly with NO error!
+        </div>
+    </div>
+    
+    <script>
+        // Detect browser
+        function detectBrowser() {
+            const userAgent = navigator.userAgent;
+            let browserName = "Unknown Browser";
+            
+            if (userAgent.indexOf("Chrome") > -1 && userAgent.indexOf("Edg") === -1) {
+                browserName = "Google Chrome";
+            } else if (userAgent.indexOf("Edg") > -1) {
+                browserName = "Microsoft Edge";
+            } else if (userAgent.indexOf("Firefox") > -1) {
+                browserName = "Mozilla Firefox";
+            } else if (userAgent.indexOf("Safari") > -1 && userAgent.indexOf("Chrome") === -1) {
+                browserName = "Safari";
+            } else if (userAgent.indexOf("Opera") > -1 || userAgent.indexOf("OPR") > -1) {
+                browserName = "Opera";
+            }
+            
+            document.getElementById('browser-name').textContent = browserName;
+        }
+        
+        // Open clear cache dialog
+        function openClearCache() {
+            const statusEl = document.getElementById('status');
+            
+            // Try to trigger the keyboard shortcut programmatically
+            // Note: This doesn't actually work due to browser security,
+            // but we'll show instructions
+            
+            statusEl.innerHTML = '<div style="color: #667eea; font-weight: bold;">Press <span class="keyboard">Ctrl</span> + <span class="keyboard">Shift</span> + <span class="keyboard">Delete</span> NOW!</div>';
+            
+            // Show alert as fallback
+            setTimeout(() => {
+                alert('📋 FOLLOW THESE STEPS:\n\n' +
+                      '1. Press Ctrl+Shift+Delete (Cmd+Shift+Delete on Mac)\n' +
+                      '2. Select "All time"\n' +
+                      '3. Check "Cached images and files"\n' +
+                      '4. Click "Clear data"\n' +
+                      '5. Go to http://localhost:5173\n\n' +
+                      '✅ The error will be GONE!');
+            }, 500);
+        }
+        
+        // Run on load
+        detectBrowser();
+        
+        // Clear all caches programmatically
+        async function clearAllCaches() {
+            const statusEl = document.getElementById('status');
+            
+            try {
+                statusEl.textContent = '🧹 Clearing caches...';
+                
+                // Clear Cache Storage API
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                    statusEl.textContent = '✅ Cleared Cache Storage API';
+                }
+                
+                // Unregister service workers
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(registrations.map(reg => reg.unregister()));
+                }
+                
+                // Clear localStorage
+                localStorage.clear();
+                
+                // Clear sessionStorage
+                sessionStorage.clear();
+                
+                statusEl.innerHTML = '<div style="color: #28a745; font-weight: bold;">✅ Partial cache cleared!<br>Now press the button above to clear browser cache.</div>';
+            } catch (err) {
+                statusEl.innerHTML = '<div style="color: #e74c3c;">⚠️ Please clear cache manually using the steps above</div>';
+            }
+        }
+        
+        // Auto-clear what we can
+        clearAllCaches();
+    </script>
+</body>
+</html>

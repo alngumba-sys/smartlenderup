@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS organizations (
   number_of_employees INTEGER,
   expected_clients INTEGER,
   description TEXT,
+  password_hash TEXT,
+  username VARCHAR(100),
+  status VARCHAR(20) DEFAULT 'active',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

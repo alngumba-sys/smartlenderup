@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { Pencil, Trash2, TrendingUp, Users, DollarSign, AlertTriangle, Link2, Package, Sparkles } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Pencil, Trash2, TrendingUp, Users, DollarSign, AlertTriangle, Link2, Package, Sparkles, Trash, LayoutGrid, Table } from 'lucide-react';
 import { AddLoanProductModal } from '../modals/AddLoanProductModal';
 import { DeleteLoanProductModal } from '../modals/DeleteLoanProductModal';
 import { EditLoanProductModal } from '../modals/EditLoanProductModal';
 import { LinkLoansToProductModal } from '../modals/LinkLoansToProductModal';
 import { ProductLoansModal } from '../modals/ProductLoansModal';
+import { DuplicateWarningBanner } from '../DuplicateWarningBanner';
+import { ProductsTableView } from '../ProductsTableView';
 import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,6 +21,7 @@ export function LoanProductsTab() {
   const [productToEdit, setProductToEdit] = useState<any>(null);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
 
   // Get currency symbol based on organization currency
   const getCurrencySymbol = (currency: string): string => {
@@ -304,28 +307,69 @@ export function LoanProductsTab() {
 
   return (
     <>
+      <DuplicateWarningBanner />
       <div className={`rounded-lg ${isDark ? 'bg-gray-800' : 'bg-white'} shadow-sm p-6`}>
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Loan Products
-            </h2>
-            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
-              Manage your loan products with AI-powered insights
-            </p>
+        <div className="mb-6">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Loan Products
+              </h2>
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
+                Manage your loan products with AI-powered insights
+              </p>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap justify-end">
+              <button
+                onClick={() => {
+                  if (!canCreateInTab('operations_products')) {
+                    showPermissionError();
+                    return;
+                  }
+                  setShowAddModal(true);
+                }}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                + Add Product
+              </button>
+            </div>
           </div>
-          <button
-            onClick={() => {
-              if (!canCreateInTab('operations_products')) {
-                showPermissionError();
-                return;
-              }
-              setShowAddModal(true);
-            }}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            + Add Product
-          </button>
+          
+          {/* View Mode Toggle - Separate Row */}
+          <div className="flex items-center justify-end">
+            <div className={`inline-flex items-center rounded-lg p-1 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+              <button
+                onClick={() => setViewMode('card')}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'card'
+                    ? isDark
+                      ? 'bg-gray-600 text-white shadow-sm'
+                      : 'bg-white text-gray-900 shadow-sm'
+                    : isDark
+                    ? 'text-gray-400 hover:text-gray-300'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <LayoutGrid className="size-4" />
+                Card View
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'table'
+                    ? isDark
+                      ? 'bg-gray-600 text-white shadow-sm'
+                      : 'bg-white text-gray-900 shadow-sm'
+                    : isDark
+                    ? 'text-gray-400 hover:text-gray-300'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Table className="size-4" />
+                Table View
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* 🚨 DATA INTEGRITY WARNING */}
@@ -365,6 +409,22 @@ export function LoanProductsTab() {
             <p className="text-lg mb-2">No loan products yet</p>
             <p className="text-sm">Create your first loan product to get started</p>
           </div>
+        ) : viewMode === 'table' ? (
+          <ProductsTableView
+            products={validLoanProducts}
+            isDark={isDark}
+            formatCurrency={formatCurrency}
+            getProductMetrics={getProductMetrics}
+            onSelectProduct={(product) => setSelectedProduct(product)}
+            onEditProduct={(product) => {
+              if (!canEditInTab('operations_products')) {
+                showPermissionError();
+                return;
+              }
+              setProductToEdit(product);
+            }}
+            onDeleteProduct={handleDeleteProduct}
+          />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
             {validLoanProducts.map(product => {

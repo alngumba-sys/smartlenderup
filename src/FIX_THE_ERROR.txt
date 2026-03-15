@@ -1,0 +1,132 @@
+
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║         🔥 WEBASSEMBLY ERROR - RUN THIS COMMAND! 🔥          ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+
+YOU'RE SEEING THIS ERROR:
+───────────────────────────────────────────────────────────────
+
+    TypeError: WebAssembly compilation aborted
+    Network error: Response body loading was aborted
+
+
+THE INSTANT FIX (COPY AND PASTE THIS):
+───────────────────────────────────────────────────────────────
+
+    npm run fix-error
+
+
+THAT'S IT! Just run this ONE command and everything is fixed!
+
+
+WHAT IT DOES:
+───────────────────────────────────────────────────────────────
+
+    [1/4] Kills old server processes... ✅
+    [2/4] Deletes ALL Vite cache folders... ✅
+    [3/4] Clears npm cache... ✅
+    [4/4] Starts server on PORT 5174... ✅
+    
+    Then opens browser automatically at:
+    http://localhost:5174
+    
+    ✅ ERROR GONE!
+
+
+STEP BY STEP:
+───────────────────────────────────────────────────────────────
+
+    1. Open your terminal (Command Prompt / Terminal)
+    
+    2. Make sure you're in the project folder
+    
+    3. Copy and paste this command:
+    
+       npm run fix-error
+    
+    4. Press Enter
+    
+    5. Wait 10 seconds
+    
+    6. Browser opens automatically
+    
+    7. If browser doesn't open, press Ctrl+Shift+N and go to:
+       http://localhost:5174
+    
+    8. ✅ ERROR FIXED!
+
+
+WHY THIS WORKS:
+───────────────────────────────────────────────────────────────
+
+    The problem: Your browser cached old files on port 5173
+    
+    Those old files try to load WebAssembly code
+    
+    The solution: Port 5174 has NO cached files!
+    
+    Different port = Fresh start = NO ERROR!
+
+
+FROM NOW ON:
+───────────────────────────────────────────────────────────────
+
+    ❌ OLD: http://localhost:5173  (don't use this!)
+    
+    ✅ NEW: http://localhost:5174  (use this!)
+
+
+VERIFY IT WORKS:
+───────────────────────────────────────────────────────────────
+
+    After running the command:
+    
+    1. Browser opens to http://localhost:5174
+    
+    2. Press F12 to open DevTools
+    
+    3. Click Console tab
+    
+    4. You'll see:
+       ✅ "Loading app with MOCK Supabase"
+       ✅ "WebAssembly blocked"
+       ✅ NO errors!
+    
+    5. App loads perfectly!
+
+
+IF YOU PREFER MANUAL STEPS:
+───────────────────────────────────────────────────────────────
+
+    Step 1: Stop current server
+            Press Ctrl+C in terminal
+    
+    Step 2: Delete cache
+            Windows: del /q .vite*
+            Mac/Linux: rm -rf .vite*
+    
+    Step 3: Start server
+            npm run dev
+    
+    Step 4: Open incognito
+            Ctrl+Shift+N (or Cmd+Shift+N on Mac)
+    
+    Step 5: Go to
+            http://localhost:5174
+    
+    ✅ Done!
+
+
+═══════════════════════════════════════════════════════════════
+
+                    JUST RUN THIS:
+
+                    npm run fix-error
+
+                    THAT'S IT!
+
+═══════════════════════════════════════════════════════════════
+

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MINIMAL TEST - NO WASM</title>
+  
+  <!-- BLOCK CACHE -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    .box {
+      background: #2a2a2a;
+      padding: 30px;
+      border-radius: 12px;
+      margin: 20px 0;
+      border-left: 4px solid #4ade80;
+    }
+    .error { border-left-color: #ef4444; }
+    h1 { color: #4ade80; margin: 0 0 20px 0; }
+    code {
+      background: #1a1a1a;
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: #fbbf24;
+    }
+    .result { font-size: 24px; margin: 20px 0; }
+    .green { color: #4ade80; }
+    .red { color: #ef4444; }
+  </style>
+</head>
+<body>
+  <h1>🔬 MINIMAL WASM TEST</h1>
+  
+  <div class="box">
+    <h2>Test Environment</h2>
+    <p>This page loads <strong>ZERO libraries</strong> and <strong>ZERO external scripts</strong>.</p>
+    <p>If you see a WebAssembly error here, it's from <strong>browser cache</strong>.</p>
+  </div>
+  
+  <div id="results"></div>
+  
+  <script>
+    const results = document.getElementById('results');
+    let html = '';
+    
+    // Test 1: Check if WebAssembly exists
+    const wasmExists = typeof WebAssembly !== 'undefined';
+    html += `
+      <div class="box ${wasmExists ? 'error' : ''}">
+        <h2>${wasmExists ? '❌' : '✅'} Test 1: WebAssembly Object</h2>
+        <div class="result ${wasmExists ? 'red' : 'green'}">
+          ${wasmExists ? 'FAILED - WebAssembly exists!' : 'PASSED - WebAssembly is undefined'}
+        </div>
+        <p>Result: <code>typeof WebAssembly === "${wasmExists ? 'object' : 'undefined'}"</code></p>
+      </div>
+    `;
+    
+    // Test 2: Try to access WebAssembly.Module
+    let moduleTest = 'N/A';
+    try {
+      if (typeof WebAssembly !== 'undefined' && WebAssembly.Module) {
+        moduleTest = 'EXISTS';
+      } else {
+        moduleTest = 'BLOCKED';
+      }
+    } catch (e) {
+      moduleTest = 'BLOCKED';
+    }
+    
+    html += `
+      <div class="box ${moduleTest === 'EXISTS' ? 'error' : ''}">
+        <h2>${moduleTest === 'EXISTS' ? '❌' : '✅'} Test 2: WebAssembly.Module</h2>
+        <div class="result ${moduleTest === 'EXISTS' ? 'red' : 'green'}">
+          ${moduleTest === 'EXISTS' ? 'FAILED - Module exists!' : 'PASSED - Module blocked'}
+        </div>
+        <p>Result: <code>${moduleTest}</code></p>
+      </div>
+    `;
+    
+    // Test 3: Try to instantiate WASM
+    let instantiateTest = 'N/A';
+    try {
+      if (typeof WebAssembly !== 'undefined') {
+        const bytes = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
+        new WebAssembly.Module(bytes);
+        instantiateTest = 'CREATED';
+      } else {
+        instantiateTest = 'BLOCKED';
+      }
+    } catch (e) {
+      instantiateTest = 'BLOCKED';
+    }
+    
+    html += `
+      <div class="box ${instantiateTest === 'CREATED' ? 'error' : ''}">
+        <h2>${instantiateTest === 'CREATED' ? '❌' : '✅'} Test 3: WASM Instantiation</h2>
+        <div class="result ${instantiateTest === 'CREATED' ? 'red' : 'green'}">
+          ${instantiateTest === 'CREATED' ? 'FAILED - WASM module created!' : 'PASSED - Cannot create WASM'}
+        </div>
+        <p>Result: <code>${instantiateTest}</code></p>
+      </div>
+    `;
+    
+    // Final result
+    const allPassed = !wasmExists && moduleTest === 'BLOCKED' && instantiateTest === 'BLOCKED';
+    
+    html += `
+      <div class="box ${allPassed ? '' : 'error'}">
+        <h2 style="color: ${allPassed ? '#4ade80' : '#ef4444'};">
+          ${allPassed ? '🎉 ALL TESTS PASSED!' : '⚠️ SOME TESTS FAILED'}
+        </h2>
+        <div class="result ${allPassed ? 'green' : 'red'}">
+          ${allPassed 
+            ? 'WebAssembly is completely blocked. No WASM errors will occur!' 
+            : 'WebAssembly is NOT blocked. This could cause errors.'}
+        </div>
+        ${!allPassed ? `
+          <div style="margin-top: 20px; padding: 20px; background: #1a1a1a; border-radius: 8px;">
+            <h3 style="color: #fbbf24; margin-top: 0;">🔧 HOW TO FIX:</h3>
+            <ol style="line-height: 1.8;">
+              <li>This page has NO libraries, so the error is from <strong>index.html</strong> not loading correctly</li>
+              <li>Press <code>Ctrl+Shift+R</code> to hard refresh</li>
+              <li>Or press <code>Ctrl+Shift+N</code> and test in incognito mode</li>
+              <li>If it works in incognito, clear your browser cache</li>
+            </ol>
+          </div>
+        ` : ''}
+      </div>
+    `;
+    
+    results.innerHTML = html;
+    
+    // Console output
+    console.log('%c🔬 MINIMAL WASM TEST RESULTS', 'font-size: 20px; font-weight: bold; color: #4ade80;');
+    console.log('WebAssembly exists:', wasmExists);
+    console.log('WebAssembly.Module:', moduleTest);
+    console.log('WASM instantiation:', instantiateTest);
+    console.log('All tests passed:', allPassed);
+    
+    if (allPassed) {
+      console.log('%c✅ SUCCESS - WebAssembly is completely blocked!', 'font-size: 16px; font-weight: bold; color: #4ade80;');
+    } else {
+      console.error('%c❌ FAILURE - WebAssembly is NOT blocked!', 'font-size: 16px; font-weight: bold; color: #ef4444;');
+      console.log('%c💡 FIX: Press Ctrl+Shift+R or test in incognito mode', 'font-size: 14px; color: #fbbf24;');
+    }
+  </script>
+</body>
+</html>

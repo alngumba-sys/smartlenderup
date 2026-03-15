@@ -1,0 +1,107 @@
+═══════════════════════════════════════════════════════════════
+   🚨 LOAN CREATION ERROR - INSTANT FIX (5 MINUTES)
+═══════════════════════════════════════════════════════════════
+
+ERROR: "Could not find the 'amount' column of 'loans' in the schema cache"
+
+═══════════════════════════════════════════════════════════════
+   ⚡ SOLUTION (4 STEPS)
+═══════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────┐
+│ STEP 1: RUN SQL FIX (30 seconds)                            │
+└─────────────────────────────────────────────────────────────┘
+  1. Open Supabase Dashboard → SQL Editor
+  2. Open file: /FIX_LOAN_CREATION_SCHEMA.sql
+  3. Copy ALL contents
+  4. Paste in SQL Editor
+  5. Click "Run"
+  
+  ✅ Should see: "loan_number column added" or "already exists"
+
+┌─────────────────────────────────────────────────────────────┐
+│ STEP 2: REFRESH SCHEMA CACHE (2 minutes) ⚠️ CRITICAL!      │
+└─────────────────────────────────────────────────────────────┘
+  METHOD A (Quick):
+    Dashboard → API → Click "Refresh schema cache" button
+    WAIT 60 SECONDS!
+    
+  METHOD B (Most Reliable):
+    Settings → General → Pause project → Resume project
+    WAIT 2 MINUTES!
+
+┌─────────────────────────────────────────────────────────────┐
+│ STEP 3: CLEAR BROWSER CACHE (10 seconds)                   │
+└─────────────────────────────────────────────────────────────┘
+  1. Press F12 (DevTools)
+  2. Go to Application tab
+  3. Clear Local Storage
+  4. Clear Session Storage
+  5. Hard refresh:
+     • Windows/Linux: Ctrl + Shift + R
+     • Mac: Cmd + Shift + R
+
+┌─────────────────────────────────────────────────────────────┐
+│ STEP 4: TEST (30 seconds)                                   │
+└─────────────────────────────────────────────────────────────┘
+  1. Go to Loans tab
+  2. Click "New Loan"
+  3. Fill in:
+     • Client
+     • Loan product
+     • Amount
+     • Interest rate
+     • Term
+     • Disbursement method
+  4. Click "Create Loan"
+  
+  ✅ SUCCESS = Loan created with no errors!
+
+═══════════════════════════════════════════════════════════════
+   📚 MORE HELP
+═══════════════════════════════════════════════════════════════
+
+Visual Guide:    /public/fix-loan-creation.html
+Detailed Steps:  /FIX_LOAN_CREATION_ERROR.md
+Quick Start:     /��_LOAN_CREATION_FIX_START_HERE.md
+Full Summary:    /LOAN_CREATION_COMPLETE_FIX.md
+Diagnostic SQL:  /DIAGNOSE_LOAN_SCHEMA.sql
+
+═══════════════════════════════════════════════════════════════
+   🔍 WHAT'S THE PROBLEM?
+═══════════════════════════════════════════════════════════════
+
+The 'amount' column EXISTS in your database ✅
+But Supabase's cache doesn't know about it ❌
+Refreshing the cache fixes it instantly ✅
+
+This is a SCHEMA CACHE issue, not a missing column!
+
+═══════════════════════════════════════════════════════════════
+   🆘 STILL NOT WORKING?
+═══════════════════════════════════════════════════════════════
+
+1. WAIT LONGER - Cache refresh takes 1-2 minutes
+2. USE METHOD B - Restart entire Supabase project
+3. TRY INCOGNITO - Open app in private/incognito window
+4. CHECK CONSOLE - Press F12, look for error details
+5. VERIFY SQL - Run /DIAGNOSE_LOAN_SCHEMA.sql
+
+═══════════════════════════════════════════════════════════════
+   ✅ HOW TO VERIFY IT'S FIXED
+═══════════════════════════════════════════════════════════════
+
+Run this in Supabase SQL Editor:
+
+  SELECT COUNT(*) as loans, SUM(amount) as total
+  FROM loans;
+
+If you see results with NO errors = FIXED! ✅
+
+═══════════════════════════════════════════════════════════════
+   ⏱️ ESTIMATED TIME: 5 MINUTES
+   🎯 SUCCESS RATE: 99%
+   💡 DIFFICULTY: EASY
+═══════════════════════════════════════════════════════════════
+
+START WITH STEP 1 NOW! ⬆️

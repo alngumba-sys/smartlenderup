@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { CurrencyDisplay } from '../CurrencyDisplay';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface ClientPaymentsTabProps {
   clientId: string;

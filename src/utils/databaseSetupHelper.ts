@@ -24,24 +24,24 @@ async function checkDatabaseSetup() {
       console.log('✅ contact_messages table exists');
     }
 
-    // Check pricing_config table and trial_days column
+    // Check pricing_configuration table and trial_days column
     const { data, error: pricingError } = await supabase
-      .from('pricing_config')
+      .from('pricing_configuration')
       .select('trial_days')
       .limit(1);
 
     if (pricingError) {
       if (pricingError.message.includes('column')) {
-        issues.push('❌ pricing_config.trial_days column is missing');
-        console.error('❌ pricing_config.trial_days column not found');
+        issues.push('❌ pricing_configuration.trial_days column is missing');
+        console.error('❌ pricing_configuration.trial_days column not found');
       } else if (pricingError.message.includes('does not exist')) {
-        issues.push('❌ pricing_config table is missing');
-        console.error('❌ pricing_config table not found');
+        issues.push('❌ pricing_configuration table is missing');
+        console.error('❌ pricing_configuration table not found');
       } else {
-        console.error('⚠️ pricing_config error:', pricingError.message);
+        console.error('⚠️ pricing_configuration error:', pricingError.message);
       }
     } else {
-      console.log('✅ pricing_config.trial_days column exists');
+      console.log('✅ pricing_configuration.trial_days column exists');
     }
 
   } catch (err) {

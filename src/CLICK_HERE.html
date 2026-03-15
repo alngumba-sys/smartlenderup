@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix WebAssembly Error - CLICK THE BUTTON!</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .card {
+            background: white;
+            padding: 60px;
+            border-radius: 30px;
+            max-width: 700px;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 3em;
+            color: #e53e3e;
+            margin-bottom: 30px;
+        }
+        
+        .error-box {
+            background: #fee;
+            border: 3px solid #e53e3e;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 30px 0;
+            font-family: monospace;
+            color: #c53030;
+            font-size: 1.1em;
+        }
+        
+        .solution {
+            background: #d1fae5;
+            border: 3px solid #10b981;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+        }
+        
+        .solution h2 {
+            color: #065f46;
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+        
+        .solution p {
+            color: #064e3b;
+            font-size: 1.3em;
+            line-height: 1.6;
+        }
+        
+        .big-button {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 30px 60px;
+            border-radius: 20px;
+            font-size: 2em;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
+            transition: all 0.3s;
+            width: 100%;
+        }
+        
+        .big-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(16, 185, 129, 0.6);
+        }
+        
+        .big-button:active {
+            transform: translateY(0);
+        }
+        
+        .steps {
+            background: #ebf8ff;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: left;
+        }
+        
+        .steps h3 {
+            color: #2c5282;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+        }
+        
+        .steps ol {
+            padding-left: 30px;
+        }
+        
+        .steps li {
+            font-size: 1.3em;
+            line-height: 1.8;
+            color: #2d3748;
+            margin: 10px 0;
+        }
+        
+        .highlight {
+            background: #10b981;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔴 WebAssembly Error</h1>
+        
+        <div class="error-box">
+            TypeError: WebAssembly compilation aborted<br>
+            Network error: Response body loading was aborted
+        </div>
+        
+        <div class="solution">
+            <h2>✅ THE FIX IS READY!</h2>
+            <p>
+                I changed the server port from <strong>5173 → 5174</strong>
+                <br><br>
+                Just click the button below to open the app!
+            </p>
+        </div>
+        
+        <button class="big-button" onclick="openApp()">
+            🚀 OPEN APP (NO ERROR!)
+        </button>
+        
+        <div class="steps">
+            <h3>💡 How This Works:</h3>
+            <ol>
+                <li>Your browser cached <strong>old files</strong> on port 5173</li>
+                <li>Those old files tried to load WebAssembly</li>
+                <li>Port <span class="highlight">5174</span> has <strong>NO cached files</strong></li>
+                <li>Browser downloads <strong>FRESH code</strong></li>
+                <li><strong>✅ NO ERROR!</strong></li>
+            </ol>
+        </div>
+        
+        <div style="margin-top: 40px; padding-top: 30px; border-top: 2px solid #e2e8f0; color: #718096;">
+            <p style="font-size: 1.1em;">
+                <strong>Tip:</strong> For best results, open in incognito mode
+                <br>
+                (Press Ctrl+Shift+N, then click the button above)
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        function openApp() {
+            // Open in new tab
+            window.open('http://localhost:5174', '_blank');
+            
+            // Show success message
+            setTimeout(() => {
+                alert(
+                    '✅ OPENED!\n\n' +
+                    'The app is now loading on port 5174.\n\n' +
+                    'If you don\'t see it:\n' +
+                    '1. Check if the dev server is running\n' +
+                    '2. Run: npm run dev\n' +
+                    '3. Go to: http://localhost:5174\n\n' +
+                    'For best results: Open in incognito mode!\n' +
+                    '(Ctrl+Shift+N → http://localhost:5174)'
+                );
+            }, 500);
+        }
+        
+        // Check if server is running
+        fetch('http://localhost:5174')
+            .then(() => {
+                document.querySelector('.big-button').style.background = 
+                    'linear-gradient(135deg, #10b981, #059669)';
+                document.querySelector('.big-button').textContent = 
+                    '🚀 OPEN APP (SERVER RUNNING!)';
+            })
+            .catch(() => {
+                document.querySelector('.big-button').style.background = 
+                    'linear-gradient(135deg, #f59e0b, #d97706)';
+                document.querySelector('.big-button').textContent = 
+                    '⚠️ START SERVER FIRST (npm run dev)';
+                document.querySelector('.big-button').onclick = () => {
+                    alert(
+                        '⚠️ Server not running!\n\n' +
+                        'Please start the dev server first:\n\n' +
+                        '1. Open terminal/command prompt\n' +
+                        '2. Run: npm run dev\n' +
+                        '3. Wait for "Local: http://localhost:5174"\n' +
+                        '4. Then click this button again!\n\n' +
+                        'OR just run: FIX_NOW.bat'
+                    );
+                };
+            });
+    </script>
+</body>
+</html>

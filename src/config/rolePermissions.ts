@@ -403,17 +403,28 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
 };
 
 export function getRolePermissions(roleName: string): RolePermissions {
-  // Check for custom role overrides in localStorage first
-  const customRoles = getCustomRoleOverrides();
-  if (customRoles[roleName]) {
-    return customRoles[roleName];
+  try {
+    // Check if we're in a browser environment properly to avoid SSR issues
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+      // Check for custom role overrides in localStorage first
+      const customRoles = getCustomRoleOverrides();
+      if (customRoles && customRoles[roleName]) {
+        return customRoles[roleName];
+      }
+    }
+    
+    // Return role permissions or default to Cashier
+    return ROLE_PERMISSIONS[roleName] || ROLE_PERMISSIONS['Cashier']; // Default to most restrictive
+  } catch (error) {
+    // console.warn('Error getting role permissions:', error);
+    // Return safe default
+    return ROLE_PERMISSIONS['Cashier'];
   }
-  
-  return ROLE_PERMISSIONS[roleName] || ROLE_PERMISSIONS['Cashier']; // Default to most restrictive
 }
 
 // Get all roles (system + custom)
 export function getAllRoles(): { id: string; name: string; type: 'System' | 'Custom'; permissions: RolePermissions }[] {
+  // Build system roles
   const systemRoles = Object.keys(ROLE_PERMISSIONS).map(name => ({
     id: name.toLowerCase().replace(/\s+/g, '_'),
     name,
@@ -421,37 +432,80 @@ export function getAllRoles(): { id: string; name: string; type: 'System' | 'Cus
     permissions: ROLE_PERMISSIONS[name]
   }));
   
-  const customRoles = getCustomRoleOverrides();
-  const customRolesList = Object.keys(customRoles).map(name => ({
-    id: name.toLowerCase().replace(/\s+/g, '_'),
-    name,
-    type: 'Custom' as const,
-    permissions: customRoles[name]
-  }));
+  // Try to get custom roles, but don't fail if we can't
+  // Check browser environment properly to avoid SSR issues
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+    return systemRoles;
+  }
   
-  return [...systemRoles, ...customRolesList];
+  try {
+    const customRoles = getCustomRoleOverrides();
+    if (customRoles && Object.keys(customRoles).length > 0) {
+      const customRolesList = Object.keys(customRoles).map(name => ({
+        id: name.toLowerCase().replace(/\s+/g, '_'),
+        name,
+        type: 'Custom' as const,
+        permissions: customRoles[name]
+      }));
+      return [...systemRoles, ...customRolesList];
+    }
+  } catch (error) {
+    // Silently ignore errors and just return system roles
+  }
+  
+  return systemRoles;
 }
 
 // Save custom role or override system role
 export function saveRolePermissions(roleName: string, permissions: RolePermissions, isCustom: boolean = false) {
-  const customRoles = getCustomRoleOverrides();
-  customRoles[roleName] = permissions;
-  localStorage.setItem('bvfunguo_custom_roles', JSON.stringify(customRoles));
+  // Safety check: ensure we're in a browser environment
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+    return;
+  }
+  
+  try {
+    const customRoles = getCustomRoleOverrides();
+    customRoles[roleName] = permissions;
+    localStorage.setItem('bvfunguo_custom_roles', JSON.stringify(customRoles));
+  } catch (e) {
+    // Silently fail on errors
+    return;
+  }
 }
 
 // Get custom role overrides from localStorage
 function getCustomRoleOverrides(): Record<string, RolePermissions> {
+  // Safety check: ensure we're in a browser environment
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+    return {};
+  }
+  
   try {
     const stored = localStorage.getItem('bvfunguo_custom_roles');
-    return stored ? JSON.parse(stored) : {};
-  } catch {
+    if (!stored) {
+      return {};
+    }
+    const parsed = JSON.parse(stored);
+    return parsed || {};
+  } catch (error) {
+    // Silently return empty object on any error
     return {};
   }
 }
 
 // Delete a custom role
 export function deleteCustomRole(roleName: string) {
-  const customRoles = getCustomRoleOverrides();
-  delete customRoles[roleName];
-  localStorage.setItem('bvfunguo_custom_roles', JSON.stringify(customRoles));
+  // Safety check: ensure we're in a browser environment
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+    return;
+  }
+  
+  try {
+    const customRoles = getCustomRoleOverrides();
+    delete customRoles[roleName];
+    localStorage.setItem('bvfunguo_custom_roles', JSON.stringify(customRoles));
+  } catch (e) {
+    // Silently fail on errors
+    return;
+  }
 }

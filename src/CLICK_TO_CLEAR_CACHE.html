@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔥 Clear Cache - Loan Fix</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+        
+        .emoji {
+            font-size: 64px;
+            margin-bottom: 20px;
+            display: block;
+        }
+        
+        p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            transition: transform 0.2s;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .button:active {
+            transform: translateY(0);
+        }
+        
+        .success {
+            background: #10b981;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .instructions {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .instructions h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .instructions code {
+            background: #e5e7eb;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .shortcut {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <span class="emoji">🔥</span>
+        <h1>Clear Browser Cache</h1>
+        <p><strong>Why?</strong> Your browser is using old code with the bug. The fix is ready, but you need to load the new version!</p>
+        
+        <div class="shortcut">
+            <h3>⚡ Fastest Method - Keyboard Shortcut</h3>
+            <p><strong>Windows/Linux:</strong> Press <code>Ctrl + Shift + R</code> or <code>Ctrl + F5</code></p>
+            <p><strong>Mac:</strong> Press <code>Cmd + Shift + R</code></p>
+        </div>
+        
+        <button class="button" onclick="openIncognito()">🕵️ Open in Incognito Mode</button>
+        <button class="button" onclick="clearAndReload()">🔄 Clear Cache & Reload</button>
+        <button class="button" onclick="showInstructions()">📖 Show Manual Instructions</button>
+        
+        <div class="success" id="success">
+            ✅ Cache cleared! The page will reload automatically in 2 seconds...
+        </div>
+        
+        <div class="instructions" id="instructions" style="display: none;">
+            <h3>Manual Cache Clear</h3>
+            <p><strong>Chrome / Edge / Brave:</strong></p>
+            <ol>
+                <li>Press <code>Ctrl + Shift + Delete</code> (Windows) or <code>Cmd + Shift + Delete</code> (Mac)</li>
+                <li>Select "All time" from time range</li>
+                <li>Check "Cached images and files"</li>
+                <li>Click "Clear data"</li>
+            </ol>
+            
+            <p><strong>Firefox:</strong></p>
+            <ol>
+                <li>Press <code>Ctrl + Shift + Delete</code> (Windows) or <code>Cmd + Shift + Delete</code> (Mac)</li>
+                <li>Select "Everything" from time range</li>
+                <li>Check "Cache"</li>
+                <li>Click "Clear Now"</li>
+            </ol>
+            
+            <p><strong>Safari:</strong></p>
+            <ol>
+                <li>Go to Safari → Preferences → Advanced</li>
+                <li>Check "Show Develop menu in menu bar"</li>
+                <li>Go to Develop → Empty Caches</li>
+            </ol>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p style="font-size: 14px; color: #999;">
+                <strong>What was fixed:</strong> Removed <code>duration_months</code> field that was causing PGRST204 error in <code>/services/supabaseDataService.ts</code>
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        function openIncognito() {
+            alert('🕵️ Please open an Incognito/Private window manually:\n\n' +
+                  'Chrome/Edge/Brave: Ctrl+Shift+N (Windows) or Cmd+Shift+N (Mac)\n' +
+                  'Firefox: Ctrl+Shift+P (Windows) or Cmd+Shift+P (Mac)\n' +
+                  'Safari: Cmd+Shift+N (Mac)\n\n' +
+                  'Then navigate to your app URL in the incognito window.');
+        }
+        
+        function clearAndReload() {
+            // Clear localStorage
+            localStorage.clear();
+            
+            // Clear sessionStorage
+            sessionStorage.clear();
+            
+            // Show success message
+            document.getElementById('success').style.display = 'block';
+            
+            // Reload with cache bypass after 2 seconds
+            setTimeout(function() {
+                // Use location.reload(true) to force cache bypass
+                window.location.reload(true);
+            }, 2000);
+        }
+        
+        function showInstructions() {
+            const instructions = document.getElementById('instructions');
+            if (instructions.style.display === 'none') {
+                instructions.style.display = 'block';
+            } else {
+                instructions.style.display = 'none';
+            }
+        }
+        
+        // Detect keyboard shortcut
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+Shift+R or Cmd+Shift+R
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'R') {
+                e.preventDefault();
+                clearAndReload();
+            }
+            
+            // Ctrl+F5
+            if (e.ctrlKey && e.key === 'F5') {
+                e.preventDefault();
+                clearAndReload();
+            }
+        });
+    </script>
+</body>
+</html>

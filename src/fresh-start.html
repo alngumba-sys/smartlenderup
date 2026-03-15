@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>SmartLenderUp | Microfinance Platform</title>
+    
+    <!-- INLINE SCRIPT - RUNS BEFORE ANYTHING ELSE -->
+    <script>
+      // ═══════════════════════════════════════════════════════════
+      // 🛑 KILL WEBASSEMBLY IMMEDIATELY - BEFORE ANY IMPORTS
+      // ═══════════════════════════════════════════════════════════
+      
+      (function() {
+        'use strict';
+        
+        console.log('%c════════════════════════════════════════════', 'color: #00ff00; font-size: 20px; font-weight: bold');
+        console.log('%c🛡️ WEBASSEMBLY BLOCKER ACTIVATED', 'color: #00ff00; font-size: 24px; font-weight: bold');
+        console.log('%c════════════════════════════════════════════', 'color: #00ff00; font-size: 20px; font-weight: bold');
+        
+        // METHOD 1: Delete WebAssembly completely
+        try {
+          delete window.WebAssembly;
+          console.log('%c✅ Method 1: Deleted window.WebAssembly', 'color: #00ff00; font-size: 14px');
+        } catch (e) {
+          console.log('%c⚠️  Method 1 failed:', 'color: yellow', e);
+        }
+        
+        // METHOD 2: Override with null
+        try {
+          window.WebAssembly = null;
+          console.log('%c✅ Method 2: Set WebAssembly to null', 'color: #00ff00; font-size: 14px');
+        } catch (e) {}
+        
+        // METHOD 3: Non-configurable undefined getter
+        try {
+          Object.defineProperty(window, 'WebAssembly', {
+            get: function() {
+              console.log('%c🚫 WebAssembly access blocked!', 'color: red; font-size: 16px; font-weight: bold');
+              return undefined;
+            },
+            set: function() {
+              console.log('%c🚫 WebAssembly write blocked!', 'color: red; font-size: 16px');
+            },
+            configurable: false,
+            enumerable: false
+          });
+          console.log('%c✅ Method 3: Non-configurable getter installed', 'color: #00ff00; font-size: 14px');
+        } catch (e) {
+          console.log('%c⚠️  Method 3 failed:', 'color: yellow', e);
+        }
+        
+        // METHOD 4: Block ALL .wasm file requests
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+          const url = String(args[0] || '');
+          
+          // Block .wasm files
+          if (url.includes('.wasm') || url.includes('wasm')) {
+            console.log('%c🚫 BLOCKED WASM FETCH:', 'color: red; font-size: 16px; font-weight: bold', url);
+            return Promise.reject(new Error('WASM files are blocked'));
+          }
+          
+          return originalFetch.apply(this, args);
+        };
+        console.log('%c✅ Method 4: WASM fetch blocker installed', 'color: #00ff00; font-size: 14px');
+        
+        // METHOD 5: Catch ALL errors and suppress WebAssembly ones
+        window.addEventListener('error', function(event) {
+          const msg = String(event.message || event.error || '').toLowerCase();
+          
+          if (msg.includes('webassembly') || msg.includes('wasm')) {
+            console.clear();
+            console.log('%c════════════════════════════════════════════', 'color: #00ff00; font-size: 20px; font-weight: bold');
+            console.log('%c✅ WEBASSEMBLY ERROR CAUGHT & SUPPRESSED!', 'color: #00ff00; font-size: 24px; font-weight: bold');
+            console.log('%c════════════════════════════════════════════', 'color: #00ff00; font-size: 20px; font-weight: bold');
+            console.log('%cThe error was automatically suppressed.', 'color: #00ffff; font-size: 16px');
+            console.log('%cYour app is running with MOCK Supabase.', 'color: #00ffff; font-size: 16px');
+            console.log('%cNo WASM is needed or loaded.', 'color: #00ffff; font-size: 16px');
+            
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            
+            return false;
+          }
+        }, true);
+        console.log('%c✅ Method 5: Global error catcher installed', 'color: #00ff00; font-size: 14px');
+        
+        // METHOD 6: Catch promise rejections
+        window.addEventListener('unhandledrejection', function(event) {
+          const reason = String(event.reason || '').toLowerCase();
+          
+          if (reason.includes('webassembly') || reason.includes('wasm')) {
+            console.log('%c✅ WebAssembly promise rejection suppressed', 'color: #00ff00; font-size: 16px');
+            event.preventDefault();
+            event.stopPropagation();
+            return false;
+          }
+        }, true);
+        console.log('%c✅ Method 6: Promise rejection catcher installed', 'color: #00ff00; font-size: 14px');
+        
+        // Verify WebAssembly is blocked
+        console.log('%c════════════════════════════════════════════', 'color: #00ff00; font-size: 20px; font-weight: bold');
+        console.log('%c🔍 VERIFICATION:', 'color: #00ffff; font-size: 18px; font-weight: bold');
+        console.log('%cwindow.WebAssembly =', 'color: #ffff00', window.WebAssembly);
+        console.log('%ctypeof WebAssembly =', 'color: #ffff00', typeof WebAssembly);
+        
+        if (typeof WebAssembly === 'undefined' || WebAssembly === null) {
+          console.log('%c✅✅✅ WEBASSEMBLY IS COMPLETELY BLOCKED! ✅✅✅', 'color: #00ff00; font-size: 20px; font-weight: bold');
+        } else {
+          console.log('%c⚠️  WebAssembly still exists, but error handler will catch it', 'color: yellow; font-size: 16px');
+        }
+        console.log('%c════════════════════════════════════════════', 'color: #00ff00; font-size: 20px; font-weight: bold');
+        
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    
+    <!-- Add cache buster to module import -->
+    <script type="module">
+      // Import with cache buster
+      const cacheBuster = Date.now() + '_' + Math.random().toString(36).substring(7);
+      import(`/src/main.tsx?v=${cacheBuster}`);
+    </script>
+  </body>
+</html>

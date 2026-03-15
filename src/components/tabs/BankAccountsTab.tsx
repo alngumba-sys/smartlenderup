@@ -8,7 +8,7 @@ import { BankAccountModal, type BankAccountFormData } from '../modals/BankAccoun
 import { QuickBalanceUpdateModal } from '../modals/QuickBalanceUpdateModal';
 import { formatCurrency } from '../../utils/currencyUtils';
 import { supabaseDataService } from '../../services/supabaseDataService';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { shortenReferenceUUID } from '../../utils/uuidUtils';
 // TEMPORARILY DISABLED - causing loading issues
 // import { DevMigrationPanel } from '../DevMigrationPanel';
@@ -564,13 +564,7 @@ export function BankAccountsTab() {
             <Wallet className="size-4" />
             Fund Account
           </button>
-          <button
-            onClick={handleRecalculateBalances}
-            className="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2 text-sm"
-          >
-            <RefreshCw className="size-4" />
-            Recalculate Balances
-          </button>
+
           <button
             onClick={handleDeleteAllAccounts}
             className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm"

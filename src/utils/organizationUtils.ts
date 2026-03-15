@@ -5,12 +5,12 @@ export function getOrganizationName(): string {
     const orgData = localStorage.getItem('current_organization');
     if (orgData) {
       const org = JSON.parse(orgData);
-      return org.organization_name || 'BV Funguo Ltd';
+      return org.organization_name || 'SmartLenderUp';
     }
   } catch (error) {
     console.error('Error retrieving organization name:', error);
   }
-  return 'BV Funguo Ltd';
+  return 'SmartLenderUp';
 }
 
 export function getOrganizationId(): string {

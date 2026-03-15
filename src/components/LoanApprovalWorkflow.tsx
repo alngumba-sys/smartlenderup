@@ -42,14 +42,21 @@ export function LoanApprovalWorkflow() {
   const [confirmationModal, setConfirmationModal] = useState<ConfirmationModal>({
     isOpen: false,
     loanId: '',
-    type: 'step1'
+    type: 'step1',
+    loanName: ''
   });
   const [disbursementModal, setDisbursementModal] = useState<DisbursementModal>({
     isOpen: false,
     loanId: '',
-    date: new Date().toISOString().split('T')[0],
+    loanName: '',
+    date: '',
     paymentSource: ''
   });
+  
+  // ✅ Clear selection when step changes
+  useEffect(() => {
+    setSelectedLoans([]);
+  }, [selectedStep]);
   
   // Get active bank accounts and mobile money accounts from Supabase
   const paymentSources = bankAccounts
@@ -630,7 +637,12 @@ export function LoanApprovalWorkflow() {
                   </td>
                 </tr>
               ) : (
-                currentLoans.map((loan) => (
+                currentLoans.map((loan) => {
+                  // Find the client to get their customer number
+                  const client = clients.find(c => c.id === loan.clientId);
+                  const clientNumber = client?.clientNumber || client?.client_number || loan.clientId || 'N/A';
+                  
+                  return (
                   <tr key={loan.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
                       <input
@@ -648,7 +660,7 @@ export function LoanApprovalWorkflow() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-gray-900 font-medium">{loan.clientName || 'Unknown'}</div>
-                      <div className="text-sm text-gray-500">{loan.clientId || 'N/A'}</div>
+                      <div className="text-sm text-gray-500">{clientNumber}</div>
                     </td>
                     <td className="px-4 py-3 text-gray-900">
                       {formatCurrency(loan.principalAmount)}
@@ -709,7 +721,7 @@ export function LoanApprovalWorkflow() {
                       </div>
                     </td>
                   </tr>
-                ))
+                )})
               )}
             </tbody>
           </table>

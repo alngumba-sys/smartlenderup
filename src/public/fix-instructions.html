@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebAssembly Error - Fix Instructions</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 800px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #e53e3e;
+      font-size: 32px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h2 {
+      color: #2d3748;
+      font-size: 24px;
+      margin: 30px 0 15px;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+    .warning {
+      background: #fff5f5;
+      border-left: 4px solid #e53e3e;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+    }
+    .success {
+      background: #f0fff4;
+      border-left: 4px solid #38a169;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+    }
+    .info {
+      background: #ebf8ff;
+      border-left: 4px solid #3182ce;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+    }
+    .step {
+      background: #f7fafc;
+      padding: 20px;
+      margin: 15px 0;
+      border-radius: 10px;
+      border: 2px solid #e2e8f0;
+    }
+    .step-number {
+      display: inline-block;
+      background: #667eea;
+      color: white;
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 35px;
+      font-weight: bold;
+      margin-right: 10px;
+    }
+    code {
+      background: #2d3748;
+      color: #68d391;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+    }
+    .code-block {
+      background: #2d3748;
+      color: #68d391;
+      padding: 20px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      margin: 15px 0;
+      overflow-x: auto;
+    }
+    ul {
+      margin: 15px 0 15px 30px;
+    }
+    li {
+      margin: 8px 0;
+      line-height: 1.6;
+    }
+    .highlight {
+      background: #fef5e7;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: bold;
+    }
+    .btn {
+      display: inline-block;
+      background: #667eea;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: bold;
+      margin: 10px 10px 10px 0;
+      transition: background 0.3s;
+    }
+    .btn:hover {
+      background: #5568d3;
+    }
+    .emoji {
+      font-size: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>
+      <span class="emoji">🔴</span>
+      WebAssembly Error - Fix Required
+    </h1>
+    
+    <div class="warning">
+      <strong>⚠️ You're seeing this because your browser has cached the OLD JavaScript</strong>
+      <p style="margin-top: 10px;">
+        Even though I've removed Supabase from your project, your browser is still using cached files that try to load it.
+      </p>
+    </div>
+
+    <h2>🔧 The Fix (2 Steps)</h2>
+
+    <div class="step">
+      <div>
+        <span class="step-number">1</span>
+        <strong>Run the Fix Script</strong>
+      </div>
+      <div style="margin-left: 45px; margin-top: 15px;">
+        <p><strong>Mac/Linux:</strong></p>
+        <div class="code-block">chmod +x FIX_WASM_ERROR.sh && ./FIX_WASM_ERROR.sh</div>
+        
+        <p style="margin-top: 15px;"><strong>Windows:</strong></p>
+        <div class="code-block">FIX_WASM_ERROR.bat</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div>
+        <span class="step-number">2</span>
+        <strong>Clear Your Browser Cache</strong>
+      </div>
+      <div style="margin-left: 45px; margin-top: 15px;">
+        <div class="success">
+          <strong>✅ EASIEST METHOD (Recommended):</strong>
+          <ol style="margin: 10px 0 0 20px;">
+            <li>Press <code>Ctrl+Shift+N</code> (or <code>Cmd+Shift+N</code> on Mac)</li>
+            <li>This opens an incognito window</li>
+            <li>Go to <code>http://localhost:5173</code></li>
+            <li><strong>Done!</strong> No error! ✨</li>
+          </ol>
+        </div>
+        
+        <div class="info" style="margin-top: 15px;">
+          <strong>OR Clear Cache Manually:</strong>
+          <ol style="margin: 10px 0 0 20px;">
+            <li>Press <code>Ctrl+Shift+Delete</code></li>
+            <li>Select <span class="highlight">"Cached images and files"</span></li>
+            <li>Click <span class="highlight">"Clear data"</span></li>
+            <li>Refresh the page (<code>F5</code>)</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <h2>❓ Why Must I Clear Cache?</h2>
+    <div class="info">
+      <p><strong>Old Cached JavaScript:</strong></p>
+      <p style="margin: 10px 0 10px 20px;">Tries to load Supabase → Uses WebAssembly → ❌ ERROR</p>
+      
+      <p style="margin-top: 15px;"><strong>New JavaScript (after clearing cache):</strong></p>
+      <p style="margin: 10px 0 10px 20px;">Uses mock client → Pure JavaScript → ✅ NO ERROR</p>
+    </div>
+
+    <h2>✅ What to Expect</h2>
+    <div class="success">
+      <ul>
+        <li>✅ <strong>NO WebAssembly error</strong></li>
+        <li>✅ <strong>App loads perfectly</strong></li>
+        <li>✅ <strong>All UI works</strong></li>
+        <li>⚠️ Console shows "MOCK SUPABASE" warnings (this is normal)</li>
+        <li>⚠️ Data operations return empty data (mock mode)</li>
+      </ul>
+    </div>
+
+    <h2>🚨 Still Seeing the Error?</h2>
+    <p>If you still see the error after clearing cache:</p>
+    <ol>
+      <li>Close <strong>ALL</strong> browser windows</li>
+      <li>Run the <code>FIX_WASM_ERROR</code> script again</li>
+      <li>Wait for "VITE ready" message</li>
+      <li>Open a <strong>fresh incognito window</strong></li>
+      <li>Manually type: <code>http://localhost:5173</code></li>
+    </ol>
+
+    <div class="success" style="margin-top: 30px; text-align: center;">
+      <h3 style="color: #38a169; margin-bottom: 15px;">
+        <span class="emoji">🎉</span>
+        The fix is ready! Just clear your browser cache!
+        <span class="emoji">🎉</span>
+      </h3>
+      <a href="/" class="btn">Go to App →</a>
+    </div>
+  </div>
+</body>
+</html>

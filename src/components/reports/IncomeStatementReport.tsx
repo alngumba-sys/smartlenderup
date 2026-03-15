@@ -69,7 +69,6 @@ export function IncomeStatementReport({ dateRange }: ReportProps) {
           <div className="border-b-2 border-gray-900 dark:!border-gray-900 pb-1.5 mb-2.5 flex-shrink-0">
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-3">
-                <img src={organizationLogo || logo} alt="Organization Logo" className="size-12" />
                 <h1 className="text-gray-900 dark:!text-gray-900 text-xl">{organizationName}</h1>
               </div>
               <div className="text-gray-600 dark:!text-gray-600 text-sm">

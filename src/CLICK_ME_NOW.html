@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🆘 FIX WEBASSEMBLY ERROR - CLICK HERE</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #000;
+            color: white;
+            padding: 0;
+            overflow-x: hidden;
+        }
+        
+        .hero {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px 20px;
+            animation: pulse-bg 3s infinite;
+        }
+        
+        @keyframes pulse-bg {
+            0%, 100% { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); }
+            50% { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+        }
+        
+        .container {
+            max-width: 1000px;
+        }
+        
+        h1 {
+            font-size: 5em;
+            margin-bottom: 30px;
+            animation: shake 0.5s infinite;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        
+        .error-message {
+            background: rgba(0,0,0,0.5);
+            border: 5px solid #fbbf24;
+            padding: 40px;
+            border-radius: 20px;
+            margin: 40px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 1.8em;
+        }
+        
+        .big-text {
+            font-size: 3em;
+            font-weight: bold;
+            margin: 40px 0;
+            line-height: 1.4;
+        }
+        
+        .instruction {
+            background: rgba(255,255,255,0.1);
+            border-left: 10px solid #10b981;
+            padding: 40px;
+            margin: 30px 0;
+            text-align: left;
+            border-radius: 10px;
+        }
+        
+        .instruction h2 {
+            font-size: 2.5em;
+            color: #10b981;
+            margin-bottom: 20px;
+        }
+        
+        .instruction p {
+            font-size: 1.5em;
+            line-height: 1.8;
+            margin: 15px 0;
+        }
+        
+        .command {
+            background: #000;
+            border: 3px solid #10b981;
+            padding: 30px;
+            border-radius: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 2.5em;
+            color: #10b981;
+            margin: 30px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .command:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 50px rgba(16, 185, 129, 0.5);
+        }
+        
+        .command::before {
+            content: '👆 CLICK TO COPY';
+            position: absolute;
+            top: -20px;
+            right: 20px;
+            background: #10b981;
+            color: #000;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 0.5em;
+            font-weight: bold;
+        }
+        
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 50px 0;
+        }
+        
+        .port {
+            padding: 40px;
+            border-radius: 20px;
+            font-size: 1.3em;
+        }
+        
+        .port-bad {
+            background: rgba(239, 68, 68, 0.2);
+            border: 5px solid #dc2626;
+        }
+        
+        .port-bad h3 {
+            font-size: 3em;
+            color: #fca5a5;
+            margin-bottom: 20px;
+        }
+        
+        .port-good {
+            background: rgba(16, 185, 129, 0.2);
+            border: 5px solid #10b981;
+        }
+        
+        .port-good h3 {
+            font-size: 3em;
+            color: #6ee7b7;
+            margin-bottom: 20px;
+        }
+        
+        .flash {
+            animation: flash 1s infinite;
+        }
+        
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 40px 80px;
+            font-size: 2.5em;
+            border-radius: 20px;
+            cursor: pointer;
+            margin: 30px;
+            font-weight: bold;
+            box-shadow: 0 10px 50px rgba(16, 185, 129, 0.5);
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+        
+        .button:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 70px rgba(16, 185, 129, 0.7);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: linear-gradient(135deg, #10b981, #059669);
+            padding: 60px;
+            border-radius: 30px;
+            max-width: 800px;
+            text-align: center;
+        }
+        
+        .checkmark {
+            font-size: 10em;
+            animation: checkmark 0.5s ease;
+        }
+        
+        @keyframes checkmark {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="checkmark">✅</div>
+            <h2 style="font-size: 3em; margin: 30px 0;">Command Copied!</h2>
+            <p style="font-size: 1.8em; line-height: 1.6;">
+                Now paste it in your terminal and press Enter!
+            </p>
+            <button onclick="closeModal()" style="margin-top: 40px; background: white; color: #059669; border: none; padding: 20px 40px; font-size: 1.5em; border-radius: 10px; cursor: pointer; font-weight: bold;">
+                Got It!
+            </button>
+        </div>
+    </div>
+    
+    <div class="hero">
+        <div class="container">
+            <h1 class="flash">🆘 ATTENTION 🆘</h1>
+            
+            <div class="error-message">
+                <div style="color: #fbbf24; font-size: 1.2em; margin-bottom: 20px;">YOU ARE SEEING THIS ERROR:</div>
+                TypeError: WebAssembly compilation aborted<br>
+                Network error: Response body loading was aborted
+            </div>
+            
+            <div class="big-text">
+                THE CODE IS ALREADY FIXED!<br>
+                <span style="color: #fbbf24;">YOU JUST NEED TO CLEAR YOUR BROWSER CACHE!</span>
+            </div>
+            
+            <div class="comparison">
+                <div class="port port-bad">
+                    <h3>❌ localhost:5173</h3>
+                    <p>OLD PORT</p>
+                    <p>Has cached files</p>
+                    <p>= <strong style="font-size: 1.5em;">ERROR!</strong></p>
+                </div>
+                
+                <div class="port port-good">
+                    <h3>✅ localhost:5174</h3>
+                    <p>NEW PORT</p>
+                    <p>NO cached files</p>
+                    <p>= <strong style="font-size: 1.5em;">WORKS!</strong></p>
+                </div>
+            </div>
+            
+            <div style="margin: 60px 0;">
+                <h2 style="font-size: 3em; margin-bottom: 40px;">FOLLOW THESE STEPS:</h2>
+                
+                <div class="instruction">
+                    <h2>STEP 1</h2>
+                    <p>Stop your server: Press <strong style="color: #fbbf24;">Ctrl + C</strong> in your terminal</p>
+                </div>
+                
+                <div class="instruction">
+                    <h2>STEP 2</h2>
+                    <p>Copy this command (click it):</p>
+                    <div class="command" onclick="copyCommand('npm run STOP-ERROR')">
+                        npm run STOP-ERROR
+                    </div>
+                </div>
+                
+                <div class="instruction">
+                    <h2>STEP 3</h2>
+                    <p>Wait for the terminal to show:<br><strong style="color: #10b981;">Local: http://localhost:5174</strong></p>
+                </div>
+                
+                <div class="instruction">
+                    <h2>STEP 4</h2>
+                    <p>Press: <strong style="color: #fbbf24;">Ctrl + Shift + N</strong> (or Cmd + Shift + N on Mac)</p>
+                    <p style="color: #6ee7b7;">This opens INCOGNITO mode with NO CACHE!</p>
+                </div>
+                
+                <div class="instruction">
+                    <h2>STEP 5</h2>
+                    <p>In the incognito window, type in the address bar:</p>
+                    <div class="command" onclick="copyCommand('localhost:5174')">
+                        localhost:5174
+                    </div>
+                    <p style="color: #fca5a5; margin-top: 20px;">NOT 5173! MUST BE 5174!</p>
+                </div>
+                
+                <div class="instruction">
+                    <h2>STEP 6</h2>
+                    <p>Press <strong style="color: #fbbf24;">Enter</strong></p>
+                    <p style="color: #6ee7b7; font-size: 1.8em; margin-top: 20px;">✅ ERROR GONE!</p>
+                </div>
+            </div>
+            
+            <div style="background: rgba(16, 185, 129, 0.2); border: 5px solid #10b981; padding: 50px; border-radius: 20px; margin: 50px 0;">
+                <h2 style="font-size: 3em; margin-bottom: 30px; color: #6ee7b7;">WHY THIS WORKS</h2>
+                <p style="font-size: 1.6em; line-height: 1.8;">
+                    Your browser has <strong style="color: #fbbf24;">OLD CACHED FILES</strong> on port 5173.<br><br>
+                    By using port <strong style="color: #10b981;">5174</strong>, you get a <strong style="color: #10b981;">FRESH START</strong>.<br><br>
+                    Different port = Different cache = <strong style="color: #10b981;">NO ERROR!</strong>
+                </p>
+            </div>
+            
+            <div style="background: rgba(251, 191, 36, 0.2); border: 5px solid #fbbf24; padding: 50px; border-radius: 20px;">
+                <h2 style="font-size: 3em; margin-bottom: 30px; color: #fbbf24;">⚠️ REMEMBER</h2>
+                <p style="font-size: 1.8em; line-height: 1.8;">
+                    <strong style="color: #fca5a5; font-size: 1.3em;">ALWAYS</strong> use:<br>
+                    <span style="color: #6ee7b7; font-size: 1.5em;">localhost:5174</span><br><br>
+                    <strong style="color: #fca5a5; font-size: 1.3em;">NEVER</strong> use:<br>
+                    <span style="color: #fca5a5; font-size: 1.5em; text-decoration: line-through;">localhost:5173</span>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function copyCommand(cmd) {
+            navigator.clipboard.writeText(cmd).then(() => {
+                document.getElementById('modal').classList.add('show');
+            }).catch(() => {
+                alert('COPY THIS:\n\n' + cmd + '\n\nPaste it in your terminal!');
+            });
+        }
+        
+        function closeModal() {
+            document.getElementById('modal').classList.remove('show');
+        }
+    </script>
+</body>
+</html>

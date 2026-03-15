@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Port 5173 is Deprecated - Use Port 5174</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 800px;
+      padding: 60px;
+      text-align: center;
+    }
+    
+    h1 {
+      color: #e53e3e;
+      font-size: 42px;
+      margin-bottom: 20px;
+    }
+    
+    .emoji {
+      font-size: 80px;
+      display: block;
+      margin-bottom: 30px;
+    }
+    
+    p {
+      color: #2d3748;
+      font-size: 20px;
+      line-height: 1.6;
+      margin: 20px 0;
+    }
+    
+    .port-comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 40px 0;
+    }
+    
+    .port-box {
+      padding: 30px;
+      border-radius: 15px;
+      font-weight: bold;
+    }
+    
+    .wrong-port {
+      background: #fed7d7;
+      border: 4px solid #e53e3e;
+    }
+    
+    .wrong-port .port-number {
+      color: #e53e3e;
+      font-size: 36px;
+      margin: 10px 0;
+    }
+    
+    .correct-port {
+      background: #c6f6d5;
+      border: 4px solid #38a169;
+    }
+    
+    .correct-port .port-number {
+      color: #38a169;
+      font-size: 36px;
+      margin: 10px 0;
+    }
+    
+    .steps {
+      background: #ebf8ff;
+      border-left: 5px solid #3182ce;
+      padding: 30px;
+      margin: 40px 0;
+      text-align: left;
+      border-radius: 10px;
+    }
+    
+    .steps h2 {
+      color: #2c5282;
+      margin-bottom: 20px;
+      font-size: 28px;
+    }
+    
+    .steps ol {
+      padding-left: 25px;
+    }
+    
+    .steps li {
+      color: #2d3748;
+      font-size: 18px;
+      line-height: 2;
+      margin: 15px 0;
+    }
+    
+    .steps code {
+      background: #2d3748;
+      color: #68d391;
+      padding: 5px 12px;
+      border-radius: 5px;
+      font-size: 16px;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .btn {
+      display: inline-block;
+      background: #667eea;
+      color: white;
+      padding: 20px 50px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-size: 22px;
+      font-weight: bold;
+      margin: 30px 10px;
+      transition: all 0.3s;
+      border: none;
+      cursor: pointer;
+    }
+    
+    .btn:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    .countdown {
+      font-size: 24px;
+      color: #667eea;
+      margin-top: 30px;
+      font-weight: bold;
+    }
+    
+    @media (max-width: 768px) {
+      .port-comparison {
+        grid-template-columns: 1fr;
+      }
+      
+      .container {
+        padding: 40px 30px;
+      }
+      
+      h1 {
+        font-size: 32px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <span class="emoji">🚨</span>
+    <h1>WRONG PORT!</h1>
+    
+    <p><strong>You're accessing the application on the OLD port that has cached files.</strong></p>
+    
+    <div class="port-comparison">
+      <div class="port-box wrong-port">
+        <div style="font-size: 48px;">❌</div>
+        <div>Current Port</div>
+        <div class="port-number">5173</div>
+        <div style="font-size: 14px; margin-top: 10px;">Has old cached files<br>that cause WebAssembly errors</div>
+      </div>
+      
+      <div class="port-box correct-port">
+        <div style="font-size: 48px;">✅</div>
+        <div>Correct Port</div>
+        <div class="port-number">5174</div>
+        <div style="font-size: 14px; margin-top: 10px;">Fresh files<br>NO errors!</div>
+      </div>
+    </div>
+    
+    <div class="steps">
+      <h2>🛠️ How to Fix This:</h2>
+      <ol>
+        <li>Go to your terminal where the server is running</li>
+        <li>Press <code>Ctrl + C</code> to stop the server</li>
+        <li>Run this command: <code>npm run FIX</code></li>
+        <li>Wait 10 seconds - browser opens automatically</li>
+        <li>Make sure URL shows <code>localhost:5174</code></li>
+        <li>Error is GONE! ✅</li>
+      </ol>
+    </div>
+    
+    <p style="font-size: 18px; color: #718096; margin-top: 30px;">
+      <strong>Why this happens:</strong> Port 5173 has cached JavaScript files from when Supabase was installed.
+      Those old files try to load WebAssembly, causing the error. Port 5174 has fresh files with NO Supabase imports.
+    </p>
+    
+    <a href="http://localhost:5174" class="btn">
+      🚀 Go to Port 5174 Now
+    </a>
+    
+    <div class="countdown" id="countdown"></div>
+  </div>
+  
+  <script>
+    let seconds = 10;
+    const countdownEl = document.getElementById('countdown');
+    
+    function updateCountdown() {
+      if (seconds > 0) {
+        countdownEl.textContent = `Auto-redirecting to port 5174 in ${seconds} seconds...`;
+        seconds--;
+        setTimeout(updateCountdown, 1000);
+      } else {
+        countdownEl.textContent = 'Redirecting now...';
+        window.location.href = 'http://localhost:5174';
+      }
+    }
+    
+    updateCountdown();
+  </script>
+</body>
+</html>

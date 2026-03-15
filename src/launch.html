@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starting SmartLenderUp...</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        .container {
+            text-align: center;
+            color: white;
+        }
+        .logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        h1 {
+            font-size: 36px;
+            margin: 0 0 20px 0;
+        }
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 30px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .status {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🚀</div>
+        <h1>Starting SmartLenderUp</h1>
+        <div class="spinner"></div>
+        <div class="status" id="status">Clearing cache...</div>
+    </div>
+    
+    <script>
+        // BLOCK WEBASSEMBLY
+        try {
+            delete window.WebAssembly;
+            Object.defineProperty(window, 'WebAssembly', {
+                get: () => undefined,
+                set: () => {},
+                configurable: false
+            });
+        } catch (e) {}
+        
+        // Clear everything
+        try {
+            localStorage.clear();
+            sessionStorage.clear();
+        } catch (e) {}
+        
+        // Unregister service workers
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                registrations.forEach(r => r.unregister());
+            });
+        }
+        
+        // Clear caches
+        if ('caches' in window) {
+            caches.keys().then(names => {
+                names.forEach(name => caches.delete(name));
+            });
+        }
+        
+        // Redirect to new entry point
+        setTimeout(() => {
+            document.getElementById('status').textContent = 'Loading application...';
+            
+            // Use completely new URL with cache buster
+            const cacheBuster = Date.now() + Math.random().toString(36).substring(7);
+            window.location.href = '/start.html?v=' + cacheBuster;
+        }, 1500);
+    </script>
+</body>
+</html>

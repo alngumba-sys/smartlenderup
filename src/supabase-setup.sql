@@ -81,8 +81,8 @@ CREATE POLICY "Anonymous users can delete contact messages"
 -- 2. ADD TRIAL_DAYS COLUMN TO PRICING_CONFIG
 -- =====================================================
 
--- Check if pricing_config table exists, if not create it
-CREATE TABLE IF NOT EXISTS pricing_config (
+-- Check if pricing_configuration table exists, if not create it
+CREATE TABLE IF NOT EXISTS pricing_configuration (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   plan_name TEXT NOT NULL UNIQUE,
   monthly_price DECIMAL(10, 2) NOT NULL,
@@ -99,34 +99,34 @@ DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'pricing_config' AND column_name = 'trial_days'
+    WHERE table_name = 'pricing_configuration' AND column_name = 'trial_days'
   ) THEN
-    ALTER TABLE pricing_config ADD COLUMN trial_days INTEGER DEFAULT 14;
+    ALTER TABLE pricing_configuration ADD COLUMN trial_days INTEGER DEFAULT 14;
   END IF;
 END $$;
 
 -- Add indexes
-CREATE INDEX IF NOT EXISTS idx_pricing_config_plan_name ON pricing_config(plan_name);
-CREATE INDEX IF NOT EXISTS idx_pricing_config_is_active ON pricing_config(is_active);
+CREATE INDEX IF NOT EXISTS idx_pricing_configuration_plan_name ON pricing_configuration(plan_name);
+CREATE INDEX IF NOT EXISTS idx_pricing_configuration_is_active ON pricing_configuration(is_active);
 
 -- Enable Row Level Security
-ALTER TABLE pricing_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pricing_configuration ENABLE ROW LEVEL SECURITY;
 
--- Create policies for pricing_config
+-- Create policies for pricing_configuration
 CREATE POLICY "Anyone can read pricing config"
-  ON pricing_config
+  ON pricing_configuration
   FOR SELECT
   TO public
   USING (true);
 
 CREATE POLICY "Authenticated users can update pricing config"
-  ON pricing_config
+  ON pricing_configuration
   FOR UPDATE
   TO authenticated
   USING (true);
 
 CREATE POLICY "Authenticated users can insert pricing config"
-  ON pricing_config
+  ON pricing_configuration
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
@@ -149,7 +149,7 @@ CREATE POLICY "Anonymous users can insert pricing config"
 -- =====================================================
 
 -- Insert or update Growth plan
-INSERT INTO pricing_config (
+INSERT INTO pricing_configuration (
   plan_name, 
   monthly_price, 
   annual_price, 
@@ -170,7 +170,7 @@ DO UPDATE SET
   updated_at = NOW();
 
 -- Insert or update Professional plan
-INSERT INTO pricing_config (
+INSERT INTO pricing_configuration (
   plan_name, 
   monthly_price, 
   annual_price, 
@@ -191,7 +191,7 @@ DO UPDATE SET
   updated_at = NOW();
 
 -- Insert or update Enterprise plan
-INSERT INTO pricing_config (
+INSERT INTO pricing_configuration (
   plan_name, 
   monthly_price, 
   annual_price, 
@@ -219,14 +219,14 @@ DO UPDATE SET
 SELECT 'contact_messages table created' as status, 
   (SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'contact_messages') as exists;
 
--- Verify pricing_config table and trial_days column
-SELECT 'pricing_config.trial_days column' as status,
+-- Verify pricing_configuration table and trial_days column
+SELECT 'pricing_configuration.trial_days column' as status,
   (SELECT COUNT(*) FROM information_schema.columns 
-   WHERE table_name = 'pricing_config' AND column_name = 'trial_days') as exists;
+   WHERE table_name = 'pricing_configuration' AND column_name = 'trial_days') as exists;
 
 -- Show current pricing config
 SELECT id, plan_name, monthly_price, annual_price, trial_days, is_active 
-FROM pricing_config 
+FROM pricing_configuration 
 ORDER BY monthly_price;
 
 -- =====================================================

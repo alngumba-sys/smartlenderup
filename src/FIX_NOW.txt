@@ -1,0 +1,64 @@
+
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║              ⚡ INSTANT FIX - DO THIS NOW ⚡                  ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+
+█████████████████████████████████████████████████████████████
+██                                                         ██
+██   IF YOU'RE SEEING THE WEBASSEMBLY ERROR, DO THIS:      ██
+██                                                         ██
+██   1. Run:  CLEAR_EVERYTHING.bat  (Windows)              ██
+██      OR:   bash CLEAR_EVERYTHING.sh  (Mac/Linux)        ██
+██                                                         ██
+██   2. Wait for "Local: http://localhost:5173"            ██
+██                                                         ██
+���█   3. Press Ctrl+Shift+N (incognito mode)                ██
+██                                                         ██
+██   4. Go to http://localhost:5173                        ██
+██                                                         ██
+██   ✅ ERROR GONE!                                         ██
+██                                                         ██
+█████████████████████████████████████████████████████████████
+
+
+═══════════════════════════════════════════════════════════════
+                       WHAT HAPPENS:
+═══════════════════════════════════════════════════════════════
+
+CLEAR_EVERYTHING.bat will:
+  ✅ Kill old Vite process
+  ✅ Delete ALL cache folders
+  ✅ Delete node_modules
+  ✅ Reinstall dependencies
+  ✅ Start fresh Vite server
+
+Then incognito mode will:
+  ✅ Load fresh JavaScript (no cache)
+  ✅ Use mock Supabase (no WASM)
+  ✅ NO ERROR!
+
+
+═══════════════════════════════════════════════════════════════
+                      QUICK START:
+═══════════════════════════════════════════════════════════════
+
+Windows:
+  CLEAR_EVERYTHING.bat
+
+Mac/Linux:
+  chmod +x CLEAR_EVERYTHING.sh
+  ./CLEAR_EVERYTHING.sh
+
+
+═══════════════════════════════════════════════════════════════
+            AFTER RUNNING THE SCRIPT, USE INCOGNITO:
+═══════════════════════════════════════════════════════════════
+
+Ctrl+Shift+N → http://localhost:5173 → ✅ No error!
+
+
+═══════════════════════════════════════════════════════════════
+

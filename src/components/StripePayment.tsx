@@ -1,12 +1,18 @@
-import { useState, useEffect } from 'react';
-import { Elements } from '@stripe/react-stripe-js';
-import { stripePromise } from '../lib/stripe';
-import { CheckoutForm } from './CheckoutForm';
-import { Check, AlertCircle, Building, Calendar, CreditCard, Loader } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getOrganizationName } from '../utils/organizationUtils';
 import { STRIPE_CONFIG, validateStripeConfig } from '../stripe-config';
-import { createPaymentIntent } from '../api/create-payment-intent';
+
+// Mock payment intent creation for frontend-only mode
+const createPaymentIntent = async (params: {
+  organizationId: string;
+  amount: number;
+  currency: string;
+  metadata: Record<string, string>;
+}) => {
+  // This is a frontend-only mock - in production, this would call a backend API
+  console.log('Mock payment intent creation:', params);
+  throw new Error('Payment API not configured - running in demo mode');
+};
 
 interface StripePaymentProps {
   organizationId: string;

@@ -67,9 +67,9 @@ Toggle switches show:
 
 ## 📊 Database Structure
 
-### Table: `pricing_config`
+### Table: `pricing_configuration`
 ```sql
-CREATE TABLE pricing_config (
+CREATE TABLE pricing_configuration (
   id UUID PRIMARY KEY,
   plans JSONB NOT NULL,
   global_discount NUMERIC(5,2),
@@ -115,14 +115,14 @@ Run the SQL script in Supabase SQL Editor:
 ```
 
 This creates:
-- `pricing_config` table
+- `pricing_configuration` table
 - Row Level Security (RLS) policies
 - Default pricing configuration
 - Indexes for performance
 
 ### 2. Verify Setup
 ```sql
-SELECT * FROM pricing_config ORDER BY updated_at DESC LIMIT 1;
+SELECT * FROM pricing_configuration ORDER BY updated_at DESC LIMIT 1;
 ```
 
 ### 3. Access Admin Panel

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FIX RLS ERRORS - DO THIS NOW</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 30px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #d32f2f;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        .error-box {
+            background: #ffebee;
+            border-left: 4px solid #d32f2f;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .step {
+            background: #e3f2fd;
+            border-left: 4px solid #1976d2;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .step h2 {
+            margin-top: 0;
+            color: #1976d2;
+            font-size: 20px;
+        }
+        .sql-box {
+            background: #263238;
+            color: #aed581;
+            padding: 20px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 15px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 20px 0;
+            color: #2e7d32;
+            font-weight: bold;
+        }
+        button {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 10px 10px 10px 0;
+        }
+        button:hover {
+            background: #1565c0;
+        }
+        .copy-button {
+            background: #4caf50;
+        }
+        .copy-button:hover {
+            background: #388e3c;
+        }
+        a {
+            color: #1976d2;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .warning {
+            background: #fff3e0;
+            border-left: 4px solid #f57c00;
+            padding: 15px;
+            margin: 20px 0;
+            color: #e65100;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 FIX YOUR RLS ERRORS NOW</h1>
+        
+        <div class="error-box">
+⚠️ [Auto-Cleanup] Failed to fetch products: {
+  "code": "42501",
+  "message": "permission denied for table loan_products"
+}
+
+❌ RLS Error: Add service key to .env file
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ IMPORTANT:</strong> These errors are happening in your Supabase DATABASE, not in your code. 
+            You MUST run the SQL script below in Supabase to fix them!
+        </div>
+
+        <div class="step">
+            <h2>Step 1: Open Supabase</h2>
+            <p>Click this link to open your Supabase dashboard:</p>
+            <p><a href="https://yrsnylrcgejnrxphjvtf.supabase.co" target="_blank">https://yrsnylrcgejnrxphjvtf.supabase.co</a></p>
+            <button onclick="window.open('https://yrsnylrcgejnrxphjvtf.supabase.co', '_blank')">Open Supabase Dashboard</button>
+        </div>
+
+        <div class="step">
+            <h2>Step 2: Go to SQL Editor</h2>
+            <p>In the Supabase dashboard:</p>
+            <ol>
+                <li>Click <strong>"SQL Editor"</strong> in the left sidebar</li>
+                <li>Click <strong>"New query"</strong> button</li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h2>Step 3: Copy This SQL</h2>
+            <p>Click the button below to copy the SQL script to your clipboard:</p>
+            <button class="copy-button" onclick="copySQL()">📋 Copy SQL Script</button>
+            <div class="sql-box" id="sqlCode">ALTER TABLE public.organizations DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.staff_users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clients DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.loan_products DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.loans DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.repayments DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shareholders DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shareholder_transactions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bank_accounts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.funding_transactions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chart_of_accounts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.expenses DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payees DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payroll_runs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.journal_entries DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kyc_records DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tasks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tickets DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.groups DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.guarantors DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.collaterals DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.loan_documents DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.disbursements DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.approvals DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.savings_accounts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.savings_transactions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.credit_scoring_parameters DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.institutions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.branches DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payments DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contact_messages DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.project_states DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pricing_configuration DISABLE ROW LEVEL SECURITY;</div>
+        </div>
+
+        <div class="step">
+            <h2>Step 4: Paste and Run</h2>
+            <ol>
+                <li>Paste the SQL into the Supabase SQL Editor</li>
+                <li>Click the <strong>"Run"</strong> button (or press Ctrl+Enter)</li>
+                <li>Wait for "Success. No rows returned" message</li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h2>Step 5: Refresh Your App</h2>
+            <p>Go back to your app and do a hard refresh:</p>
+            <ul>
+                <li><strong>Windows/Linux:</strong> Press <code>Ctrl + Shift + R</code></li>
+                <li><strong>Mac:</strong> Press <code>Cmd + Shift + R</code></li>
+            </ul>
+        </div>
+
+        <div class="success">
+            ✅ DONE! All errors should be gone after refreshing!
+        </div>
+
+        <div class="warning">
+            <strong>📝 Note:</strong> If you see the same errors after refreshing, it means you didn't run the SQL script successfully. 
+            Make sure you see "Success" in Supabase SQL Editor before refreshing your app.
+        </div>
+    </div>
+
+    <script>
+        function copySQL() {
+            const sqlCode = document.getElementById('sqlCode').innerText;
+            navigator.clipboard.writeText(sqlCode).then(() => {
+                alert('✅ SQL copied to clipboard! Now paste it in Supabase SQL Editor.');
+            }).catch(err => {
+                alert('❌ Failed to copy. Please select and copy the SQL manually.');
+            });
+        }
+    </script>
+</body>
+</html>

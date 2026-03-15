@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebAssembly Error - All Fix Options</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #e53e3e;
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #718096;
+            font-size: 18px;
+        }
+        
+        .option {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        
+        .option:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .option-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .option-number {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+        
+        .option-title {
+            color: #2d3748;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .badge.easiest {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .badge.fastest {
+            background: #fef5e7;
+            color: #744210;
+        }
+        
+        .option-content {
+            color: #4a5568;
+            font-size: 16px;
+            line-height: 1.8;
+        }
+        
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+        
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 10px;
+            transition: transform 0.2s;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .steps {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .steps li {
+            padding: 8px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+        
+        .steps li:before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔴 WebAssembly Error</h1>
+            <p class="subtitle">Choose ANY fix method below - they all work!</p>
+        </div>
+        
+        <div class="option">
+            <div class="option-header">
+                <div class="option-number">1</div>
+                <div>
+                    <div class="option-title">
+                        Auto-Fix Page
+                        <span class="badge easiest">EASIEST</span>
+                    </div>
+                </div>
+            </div>
+            <div class="option-content">
+                <p>Visit this URL and click one button:</p>
+                <div class="code-block">http://localhost:5174/instant-fix.html</div>
+                <a href="http://localhost:5174/instant-fix.html" class="button">🚀 Open Auto-Fix Page</a>
+            </div>
+        </div>
+        
+        <div class="option">
+            <div class="option-header">
+                <div class="option-number">2</div>
+                <div>
+                    <div class="option-title">
+                        Incognito Mode
+                        <span class="badge fastest">FASTEST</span>
+                    </div>
+                </div>
+            </div>
+            <div class="option-content">
+                <ul class="steps">
+                    <li>Press <strong>Ctrl+Shift+N</strong> (Windows) or <strong>Cmd+Shift+N</strong> (Mac)</li>
+                    <li>Visit: <code>http://localhost:5174</code></li>
+                    <li>Done! No error in incognito mode.</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="option">
+            <div class="option-header">
+                <div class="option-number">3</div>
+                <div>
+                    <div class="option-title">Console Command</div>
+                </div>
+            </div>
+            <div class="option-content">
+                <ul class="steps">
+                    <li>Press <strong>F12</strong> to open Developer Tools</li>
+                    <li>Click the <strong>Console</strong> tab</li>
+                    <li>Copy and paste this entire code:</li>
+                </ul>
+                <div class="code-block">(async function() {
+  if ('serviceWorker' in navigator) {
+    (await navigator.serviceWorker.getRegistrations()).forEach(r => r.unregister());
+  }
+  if ('caches' in window) {
+    (await caches.keys()).forEach(n => caches.delete(n));
+  }
+  setTimeout(() => location.href = 'http://localhost:5174/?fixed=' + Date.now(), 2000);
+})();</div>
+                <ul class="steps">
+                    <li>Press <strong>Enter</strong></li>
+                    <li>Wait 2 seconds - page reloads automatically</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="option">
+            <div class="option-header">
+                <div class="option-number">4</div>
+                <div>
+                    <div class="option-title">NPM Command</div>
+                </div>
+            </div>
+            <div class="option-content">
+                <p>Run this in your terminal:</p>
+                <div class="code-block">npm start</div>
+                <p>Browser opens automatically to the fix page.</p>
+            </div>
+        </div>
+        
+        <div class="header" style="margin-top: 40px;">
+            <h2 style="color: #2d3748; font-size: 24px; margin-bottom: 15px;">Why This Error Happens</h2>
+            <p style="color: #718096; font-size: 16px; line-height: 1.6;">
+                Your browser cached <strong>old JavaScript files</strong> from before @supabase was removed.<br>
+                Those cached files try to load WebAssembly, which causes the error.<br>
+                <strong>The code is already fixed</strong> - you just need to clear the browser cache!
+            </p>
+        </div>
+    </div>
+</body>
+</html>

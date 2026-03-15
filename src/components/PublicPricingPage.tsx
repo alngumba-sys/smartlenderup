@@ -72,7 +72,10 @@ export function PublicPricingPage() {
         .single();
 
       if (error) {
-        console.error('❌ PublicPricingPage: Error loading pricing:', error);
+        // Silently skip if RLS is blocking access
+        if (error.code !== '42501') {
+          console.error('❌ PublicPricingPage: Error loading pricing:', error);
+        }
         console.log('⚠️ Using empty plans array (no database data)');
         return;
       }

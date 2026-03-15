@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useContext } from 'react';
 import { Calendar, TrendingUp, DollarSign, X } from 'lucide-react';
-import { useData } from '../contexts/DataContext';
+import { DataContext } from '../contexts/DataContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getCurrencyCode } from '../utils/currencyUtils';
 
@@ -15,7 +15,7 @@ interface PaymentExpectation {
 }
 
 export function PaymentCalendar() {
-  const { loans } = useData();
+  const dataContext = useContext(DataContext);
   const { isDark } = useTheme();
   const currencyCode = getCurrencyCode();
   const [isOpen, setIsOpen] = useState(false);
@@ -38,6 +38,13 @@ export function PaymentCalendar() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
+  
+  // Safety check: Don't render if data context isn't ready (AFTER all hooks)
+  if (!dataContext || !dataContext.loans) {
+    return null;
+  }
+  
+  const { loans } = dataContext;
 
   const getPaymentExpectations = (): PaymentExpectation[] => {
     const now = new Date();

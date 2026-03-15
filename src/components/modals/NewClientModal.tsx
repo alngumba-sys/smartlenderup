@@ -142,7 +142,7 @@ export function NewClientModal({ isOpen, onClose, onSubmit }: NewClientModalProp
                 >
                   <User className={`size-6 ${clientType === 'individual' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`} />
                   <div className="text-left">
-                    <div className={`font-medium ${clientType === 'individual' ? 'text-emerald-800 dark:text-emerald-300' : 'text-gray-800 dark:text-gray-300'}`}>
+                    <div className={`font-medium ${clientType === 'individual' ? 'text-emerald-800 dark:text-emerald-300' : 'text-gray-800 dark:text-gray-300'} text-[#158a5f]`}>
                       Individual
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">Personal borrower</div>

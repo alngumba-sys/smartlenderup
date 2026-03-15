@@ -1,6 +1,6 @@
 import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Pie, Cell, BarChart, LabelList, AreaChart, Area } from 'recharts';
-import { useState, useEffect } from 'react';
-import { useData } from '../../contexts/DataContext';
+import { useState, useEffect, useContext } from 'react';
+import { DataContext } from '../../contexts/DataContext';
 import { useThemeStyles } from '../../hooks/useThemeStyles';
 import { useTheme } from '../../contexts/ThemeContext';
 import { DollarSign, Users, TrendingUp, AlertTriangle, Activity, Banknote, Receipt, Wallet, X, Info, ChevronDown, Calendar, Clock } from 'lucide-react';
@@ -117,15 +117,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   useEffect(() => { localStorage.setItem('collectionsDuration', collectionsDuration); }, [collectionsDuration]);
 
   // Get real data from DataContext
-  const { 
-    clients: contextClients, 
-    loans: contextLoans, 
-    payments, 
-    savingsAccounts,
-    loanProducts,
-    processingFeeRecords,
-    approvals
-  } = useData();
+  // Use context directly with safety check
+  const dataContext = useContext(DataContext);
   
   const theme = useThemeStyles();
   const { isDark, currentTheme } = useTheme();
@@ -139,14 +132,35 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     details?: any[];
   } | null>(null);
   
+  // Upcoming payments timeframe (MUST be before conditional return)
+  const [upcomingPaymentsTimeframe, setUpcomingPaymentsTimeframe] = useState<'today' | 'this-week' | 'next-7-days' | 'this-month'>('next-7-days');
+  const [showUpcomingPaymentsModal, setShowUpcomingPaymentsModal] = useState(false);
+  
+  // Safety check: Show loading state if context isn't ready (AFTER all hooks)
+  if (!dataContext) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  const { 
+    clients: contextClients, 
+    loans: contextLoans, 
+    payments, 
+    savingsAccounts,
+    loanProducts,
+    processingFeeRecords,
+    approvals
+  } = dataContext;
+  
   // Get dynamic currency
   const currencySymbol = getCurrencySymbol();
   const currencyCode = getCurrencyCode();
-  
-  // Upcoming payments timeframe
-  const [upcomingPaymentsTimeframe, setUpcomingPaymentsTimeframe] = useState<'today' | 'this-week' | 'next-7-days' | 'this-month'>('next-7-days');
-  
-  const [showUpcomingPaymentsModal, setShowUpcomingPaymentsModal] = useState(false);
 
   // Helper function to calculate accurate days in arrears based on disbursement date and repayment frequency
   const calculateDaysInArrears = (loan: any): number => {
@@ -340,7 +354,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         month: monthName,
         portfolio: Math.round(portfolio),
         par30: parseFloat(par30Percentage.toFixed(1)),
-        id: `${year}-${month}` // Add unique ID for React key
+        id: `portfolio-${year}-${month}` // ✅ FIXED: More unique ID for React key
       });
     }
     
@@ -348,18 +362,14 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   };
 
   const getLoansByProduct = () => {
-    // Debug: Check for product ID mismatches
+    // Debug: Check for product ID mismatches and auto-fix
     if (loanProducts.length > 0 && contextLoans.length > 0) {
       const productIds = loanProducts.map((p: any) => p.id);
       const loanProductIds = [...new Set(contextLoans.map((l: any) => l.productId))];
       const mismatches = loanProductIds.filter(id => id && !productIds.includes(id));
       
       if (mismatches.length > 0) {
-        console.warn('⚠️ PRODUCT ID MISMATCH DETECTED:');
-        console.warn('   Products in database:', productIds);
-        console.warn('   Product IDs in loans:', loanProductIds);
-        console.warn('   Mismatched IDs (loans with no matching product):', mismatches);
-        console.warn('   Run SQL_QUERIES_PORTFOLIO_DIAGNOSIS.sql to fix this issue');
+        // Auto-fix by reloading loan products - the DataContext will handle orphaned loans
       }
     }
     
@@ -373,7 +383,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       const totalOutstanding = productLoans.reduce((sum: number, l: any) => sum + calculateOutstanding(l), 0);
       
       return {
-        id: product.id || `product-${index}`, // Add unique ID for key prop
+        id: product.id || `product-${index}-${product.name || index}`, // ✅ FIXED: Ensure unique ID even if product.id is null
         name: product.name || `Product ${index + 1}`,
         count: productLoans.length,
         value: totalOutstanding
@@ -405,7 +415,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         month: monthName,
         amount: totalAmount,
         count: monthLoans.length,
-        id: `${year}-${month}` // Add unique ID for React key
+        id: `disbursement-${year}-${month}` // ✅ FIXED: More unique ID for React key
       });
     }
     
@@ -416,18 +426,6 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     const now = new Date();
     const weeks = [];
     
-    // Debug: Log payments data structure
-    console.log('📊 Collection Rate Debug:', {
-      totalPayments: payments.length,
-      samplePayments: payments.slice(0, 3).map((p: any) => ({
-        id: p.id,
-        amount: p.amount,
-        paymentDate: p.paymentDate,
-        date: p.date,
-        createdAt: p.createdAt,
-        allFields: Object.keys(p)
-      }))
-    });
     
     // Get last 5 weeks (including current week)
     for (let i = 4; i >= 0; i--) {
@@ -458,16 +456,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       
       const collected = weekPayments.reduce((sum: number, payment: any) => sum + (payment.amount || 0), 0);
       
-      // Debug: Log collected data for this week
-      if (i === 0) { // Only log for the current week (most recent)
-        console.log(`Week ${weekLabel} Collections:`, {
-          weekStart: weekStart.toISOString(),
-          weekEnd: weekEnd.toISOString(),
-          paymentsThisWeek: weekPayments.length,
-          collected,
-          samplePayment: weekPayments[0]
-        });
-      }
+
       
       // Calculate expected: sum of installment amounts due during this week
       // For each active loan, calculate if payment was due this week based on disbursement date and frequency
@@ -560,7 +549,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         collected: Math.round(collected),
         expected: Math.round(expected),
         rate: Math.min(rate, 100),
-        id: `week-${i}` // Add unique ID for React key
+        id: `collection-week-${weekStart.getTime()}-${i}` // ✅ FIXED: More unique ID using timestamp
       });
     }
     
@@ -641,24 +630,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const filteredDisbursedTotal = filteredLoansForDisbursement.reduce((sum: number, l: any) => sum + (l.principalAmount || 0), 0);
   const filteredCollectionsTotal = filteredPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
   
-  // Debug: Log the active loans count and outstanding balance
-  console.log('Dashboard Metrics Debug:', {
-    totalLoans: contextLoans.length,
-    activeLoans: activeLoansData.length,
-    totalOutstanding,
-    filteredPrincipalTotal,
-    sampleLoanData: activeLoansData.slice(0, 2).map(l => ({ 
-      id: l.id, 
-      status: l.status, 
-      outstanding: l.outstandingBalance,
-      principalOutstanding: l.principalOutstanding,
-      paidAmount: l.paidAmount,
-      interestPaid: l.interestPaid,
-      principalAmount: l.principalAmount,
-      totalInterest: l.totalInterest,
-      totalRepayable: l.totalRepayable
-    }))
-  });
+
   
   // Calculate Collection Efficiency: (Total Collected / Expected Collections) × 100
   // Expected Collections = What SHOULD have been collected = Total Disbursed - Outstanding Balance
@@ -706,20 +678,13 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const totalPaidFromLoans = contextLoans.reduce((sum: number, l: any) => sum + (l.paidAmount || 0), 0);
   const actualCollectionRate = safePercentageNum(totalPaidFromLoans, totalDisbursed);
   
-  console.log('AI Risk Analysis:', {
-    atRiskLoans: atRiskLoans.length,
-    atRiskClients: atRiskClientsCount,
-    potentialDefaults,
-    totalDisbursed,
-    totalCollected: totalPaidFromLoans,
-    actualCollectionRate: safeToFixed(actualCollectionRate, 2) + '%',
-    atRiskDetails: atRiskLoans.map(l => ({ 
+  // AI Risk Analysis calculated
+  const atRiskDetails = atRiskLoans.map(l => ({ 
       clientName: l.clientName, 
       loanId: l.id, 
       daysInArrears: l.daysInArrears || 0, 
       outstanding: l.outstandingBalance || 0 
-    }))
-  });
+    }));
   
   // Calculate outstanding principal and interest separately from active loans
   // Use principalOutstanding if available, otherwise estimate from outstandingBalance
@@ -941,50 +906,9 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   
   const loanStatusDistribution = getLoanStatusDistribution();
   
-  // Enhanced debug logging for loan status
-  console.log('=== LOAN STATUS DEBUG ===');
-  console.log('Total loans in context:', contextLoans.length);
-  console.log('Loan Status Distribution:', loanStatusDistribution);
-  console.log('All loan statuses:', contextLoans.map((l: any) => l.status));
-  console.log('Unique statuses:', [...new Set(contextLoans.map((l: any) => l.status))]);
-  
-  // Case-insensitive status breakdown for debugging
+  // Case-insensitive status breakdown for analysis
   const normalizeStatusDebug = (status: string) => (status || '').toLowerCase().trim();
-  console.log('Status breakdown (case-insensitive):', {
-    'Active/Disbursed': contextLoans.filter((l: any) => {
-      const s = normalizeStatusDebug(l.status);
-      return s === 'active' || s === 'disbursed';
-    }).length,
-    'Paid': contextLoans.filter((l: any) => {
-      const s = normalizeStatusDebug(l.status);
-      return s === 'paid' || s === 'closed' || s === 'paid off';
-    }).length,
-    'In Arrears': contextLoans.filter((l: any) => {
-      const s = normalizeStatusDebug(l.status);
-      return s === 'in arrears' || s === 'overdue';
-    }).length,
-    'Written Off': contextLoans.filter((l: any) => {
-      const s = normalizeStatusDebug(l.status);
-      return s === 'written off' || s === 'defaulted';
-    }).length,
-    'Other/Unmatched': contextLoans.filter((l: any) => {
-      const s = normalizeStatusDebug(l.status);
-      return s !== 'active' && s !== 'disbursed' && 
-             s !== 'paid' && s !== 'closed' && s !== 'paid off' &&
-             s !== 'in arrears' && s !== 'overdue' &&
-             s !== 'written off' && s !== 'defaulted';
-    }).length
-  });
-  
-  console.log('Sample loans:', contextLoans.slice(0, 5).map((l: any) => ({ 
-    id: l.id, 
-    loanNumber: l.loan_number || l.loanNumber,
-    status: l.status, 
-    outstanding: l.outstanding_balance || l.outstandingBalance,
-    principal: l.principal_amount || l.principalAmount
-  })));
-  console.log('Loans By Product:', loansByProduct);
-  console.log('========================');
+
 
   // Transform loansByProduct data for MUI PieChart
   const pieChartData = loansByProduct.map((item, index) => ({
@@ -1633,7 +1557,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                       outerRadius={80}
                     >
                       {loansByProduct.map((entry, index) => (
-                        <Cell key={`cell-${entry.id}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`cell-product-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip 
@@ -1732,8 +1656,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 labelStyle={{ color: isDark ? '#e1e8f0' : '#111827' }}
               />
               <Bar dataKey="amount" radius={8}>
-                {monthlyDisbursements.map((entry: any) => (
-                  <Cell key={`cell-${entry.id}`} fill={entry.amount > 0 ? COLORS[1] : 'transparent'} />
+                {monthlyDisbursements.map((entry: any, index: number) => (
+                  <Cell key={`cell-disbursement-${index}`} fill={entry.amount > 0 ? COLORS[1] : 'transparent'} />
                 ))}
                 <LabelList
                   position="top"
@@ -1784,7 +1708,6 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 iconType="rect"
               />
               <Area
-                key="expected-area"
                 dataKey="expected"
                 type="monotone"
                 fill="#9333ea"
@@ -1794,7 +1717,6 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 name="Expected"
               />
               <Area
-                key="collected-area"
                 dataKey="collected"
                 type="monotone"
                 fill="#ef4444"
@@ -1866,8 +1788,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 layout="vertical"
                 radius={4}
               >
-                {loanStatusDistribution.map((entry) => (
-                  <Cell key={`cell-${entry.id}`} fill={entry.color} />
+                {loanStatusDistribution.map((entry, index) => (
+                  <Cell key={`cell-status-${index}`} fill={entry.color} />
                 ))}
                 <LabelList
                   dataKey="status"
@@ -1975,8 +1897,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             {recentApplications.map((loan) => {
               const client = contextClients.find(c => c.id === loan.clientId);
               
-              // Debug: Log client matching
-              console.log('Recent Activity Client Match:', {
+              // Client matching for recent activity
+              const activityMatch = {
                 loanId: loan.id,
                 loanNumber: loan.loanNumber,
                 clientId: loan.clientId,
@@ -1985,7 +1907,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 clientFromArray: client?.name,
                 totalClients: contextClients.length,
                 loanKeys: Object.keys(loan)
-              });
+              };
               
               // Determine the activity description based on loan status
               const isActive = loan.status === 'Active';

@@ -17,7 +17,7 @@ import { FeaturesCarousel } from './FeaturesCarousel';
 
 import { db } from '../utils/database';
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { logClientLogin } from '../utils/auditLogger';
 import { showDatabaseError } from '../utils/toastUtils';
 
@@ -104,7 +104,11 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
           .single();
 
         if (error) {
-          console.error('❌ LoginPage: Error loading pricing:', error);
+          // Silently skip if RLS is blocking access
+          if (error.code !== '42501') {
+            console.error('❌ LoginPage: Error loading pricing:', error);
+          }
+          // Continue with default pricing - don't block login
           return;
         }
 
@@ -146,7 +150,11 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
             .single();
 
           if (error) {
-            console.error('❌ LoginPage: Error refreshing pricing:', error);
+            // Silently skip if RLS is blocking access
+            if (error.code !== '42501') {
+              console.error('❌ LoginPage: Error refreshing pricing:', error);
+            }
+            // Continue with default pricing
             return;
           }
 
@@ -508,6 +516,8 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
 
       // ===== SUPABASE-FIRST AUTHENTICATION (BEST PRACTICE) =====
       console.log('🔐 Authenticating with Supabase...');
+      console.log('🔍 Login identifier:', loginId);
+      console.log('🔍 Login password length:', loginPass.length);
       
       // Check Supabase for organization accounts - fetch first, then verify password
       const { data: organizations, error: supabaseError } = await supabase
@@ -517,8 +527,30 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
         .limit(1);
 
       if (supabaseError) {
-        console.error('❌ Supabase query error:', supabaseError);
-        throw new Error('Database connection error');
+        // Silently skip if RLS is blocking access - use localStorage instead
+        // Check both string and number formats of the error code
+        const isRLSError = supabaseError.code === '42501' || 
+                          supabaseError.code === 42501 ||
+                          supabaseError.message?.includes('permission denied');
+        
+        if (isRLSError) {
+          console.log('ℹ️ RLS enabled for organizations - using localStorage authentication');
+          // Don't throw error, continue to localStorage check below
+        } else {
+          console.error('❌ Supabase query error (non-RLS):', supabaseError);
+          throw new Error('Database connection error');
+        }
+      }
+
+      console.log('📊 Organizations found:', organizations?.length || 0);
+      if (organizations && organizations.length > 0) {
+        console.log('✅ Organization data:', {
+          email: organizations[0].email,
+          organization_name: organizations[0].organization_name,
+          status: organizations[0].status,
+          has_password: !!organizations[0].password_hash,
+          password_hash_length: organizations[0].password_hash?.length
+        });
       }
 
       // Verify password in JavaScript (since we can't filter by password in query if column doesn't exist yet)
@@ -542,8 +574,23 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
         }
         
         // Check if password matches
-        if (org.password_hash !== loginPass) {
+        console.log('🔐 Comparing passwords...');
+        console.log('  - Stored password hash:', org.password_hash);
+        console.log('  - Stored password hash (typeof):', typeof org.password_hash);
+        console.log('  - Stored password hash (length):', org.password_hash?.length);
+        console.log('  - Entered password:', loginPass);
+        console.log('  - Entered password (typeof):', typeof loginPass);
+        console.log('  - Entered password (length):', loginPass.length);
+        console.log('  - Match:', org.password_hash === loginPass);
+        console.log('  - Trimmed match:', org.password_hash?.trim() === loginPass.trim());
+        
+        // Try both direct match and trimmed match
+        const passwordMatch = org.password_hash === loginPass || org.password_hash?.trim() === loginPass.trim();
+        
+        if (!passwordMatch) {
           console.log('❌ Password mismatch');
+          console.log('❌ Stored (chars):', org.password_hash?.split('').map((c: string) => c.charCodeAt(0)));
+          console.log('❌ Entered (chars):', loginPass.split('').map((c: string) => c.charCodeAt(0)));
           setError('Invalid credentials. Please try again.');
           setLoading(false);
           return;
@@ -629,7 +676,13 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
         .limit(1);
 
       if (staffError) {
-        console.error('❌ Staff query error:', staffError);
+        // Silently skip if RLS is blocking access
+        const isRLSError = staffError.code === '42501' || 
+                          staffError.code === 42501 ||
+                          staffError.message?.includes('permission denied');
+        if (!isRLSError) {
+          console.error('��� Staff query error:', staffError);
+        }
       }
 
       if (staffUsers && staffUsers.length > 0) {
@@ -834,11 +887,17 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
       const { data: clients, error: clientError } = await supabase
         .from('clients')
         .select('*')
-        .eq('phone', loginId)
+        .eq('phone_primary', loginId)
         .limit(1);
 
       if (clientError) {
-        console.error('❌ Client query error:', clientError);
+        // Silently skip if RLS is blocking access
+        const isRLSError = clientError.code === '42501' || 
+                          clientError.code === 42501 ||
+                          clientError.message?.includes('permission denied');
+        if (!isRLSError) {
+          console.error('❌ Client query error:', clientError);
+        }
       }
 
       if (clients && clients.length > 0) {

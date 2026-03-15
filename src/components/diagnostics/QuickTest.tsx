@@ -1,7 +1,7 @@
+import { toast } from 'sonner';
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { CheckCircle, AlertTriangle } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
 
 export function QuickTest() {
   const [loading, setLoading] = useState(false);

@@ -176,7 +176,6 @@ export function CollectionsReport({ dateRange }: ReportProps) {
         <div className="border-b-2 border-gray-900 dark:!border-gray-900 pb-1.5 mb-2.5 flex-shrink-0">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-3">
-              <img src={logoImage} alt="Organization Logo" className="h-12 w-auto object-contain" />
               <h1 className="text-gray-900 dark:!text-gray-900 text-xl">{organizationName}</h1>
             </div>
             <div className="text-gray-600 dark:!text-gray-600 text-sm">
@@ -267,7 +266,6 @@ export function CollectionsReport({ dateRange }: ReportProps) {
         <div className="border-b border-gray-300 dark:!border-gray-300 pb-1.5 mb-2.5 flex-shrink-0">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-3">
-              <img src={logoImage} alt="Organization Logo" className="h-10 w-auto object-contain" />
               <h2 className="text-gray-900 dark:!text-gray-900 text-lg">{organizationName}</h2>
             </div>
             <div className="text-gray-600 dark:!text-gray-600 text-sm">
@@ -347,7 +345,6 @@ export function CollectionsReport({ dateRange }: ReportProps) {
         <div className="border-b border-gray-300 dark:!border-gray-300 pb-1.5 mb-2.5 flex-shrink-0">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-3">
-              <img src={logoImage} alt="Organization Logo" className="h-10 w-auto object-contain" />
               <h2 className="text-gray-900 dark:!text-gray-900 text-lg">{organizationName}</h2>
             </div>
             <div className="text-gray-600 dark:!text-gray-600 text-sm">

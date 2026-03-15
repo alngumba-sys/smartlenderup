@@ -1,0 +1,64 @@
+
+  ╔════════════════════════════════════════════════════════════╗
+  ║                                                            ║
+  ║           🔥 NUCLEAR FIX - RUN THIS COMMAND 🔥            ║
+  ║                                                            ║
+  ╚════════════════════════════════════════════════════════════╝
+
+
+  COPY AND PASTE THIS COMMAND:
+
+
+      node DELETE-SUPABASE-NOW.js
+
+
+  Then:
+
+      npm install
+
+
+  Then:
+
+      npm run dev
+
+
+  Then:
+
+      Press Ctrl+Shift+N (opens incognito)
+      Go to: http://localhost:5174/app.html
+
+
+  ════════════════════════════════════════════════════════════
+
+
+  WHAT THIS DOES:
+
+  1. Deletes node_modules/@supabase completely
+  2. Deletes package-lock.json (if it has @supabase)
+  3. Deletes ALL .vite cache folders
+  4. Deletes dist folder
+  5. Forces npm to reinstall WITHOUT @supabase
+
+
+  ════════════════════════════════════════════════════════════
+
+
+  FULL STEPS:
+
+  1. Stop the dev server (Ctrl+C)
+
+  2. Run: node DELETE-SUPABASE-NOW.js
+
+  3. Run: npm install
+
+  4. Run: npm run dev
+
+  5. Press Ctrl+Shift+N (incognito mode)
+
+  6. Go to: http://localhost:5174/app.html
+
+  7. ✅ NO MORE ERROR!
+
+
+  ════════════════════════════════════════════════════════════
+

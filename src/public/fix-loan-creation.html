@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fix Loan Creation Error - SmartLenderUp</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 800px;
+      width: 100%;
+      padding: 40px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .header h1 {
+      color: #1a202c;
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+    
+    .header .error-code {
+      background: #fee;
+      color: #c00;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 14px;
+      display: inline-block;
+    }
+    
+    .section {
+      margin-bottom: 30px;
+      padding: 20px;
+      border-left: 4px solid #667eea;
+      background: #f7fafc;
+      border-radius: 8px;
+    }
+    
+    .section h2 {
+      color: #2d3748;
+      font-size: 20px;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .section .step-number {
+      background: #667eea;
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    
+    .section ol, .section ul {
+      margin-left: 20px;
+      line-height: 1.8;
+    }
+    
+    .section li {
+      margin-bottom: 10px;
+      color: #4a5568;
+    }
+    
+    .code-block {
+      background: #2d3748;
+      color: #68d391;
+      padding: 15px;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      margin: 10px 0;
+    }
+    
+    .warning {
+      background: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+    
+    .warning strong {
+      color: #b45309;
+    }
+    
+    .success {
+      background: #f0fdf4;
+      border-left: 4px solid #10b981;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+    
+    .success strong {
+      color: #065f46;
+    }
+    
+    .btn {
+      background: #667eea;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      text-decoration: none;
+      display: inline-block;
+      font-weight: 600;
+      margin: 10px 10px 10px 0;
+      transition: all 0.3s;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    
+    .btn:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-secondary {
+      background: #48bb78;
+    }
+    
+    .btn-secondary:hover {
+      background: #38a169;
+      box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+    }
+    
+    .checklist {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 15px;
+    }
+    
+    .checklist-item {
+      display: flex;
+      align-items: start;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding: 10px;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+    
+    .checklist-item:hover {
+      background: #f7fafc;
+    }
+    
+    .checklist-item input[type="checkbox"] {
+      margin-top: 4px;
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+    
+    .checklist-item label {
+      cursor: pointer;
+      color: #4a5568;
+      flex: 1;
+    }
+    
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+      color: #718096;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔧 Fix Loan Creation Error</h1>
+      <div class="error-code">PGRST204: Could not find 'amount' column</div>
+    </div>
+    
+    <div class="warning">
+      <strong>⚠️ What's happening?</strong><br>
+      This is a <strong>Supabase schema cache issue</strong>. The column exists in your database, but Supabase's internal cache doesn't know about it yet. This commonly happens after database migrations or schema changes.
+    </div>
+    
+    <div class="section">
+      <h2><span class="step-number">1</span> Run SQL Fix</h2>
+      <ol>
+        <li>Open your <strong>Supabase Dashboard</strong></li>
+        <li>Go to <strong>SQL Editor</strong> (left sidebar)</li>
+        <li>Click <strong>"New Query"</strong></li>
+        <li>Open the file <code>/FIX_LOAN_CREATION_SCHEMA.sql</code> from your project</li>
+        <li>Copy all the SQL and paste it into the SQL Editor</li>
+        <li>Click <strong>"Run"</strong> to execute</li>
+      </ol>
+      
+      <div class="checklist">
+        <div class="checklist-item">
+          <input type="checkbox" id="check1">
+          <label for="check1">SQL executed successfully with no errors</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="check2">
+          <label for="check2">Saw "loan_number column added" or "already exists" message</label>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2><span class="step-number">2</span> Refresh Schema Cache</h2>
+      <p style="margin-bottom: 15px;"><strong>This is the most important step!</strong></p>
+      
+      <h3 style="margin-top: 20px; margin-bottom: 10px; color: #2d3748;">Method A: Dashboard (Easiest)</h3>
+      <ol>
+        <li>In Supabase Dashboard, click <strong>"API"</strong> in left sidebar</li>
+        <li>Scroll down to find <strong>"Refresh schema cache"</strong> button</li>
+        <li>Click the button</li>
+        <li><strong>Wait 30-60 seconds</strong> before testing</li>
+      </ol>
+      
+      <h3 style="margin-top: 20px; margin-bottom: 10px; color: #2d3748;">Method B: Restart Project (Most Reliable)</h3>
+      <ol>
+        <li>Go to <strong>Settings</strong> → <strong>General</strong></li>
+        <li>Click <strong>"Pause project"</strong> and wait</li>
+        <li>Click <strong>"Resume project"</strong></li>
+        <li>Wait 1-2 minutes for project to fully restart</li>
+      </ol>
+      
+      <div class="checklist">
+        <div class="checklist-item">
+          <input type="checkbox" id="check3">
+          <label for="check3">Clicked "Refresh schema cache" or restarted project</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="check4">
+          <label for="check4">Waited at least 30 seconds</label>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2><span class="step-number">3</span> Clear Browser Cache</h2>
+      <ol>
+        <li>Press <strong>F12</strong> to open DevTools</li>
+        <li>Go to <strong>Application</strong> tab (Chrome) or <strong>Storage</strong> tab (Firefox)</li>
+        <li>Clear <strong>Local Storage</strong> and <strong>Session Storage</strong></li>
+        <li>Do a hard refresh:
+          <ul>
+            <li>Windows/Linux: <code>Ctrl + Shift + R</code></li>
+            <li>Mac: <code>Cmd + Shift + R</code></li>
+          </ul>
+        </li>
+      </ol>
+      
+      <div class="checklist">
+        <div class="checklist-item">
+          <input type="checkbox" id="check5">
+          <label for="check5">Cleared browser storage</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="check6">
+          <label for="check6">Did a hard refresh</label>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2><span class="step-number">4</span> Test Loan Creation</h2>
+      <ol>
+        <li>Go back to your SmartLenderUp dashboard</li>
+        <li>Navigate to <strong>Loans</strong> tab</li>
+        <li>Click <strong>"New Loan"</strong></li>
+        <li>Fill in all required fields</li>
+        <li>Click <strong>"Create Loan"</strong></li>
+      </ol>
+      
+      <div class="success" style="margin-top: 20px;">
+        <strong>✅ Success!</strong><br>
+        If the loan is created without errors, you're all set! The loan will appear in your loans list with an auto-generated loan number (e.g., "BVF-LN00001").
+      </div>
+    </div>
+    
+    <div class="section" style="background: #fef2f2; border-left-color: #dc2626;">
+      <h2 style="color: #991b1b;">🆘 Still Not Working?</h2>
+      <ul>
+        <li><strong>Wait longer:</strong> Schema cache refresh can take up to 2 minutes</li>
+        <li><strong>Check browser console:</strong> Press F12 and look for error messages</li>
+        <li><strong>Verify SQL ran:</strong> Go to SQL Editor and run:
+          <div class="code-block">SELECT column_name FROM information_schema.columns WHERE table_name = 'loans';</div>
+        </li>
+        <li><strong>Check Supabase logs:</strong> Dashboard → Logs → look for errors</li>
+        <li><strong>Try incognito mode:</strong> Open your app in a private/incognito window</li>
+      </ul>
+    </div>
+    
+    <div style="text-align: center; margin-top: 30px;">
+      <a href="/" class="btn">← Back to Dashboard</a>
+      <button class="btn btn-secondary" onclick="window.print()">🖨️ Print This Guide</button>
+    </div>
+    
+    <div class="footer">
+      <p><strong>SmartLenderUp</strong> - Microfinance Platform</p>
+      <p style="margin-top: 5px; font-size: 14px;">Need more help? Check /FIX_LOAN_CREATION_ERROR.md</p>
+    </div>
+  </div>
+  
+  <script>
+    // Auto-check checklist items when clicked
+    document.querySelectorAll('.checklist-item input[type="checkbox"]').forEach(checkbox => {
+      checkbox.addEventListener('change', function() {
+        const label = this.nextElementSibling;
+        if (this.checked) {
+          label.style.textDecoration = 'line-through';
+          label.style.color = '#9ca3af';
+        } else {
+          label.style.textDecoration = 'none';
+          label.style.color = '#4a5568';
+        }
+      });
+    });
+    
+    // Show completion message when all items are checked
+    const checkboxes = document.querySelectorAll('.checklist-item input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', () => {
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        if (allChecked) {
+          alert('✅ Great! All steps completed. Try creating a loan now!');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
