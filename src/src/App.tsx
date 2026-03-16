@@ -910,7 +910,6 @@ export default function App() {
                 {/* <DatabaseErrorOverlay /> */}
                 <DatabaseErrorHandler />
                 <DatabaseErrorHelper />
-                <CacheWarning />
                 <AutoDuplicateFix />
                 <AutoFixProgress />
               </PermissionsProvider>

@@ -1743,7 +1743,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               console.log('');
               console.log('═══════════════════════════════════════════════════════════════');
               console.log('📖 DATABASE SETUP REQUIRED:');
-              console.log('═══════════════════════════════════════════════════════════════');
+              console.log('═════════════════════════════════════════════════════════════��═');
               console.log('1. Go to Supabase Dashboard → SQL Editor');
               console.log('2. Open /supabase/COMPLETE_DATABASE_SETUP.sql in your code editor');
               console.log('3. Copy the ENTIRE file contents');
@@ -1940,6 +1940,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 email: c.email || '',
                 phone: c.phone || '',
                 idNumber: c.id_number || c.registration_number || '',
+                nationalId: c.id_number || c.registration_number || '', // Alias for idNumber
                 address: c.address || '',
                 city: c.city || '',
                 county: c.county || '',
@@ -2146,12 +2147,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   loanNumber: l.loan_number || l.id, // User-friendly loan ID (LN00001)
                   loanId: l.loan_number || l.id, // ✅ Alias for loanNumber for consistency
                   loan_id: l.loan_number || l.id, // ✅ Snake_case alias
-                  clientId: l.client?.client_number || l.client_id || '',
+                  clientId: l.client?.client_number || l.clients?.client_number || l.client_id || '',
                   clientUuid: l.client_id || '', // ✅ Store the actual UUID for Supabase operations
-                  clientName: l.client ? `${l.client.first_name} ${l.client.last_name}` : l.client_name || '',
+                  clientName: (() => {
+                    // Try both 'client' (singular) and 'clients' (plural) from Supabase join
+                    const clientObj = l.client || l.clients;
+                    if (clientObj) {
+                      // Try name field first, then combine first_name + last_name
+                      return clientObj.name || `${clientObj.first_name || ''} ${clientObj.last_name || ''}`.trim() || 'Unknown';
+                    }
+                    // Fallback to direct client_name field
+                    return l.client_name || 'Unknown';
+                  })(),
                   productId: l.product_id || '', // ✅ Use product_id (UUID) not product_code
-                  productName: l.product?.product_name || l.product_name || l.product_type || '',
-                  product: l.product_type || l.product_name || '', // ✅ Add product field for backwards compatibility
+                  productName: l.product?.product_name || l.loan_products?.product_name || l.product_name || l.product_type || '',
+                  product: l.product_type || l.product_name || l.product?.product_name || l.loan_products?.product_name || '', // ✅ Add product field for backwards compatibility
                   principalAmount: principalAmount,
                   interestRate: l.interest_rate || l.product?.interest_rate || 0,
                   interestType: 'Flat',
@@ -3079,12 +3089,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
             loanNumber: l.loan_number || l.id,
             loanId: l.loan_number || l.id,
             loan_id: l.loan_number || l.id,
-            clientId: l.client?.client_number || l.client_id || '',
+            clientId: l.client?.client_number || l.clients?.client_number || l.client_id || '',
             clientUuid: l.client_id || '',
-            clientName: l.client ? `${l.client.first_name} ${l.client.last_name}` : l.client_name || '',
+            clientName: (() => {
+              // Try both 'client' (singular) and 'clients' (plural) from Supabase join
+              const clientObj = l.client || l.clients;
+              if (clientObj) {
+                // Try name field first, then combine first_name + last_name
+                return clientObj.name || `${clientObj.first_name || ''} ${clientObj.last_name || ''}`.trim() || 'Unknown';
+              }
+              // Fallback to direct client_name field
+              return l.client_name || 'Unknown';
+            })(),
             productId: l.product_id || '',
-            productName: l.product?.product_name || l.product_name || l.product_type || '',
-            product: l.product_type || l.product_name || '',
+            productName: l.product?.product_name || l.loan_products?.product_name || l.product_name || l.product_type || '',
+            product: l.product_type || l.product_name || l.product?.product_name || l.loan_products?.product_name || '',
             principalAmount: principalAmount,
             interestRate: l.interest_rate || l.product?.interest_rate || 0,
             interestType: 'Flat',
@@ -3318,6 +3337,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         email: supabaseClient.email || '',
         phone: supabaseClient.phone || '',
         idNumber: supabaseClient.id_number || '',
+        nationalId: supabaseClient.id_number || '', // Alias for idNumber
         address: supabaseClient.address || '',
         city: supabaseClient.town || '',
         county: supabaseClient.county || '',

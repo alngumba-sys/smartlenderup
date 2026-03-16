@@ -260,7 +260,7 @@ export function ComprehensiveLoanDetailsModal({ loanId, onClose }: Comprehensive
     const repaymentRecord = {
       loanId: paymentData.loanId,
       clientId: loan.clientId,
-      clientName: client.name,
+      clientName: client?.name || loan.clientName || 'Unknown Client',
       amount: amount,
       principal: principal,
       interest: interest,

@@ -19,16 +19,16 @@ const parseFormattedNumber = (value: string) => {
 };
 
 interface NewClientModalProps {
-  isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  defaultClientType?: 'individual' | 'business';
+  onAddClient: (data: any) => void;
 }
 
-export function NewClientModal({ isOpen, onClose, onSubmit }: NewClientModalProps) {
+export function NewClientModal({ onClose, defaultClientType = 'individual', onAddClient }: NewClientModalProps) {
   const { isDark } = useTheme();
   const { institutions, addInstitution, payees } = useData();
-  useEscapeKey(onClose, isOpen);
-  const [clientType, setClientType] = useState<'individual' | 'business'>('individual');
+  useEscapeKey(onClose);
+  const [clientType, setClientType] = useState<'individual' | 'business'>(defaultClientType);
   const [clientPicture, setClientPicture] = useState<string | null>(null);
   const [showAddInstitutionModal, setShowAddInstitutionModal] = useState(false);
   
@@ -77,7 +77,7 @@ export function NewClientModal({ isOpen, onClose, onSubmit }: NewClientModalProp
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({
+    onAddClient({
       ...formData,
       clientType,
       clientPicture
@@ -105,10 +105,8 @@ export function NewClientModal({ isOpen, onClose, onSubmit }: NewClientModalProp
       monthlyIncome: '',
     });
     setClientPicture(null);
-    setClientType('individual');
+    setClientType(defaultClientType);
   };
-
-  if (!isOpen) return null;
 
   return (
     <>

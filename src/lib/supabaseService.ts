@@ -1290,29 +1290,56 @@ export const fetchLoans = async (): Promise<Loan[]> => {
     return [];
   }
   
-  // ✅ FIXED: Fetch loans without foreign key joins (relationship not found in schema)
-  const { data, error } = await supabase
+  // ✅ Fetch loans first
+  const { data: loansData, error: loansError } = await supabase
     .from('loans')
     .select('*')
     .eq('organization_id', orgId);
   
-  if (error) {
+  if (loansError || !loansData) {
     // Silently return empty array if Supabase is not available
     return [];
   }
   
+  // Get all unique client IDs and product IDs
+  const clientIds = [...new Set(loansData.map((l: any) => l.client_id).filter(Boolean))];
+  const productIds = [...new Set(loansData.map((l: any) => l.loan_product_id).filter(Boolean))];
+  
+  // Fetch all clients in one query
+  const { data: clientsData } = await supabase
+    .from('clients')
+    .select('id, first_name, last_name')
+    .in('id', clientIds.length > 0 ? clientIds : ['']);
+  
+  // Fetch all products in one query
+  const { data: productsData } = await supabase
+    .from('loan_products')
+    .select('id, name')
+    .in('id', productIds.length > 0 ? productIds : ['']);
+  
+  // Create lookup maps
+  const clientsMap = new Map((clientsData || []).map((c: any) => [
+    c.id, 
+    `${c.first_name} ${c.last_name}`.trim()
+  ]));
+  
+  const productsMap = new Map((productsData || []).map((p: any) => [
+    p.id, 
+    p.name
+  ]));
+  
   // Transform the data and add client/product names
-  const transformedLoans = (data || []).map((loan: any) => {
+  const transformedLoans = loansData.map((loan: any) => {
     const transformed = transformLoanFromSupabase(loan);
     
-    // Add client name from the joined data
-    if (loan.clients) {
-      transformed.clientName = `${loan.clients.first_name} ${loan.clients.last_name}`.trim();
+    // Add client name from the lookup map
+    if (loan.client_id && clientsMap.has(loan.client_id)) {
+      transformed.clientName = clientsMap.get(loan.client_id);
     }
     
-    // Add product name from the joined data
-    if (loan.loan_products) {
-      transformed.productName = loan.loan_products.name;
+    // Add product name from the lookup map
+    if (loan.loan_product_id && productsMap.has(loan.loan_product_id)) {
+      transformed.productName = productsMap.get(loan.loan_product_id);
     }
     
     return transformed;
@@ -1622,16 +1649,69 @@ export const fetchRepayments = async (): Promise<Repayment[]> => {
   
   // Silently filter out invalid loan IDs - this is normal during development
   
-  const { data, error } = await supabase
+  const { data: paymentsData, error } = await supabase
     .from('payments')
     .select('*')
     .in('loan_id', validLoanIds);
   
-  if (error) {
+  if (error || !paymentsData) {
     // Silently fail if Supabase is not available
     return [];
   }
-  return data || [];
+  
+  // Get all unique loan IDs from payments
+  const paymentLoanIds = [...new Set(paymentsData.map((p: any) => p.loan_id).filter(Boolean))];
+  
+  // Fetch loan details including client_id and loan_number
+  const { data: loansData } = await supabase
+    .from('loans')
+    .select('id, loan_number, client_id')
+    .in('id', paymentLoanIds.length > 0 ? paymentLoanIds : ['']);
+  
+  // Get all unique client IDs from the loans
+  const clientIds = [...new Set((loansData || []).map((l: any) => l.client_id).filter(Boolean))];
+  
+  // Fetch all clients in one query
+  const { data: clientsData } = await supabase
+    .from('clients')
+    .select('id, first_name, last_name')
+    .in('id', clientIds.length > 0 ? clientIds : ['']);
+  
+  // Create lookup maps
+  const clientsMap = new Map((clientsData || []).map((c: any) => [
+    c.id, 
+    `${c.first_name} ${c.last_name}`.trim()
+  ]));
+  
+  const loansMap = new Map((loansData || []).map((l: any) => [
+    l.id,
+    {
+      loanNumber: l.loan_number,
+      clientId: l.client_id
+    }
+  ]));
+  
+  // Transform the data and add client names and loan numbers
+  const transformedPayments = paymentsData.map((payment: any) => {
+    const transformed = payment;
+    
+    // Get loan details from map
+    const loanDetails = loansMap.get(payment.loan_id);
+    
+    if (loanDetails) {
+      // Add loan number
+      transformed.loanNumber = loanDetails.loanNumber;
+      
+      // Add client name from the lookup map
+      if (loanDetails.clientId && clientsMap.has(loanDetails.clientId)) {
+        transformed.clientName = clientsMap.get(loanDetails.clientId);
+      }
+    }
+    
+    return transformed;
+  });
+  
+  return transformedPayments;
 };
 
 export const createRepayment = async (repayment: Repayment): Promise<boolean> => {

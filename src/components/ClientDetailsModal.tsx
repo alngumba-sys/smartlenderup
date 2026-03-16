@@ -44,16 +44,18 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
   // ✅ FIXED: Only count loans that have been disbursed (exclude approval workflow loans)
   const disbursedLoans = clientLoans.filter(l => {
     const status = l.status?.toLowerCase();
-    return status === 'disbursed' || status === 'active' || status === 'paid' || status === 'closed' || status === 'in arrears';
+    return status === 'disbursed' || status === 'active' || status === 'paid' || status === 'closed' || status === 'in arrears' ||
+           status === 'fully paid' || status === 'default' || status === 'default / past due' || status === 'written off';
   });
 
   const activeLoans = clientLoans.filter(l => {
     const status = l.status?.toLowerCase();
-    return status === 'active' || status === 'in arrears' || status === 'disbursed';
+    return status === 'active' || status === 'in arrears' || status === 'disbursed' ||
+           status === 'default' || status === 'default / past due' || status === 'written off';
   });
   const paidLoans = clientLoans.filter(l => {
     const status = l.status?.toLowerCase();
-    return status === 'paid' || status === 'closed';
+    return status === 'paid' || status === 'closed' || status === 'fully paid';
   });
   
   // ✅ FIXED: Only count loans that have been actually disbursed (not just applications)
@@ -366,11 +368,11 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
                     </span>
                   </div>
                   <p className="text-2xl font-bold text-black mb-1">
-                    {client.creditScore || 300}
+                    {client.creditScore ?? 300}
                   </p>
-                  <p className="text-xs text-gray-600">{getCreditScoreLabel(client.creditScore || 300)}</p>
+                  <p className="text-xs text-gray-600">{getCreditScoreLabel(client.creditScore ?? 300)}</p>
                   <div className="mt-3 pt-3 border-t border-gray-300">
-                    <p className="text-xs text-gray-600">Previous: {Math.floor((client.creditScore || 300) * 0.95)}</p>
+                    <p className="text-xs text-gray-600">Previous: {Math.floor((client.creditScore ?? 300) * 0.95)}</p>
                   </div>
                 </div>
               </div>
@@ -561,7 +563,7 @@ export function ClientDetailsModal({ clientId, onClose }: ClientDetailsModalProp
                     <div className="space-y-2 mb-4">
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-gray-600">Total Score</span>
-                        <span className="text-xs font-bold text-black">{client.creditScore || 300}</span>
+                        <span className="text-xs font-bold text-black">{client.creditScore ?? 300}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-gray-600">Base Score</span>

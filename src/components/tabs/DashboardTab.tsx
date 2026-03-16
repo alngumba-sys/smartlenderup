@@ -1,5 +1,5 @@
 import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Pie, Cell, BarChart, LabelList, AreaChart, Area } from 'recharts';
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useMemo } from 'react';
 import { DataContext } from '../../contexts/DataContext';
 import { useThemeStyles } from '../../hooks/useThemeStyles';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -7,6 +7,7 @@ import { DollarSign, Users, TrendingUp, AlertTriangle, Activity, Banknote, Recei
 import { safePercentage, safeToFixed, safeDivideNum, safeFormat, safePercentageNum, safeDivide } from '../../utils/safeCalculations';
 import { getCurrencySymbol, getCurrencyCode, formatCurrency } from '../../utils/currencyUtils';
 import { getOrganizationName } from '../../utils/organizationUtils';
+import { MetricDetailModal } from '../MetricDetailModal';
 
 type DurationFilter = 'today' | 'week' | 'month' | '3month' | '6month';
 
@@ -132,11 +133,30 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     details?: any[];
   } | null>(null);
   
+  // New modal state for detailed metric breakdown
+  const [showMetricModal, setShowMetricModal] = useState(false);
+  const [selectedMetricData, setSelectedMetricData] = useState<any>(null);
+  
   // Upcoming payments timeframe (MUST be before conditional return)
   const [upcomingPaymentsTimeframe, setUpcomingPaymentsTimeframe] = useState<'today' | 'this-week' | 'next-7-days' | 'this-month'>('next-7-days');
   const [showUpcomingPaymentsModal, setShowUpcomingPaymentsModal] = useState(false);
   
-  // Safety check: Show loading state if context isn't ready (AFTER all hooks)
+  // Extract data from context BEFORE conditional return (to maintain hook call order)
+  const { 
+    clients: contextClients = [], 
+    loans: contextLoans = [], 
+    payments = [], 
+    savingsAccounts = [],
+    loanProducts = [],
+    processingFeeRecords = [],
+    approvals = []
+  } = dataContext || {};
+  
+  // Get dynamic currency
+  const currencySymbol = getCurrencySymbol();
+  const currencyCode = getCurrencyCode();
+  
+  // Safety check: Show loading state if context isn't ready (AFTER extracting data with defaults)
   if (!dataContext) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -147,20 +167,6 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       </div>
     );
   }
-  
-  const { 
-    clients: contextClients, 
-    loans: contextLoans, 
-    payments, 
-    savingsAccounts,
-    loanProducts,
-    processingFeeRecords,
-    approvals
-  } = dataContext;
-  
-  // Get dynamic currency
-  const currencySymbol = getCurrencySymbol();
-  const currencyCode = getCurrencyCode();
 
   // Helper function to calculate accurate days in arrears based on disbursement date and repayment frequency
   const calculateDaysInArrears = (loan: any): number => {
@@ -271,7 +277,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   );
   // Disbursed Total should include ALL loans disbursed in period, regardless of current status
   const filteredLoansForDisbursement = filterByDuration(
-    contextLoans.filter((l: any) => l.disbursementDate), // All loans that have been disbursed
+    contextLoans.filter((l: any) => l.disbursementDate && l.status !== 'Rejected'), // All loans that have been disbursed (excluding rejected)
     'disbursementDate',
     disbursedDuration
   );
@@ -351,7 +357,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       const par30Percentage = portfolio > 0 ? (par30Amount / portfolio) * 100 : 0;
       
       months.push({
-        month: monthName,
+        month: `${monthName} '${String(year).slice(2)}`, // Include year to make unique
         portfolio: Math.round(portfolio),
         par30: parseFloat(par30Percentage.toFixed(1)),
         id: `portfolio-${year}-${month}` // ✅ FIXED: More unique ID for React key
@@ -412,7 +418,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       const totalAmount = monthLoans.reduce((sum: number, loan: any) => sum + (loan.principalAmount || 0), 0);
       
       months.push({
-        month: monthName,
+        month: `${monthName} '${String(year).slice(2)}`, // Include year to make unique
         amount: totalAmount,
         count: monthLoans.length,
         id: `disbursement-${year}-${month}` // ✅ FIXED: More unique ID for React key
@@ -445,7 +451,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       
       const weekLabel = `${formatDate(weekStart)}-${formatDate(weekEnd).split(' ')[1]}`; // e.g., "Dec 1-7"
       
-      // Filter payments made during this week (using repayments data)
+      // Filter payments made during this week
       const weekPayments = payments.filter((payment: any) => {
         // Check multiple possible date field names
         const dateField = payment.paymentDate || payment.date || payment.createdAt || payment.created_at || payment.transactionDate;
@@ -556,11 +562,41 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     return weeks;
   };
 
-  const parData = getPARData();
-  const portfolioTrend = getPortfolioTrend();
-  const loansByProduct = getLoansByProduct();
-  const monthlyDisbursements = getMonthlyDisbursements();
-  const collectionRateByWeek = getCollectionRateByWeek();
+  const parData = useMemo(() => getPARData(), [contextLoans]);
+  const portfolioTrend = useMemo(() => {
+    const data = getPortfolioTrend();
+    // Deduplicate by month key
+    const seen = new Set();
+    return data.filter(item => {
+      const key = item.month;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [contextLoans]);
+  const loansByProduct = useMemo(() => getLoansByProduct(), [contextLoans, loanProducts]);
+  const monthlyDisbursements = useMemo(() => {
+    const data = getMonthlyDisbursements();
+    // Deduplicate by month key
+    const seen = new Set();
+    return data.filter(item => {
+      const key = item.month;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [contextLoans]);
+  const collectionRateByWeek = useMemo(() => {
+    const data = getCollectionRateByWeek();
+    // Deduplicate by week key
+    const seen = new Set();
+    return data.filter(item => {
+      const key = item.week;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [contextLoans, payments]);
   
   // Calculate real metrics from DataContext
   const totalClients = contextClients.length;
@@ -1044,6 +1080,514 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     }
   };
 
+  // ✅ Enhanced function to show detailed metric breakdown with AI insights
+  const showMetricDetail = (metricType: string) => {
+    let modalData: any = null;
+
+    const formatNum = (num: number) => {
+      return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+      }).format(num);
+    };
+
+    switch (metricType) {
+      case 'gross-portfolio':
+        modalData = {
+          metricType: 'gross-portfolio',
+          metricLabel: 'Gross Loan Portfolio',
+          metricValue: `${currencySymbol} ${formatSmartNumber(filteredPortfolioTotal || 0).number}${formatSmartNumber(filteredPortfolioTotal || 0).suffix}`,
+          icon: <DollarSign className="size-6" />,
+          color: COLORS[0],
+          calculation: {
+            formula: 'Gross Portfolio = Sum of (Principal + Interest) for all active loans',
+            steps: [
+              { label: 'Total Active Loans', value: `${filteredLoansForPortfolio.length} loans` },
+              { label: 'Total Principal Outstanding', value: `${currencySymbol} ${formatNum(filteredPrincipalTotal)}` },
+              { label: 'Total Interest Outstanding', value: `${currencySymbol} ${formatNum(filteredInterestTotal)}` },
+              { label: 'Gross Loan Portfolio', value: `${currencySymbol} ${formatNum(filteredPortfolioTotal)}`, description: 'Sum of principal and interest from all active loans' }
+            ]
+          },
+          breakdown: {
+            loans: filteredLoansForPortfolio.slice(0, 50).map((l: any) => ({
+              loanNumber: l.loanNumber || l.id,
+              clientName: l.clientName || 'Unknown',
+              amount: calculateOutstanding(l),
+              status: l.status,
+              date: l.applicationDate || l.disbursementDate || l.createdAt
+            })),
+            summary: [
+              { label: 'Number of Loans', value: filteredLoansForPortfolio.length },
+              { label: 'Average Loan Balance', value: `${currencySymbol} ${formatNum(filteredPortfolioTotal / Math.max(filteredLoansForPortfolio.length, 1))}` },
+              { label: 'Principal Component', value: `${safeToFixed(safeDivideNum(filteredPrincipalTotal, filteredPortfolioTotal) * 100, 1)}%` },
+              { label: 'Interest Component', value: `${safeToFixed(safeDivideNum(filteredInterestTotal, filteredPortfolioTotal) * 100, 1)}%` }
+            ]
+          },
+          insights: [
+            {
+              type: filteredPortfolioTotal > 1000000 ? 'positive' : 'neutral',
+              title: filteredPortfolioTotal > 1000000 ? 'Strong Portfolio Size' : 'Growing Portfolio',
+              description: filteredPortfolioTotal > 1000000 
+                ? `Your portfolio has reached ${currencySymbol}${formatSmartNumber(filteredPortfolioTotal).number}${formatSmartNumber(filteredPortfolioTotal).suffix}, indicating healthy business growth and client trust.`
+                : `Your portfolio is at ${currencySymbol}${formatSmartNumber(filteredPortfolioTotal).number}${formatSmartNumber(filteredPortfolioTotal).suffix}. Focus on client acquisition and retention to scale up.`
+            },
+            {
+              type: 'neutral',
+              title: 'Portfolio Composition',
+              description: `Your portfolio is ${safeToFixed(safeDivideNum(filteredPrincipalTotal, filteredPortfolioTotal) * 100, 1)}% principal and ${safeToFixed(safeDivideNum(filteredInterestTotal, filteredPortfolioTotal) * 100, 1)}% interest. This ratio is typical for active loan portfolios.`
+            },
+            {
+              type: filteredLoansForPortfolio.length > 50 ? 'positive' : 'warning',
+              title: 'Portfolio Diversification',
+              description: filteredLoansForPortfolio.length > 50
+                ? `With ${filteredLoansForPortfolio.length} active loans, your portfolio shows good diversification, reducing concentration risk.`
+                : `Consider expanding your client base. Currently serving ${filteredLoansForPortfolio.length} active loans. More diversification reduces risk.`
+            }
+          ]
+        };
+        break;
+
+      case 'outstanding-principal':
+        modalData = {
+          metricType: 'outstanding-principal',
+          metricLabel: 'Outstanding Principal',
+          metricValue: `${currencySymbol} ${formatSmartNumber(filteredPrincipalTotal || 0).number}${formatSmartNumber(filteredPrincipalTotal || 0).suffix}`,
+          icon: <Banknote className="size-6" />,
+          color: COLORS[1],
+          calculation: {
+            formula: 'Outstanding Principal = Sum of unpaid principal amounts from all active loans',
+            steps: [
+              { label: 'Total Active Loans', value: `${filteredLoansForPrincipal.length} loans` },
+              { label: 'Total Outstanding Principal', value: `${currencySymbol} ${formatNum(filteredPrincipalTotal)}` },
+              { label: 'Average Principal per Loan', value: `${currencySymbol} ${formatNum(filteredPrincipalTotal / Math.max(filteredLoansForPrincipal.length, 1))}` }
+            ]
+          },
+          breakdown: {
+            loans: filteredLoansForPrincipal.slice(0, 50).map((l: any) => {
+              const principal = l.principalOutstanding || (l.principalAmount - (l.paidAmount || 0));
+              return {
+                loanNumber: l.loanNumber || l.id,
+                clientName: l.clientName || 'Unknown',
+                amount: Math.max(0, principal),
+                status: l.status,
+                date: l.applicationDate || l.disbursementDate || l.createdAt
+              };
+            }),
+            summary: [
+              { label: 'Total Loans', value: filteredLoansForPrincipal.length },
+              { label: 'Largest Principal', value: `${currencySymbol} ${formatNum(Math.max(...filteredLoansForPrincipal.map((l: any) => l.principalOutstanding || l.principalAmount || 0)))}` },
+              { label: 'Smallest Principal', value: `${currencySymbol} ${formatNum(Math.min(...filteredLoansForPrincipal.map((l: any) => l.principalOutstanding || l.principalAmount || 0)))}` },
+              { label: 'Collection Rate Needed', value: `${safeToFixed(safeDivideNum(filteredPrincipalTotal, 30), 0)} per day` }
+            ]
+          },
+          insights: [
+            {
+              type: 'neutral',
+              title: 'Capital At Risk',
+              description: `You have ${currencySymbol}${formatSmartNumber(filteredPrincipalTotal).number}${formatSmartNumber(filteredPrincipalTotal).suffix} of principal outstanding across ${filteredLoansForPrincipal.length} loans. This represents your actual capital deployed in the market.`
+            },
+            {
+              type: 'positive',
+              title: 'Recovery Strategy',
+              description: `To recover all principal within 30 days, you need to collect approximately ${currencySymbol}${formatNum(filteredPrincipalTotal / 30)} per day. Adjust based on your loan terms and repayment schedules.`
+            }
+          ]
+        };
+        break;
+
+      case 'outstanding-interest':
+        modalData = {
+          metricType: 'outstanding-interest',
+          metricLabel: 'Outstanding Interest',
+          metricValue: `${currencySymbol} ${formatSmartNumber(filteredInterestTotal || 0).number}${formatSmartNumber(filteredInterestTotal || 0).suffix}`,
+          icon: <TrendingUp className="size-6" />,
+          color: COLORS[4] || COLORS[2],
+          calculation: {
+            formula: 'Outstanding Interest = Sum of accrued but unpaid interest from all active loans',
+            steps: [
+              { label: 'Formula Used', value: 'Interest = Principal × Rate × Term / 100', description: 'Using 7.5% monthly flat rate' },
+              { label: 'Total Interest Accrued', value: `${currencySymbol} ${formatNum(filteredInterestTotal)}` },
+              { label: 'Average Interest per Loan', value: `${currencySymbol} ${formatNum(filteredInterestTotal / Math.max(filteredLoansForInterest.length, 1))}` }
+            ]
+          },
+          breakdown: {
+            loans: filteredLoansForInterest.slice(0, 50).map((l: any) => ({
+              loanNumber: l.loanNumber || l.id,
+              clientName: l.clientName || 'Unknown',
+              amount: calculateCorrectInterest(l),
+              status: l.status,
+              date: l.applicationDate || l.disbursementDate || l.createdAt
+            })),
+            summary: [
+              { label: 'Interest-Bearing Loans', value: filteredLoansForInterest.length },
+              { label: 'Interest as % of Principal', value: `${safeToFixed(safeDivideNum(filteredInterestTotal, filteredPrincipalTotal) * 100, 1)}%` },
+              { label: 'Potential Revenue', value: `${currencySymbol} ${formatNum(filteredInterestTotal)}` }
+            ]
+          },
+          insights: [
+            {
+              type: 'positive',
+              title: 'Revenue Potential',
+              description: `Your accrued interest of ${currencySymbol}${formatSmartNumber(filteredInterestTotal).number}${formatSmartNumber(filteredInterestTotal).suffix} represents potential revenue. Focus on timely collections to realize this income.`
+            },
+            {
+              type: filteredInterestTotal / filteredPrincipalTotal > 0.15 ? 'positive' : 'neutral',
+              title: 'Interest-to-Principal Ratio',
+              description: `Your interest represents ${safeToFixed(safeDivideNum(filteredInterestTotal, filteredPrincipalTotal) * 100, 1)}% of outstanding principal. ${filteredInterestTotal / filteredPrincipalTotal > 0.15 ? 'This healthy ratio indicates good profitability.' : 'Consider reviewing your interest rate strategy.'}`
+            }
+          ]
+        };
+        break;
+
+      case 'collected-interest':
+        const totalPaymentsWithInterest = filteredRepaymentsForInterest.length;
+        const avgInterestPerPayment = filteredCollectedInterestTotal / Math.max(totalPaymentsWithInterest, 1);
+        
+        modalData = {
+          metricType: 'collected-interest',
+          metricLabel: 'Collected Interest',
+          metricValue: `${currencySymbol} ${formatSmartNumber(filteredCollectedInterestTotal || 0).number}${formatSmartNumber(filteredCollectedInterestTotal || 0).suffix}`,
+          icon: <Wallet className="size-6" />,
+          color: '#10b981',
+          calculation: {
+            formula: 'Collected Interest = Sum of interest portions from all payments received',
+            steps: [
+              { label: 'Total Payments Received', value: `${totalPaymentsWithInterest} payments` },
+              { label: 'Total Interest Collected', value: `${currencySymbol} ${formatNum(filteredCollectedInterestTotal)}` },
+              { label: 'Average Interest per Payment', value: `${currencySymbol} ${formatNum(avgInterestPerPayment)}` }
+            ]
+          },
+          breakdown: {
+            payments: filteredRepaymentsForInterest.slice(0, 50).map((p: any) => {
+              const loan = contextLoans.find((l: any) => l.id === p.loanId);
+              return {
+                paymentId: p.id,
+                loanNumber: loan?.loanNumber || p.loanId,
+                clientName: p.clientName || loan?.clientName || 'Unknown',
+                amount: p.amount || 0,
+                date: p.paymentDate || p.createdAt,
+                interestPortion: p.interestPaid || (p.amount * 0.3)
+              };
+            }),
+            summary: [
+              { label: 'Total Payments', value: totalPaymentsWithInterest },
+              { label: 'Revenue Realized', value: `${currencySymbol} ${formatNum(filteredCollectedInterestTotal)}` },
+              { label: 'Daily Average', value: `${currencySymbol} ${formatNum(filteredCollectedInterestTotal / 30)}` }
+            ]
+          },
+          insights: [
+            {
+              type: 'positive',
+              title: 'Revenue Collection',
+              description: `You've successfully collected ${currencySymbol}${formatSmartNumber(filteredCollectedInterestTotal).number}${formatSmartNumber(filteredCollectedInterestTotal).suffix} in interest revenue from ${totalPaymentsWithInterest} payments. This represents realized income.`
+            },
+            {
+              type: 'neutral',
+              title: 'Collection Efficiency',
+              description: `Your average interest collection per payment is ${currencySymbol}${formatNum(avgInterestPerPayment)}. Monitor this metric to ensure consistent revenue streams.`
+            }
+          ]
+        };
+        break;
+
+      case 'processing-fees':
+        const loansWithFees = filteredLoansForDisbursement.filter((l: any) => (l.processing_fee || 0) > 0);
+        const avgFee = calculatedProcessingFees / Math.max(loansWithFees.length, 1);
+        
+        modalData = {
+          metricType: 'processing-fees',
+          metricLabel: 'Processing Fee Revenue',
+          metricValue: `${currencySymbol} ${formatSmartNumber(calculatedProcessingFees || 0).number}${formatSmartNumber(calculatedProcessingFees || 0).suffix}`,
+          icon: <Receipt className="size-6" />,
+          color: COLORS[5] || COLORS[1],
+          calculation: {
+            formula: 'Processing Fees = Sum of all processing fees collected from disbursed loans',
+            steps: [
+              { label: 'Loans with Processing Fees', value: `${loansWithFees.length} loans` },
+              { label: 'Total Fees Collected', value: `${currencySymbol} ${formatNum(calculatedProcessingFees)}` },
+              { label: 'Average Fee per Loan', value: `${currencySymbol} ${formatNum(avgFee)}` }
+            ]
+          },
+          breakdown: {
+            loans: loansWithFees.slice(0, 50).map((l: any) => ({
+              loanNumber: l.loanNumber || l.id,
+              clientName: l.clientName || 'Unknown',
+              amount: l.processing_fee || 0,
+              status: 'Collected',
+              date: l.disbursementDate
+            })),
+            summary: [
+              { label: 'Fee-Bearing Loans', value: loansWithFees.length },
+              { label: 'Total Revenue', value: `${currencySymbol} ${formatNum(calculatedProcessingFees)}` },
+              { label: 'Fee as % of Principal', value: `${safeToFixed(safeDivideNum(avgFee, filteredDisbursedTotal / filteredLoansForDisbursement.length) * 100, 1)}%` }
+            ]
+          },
+          insights: [
+            {
+              type: 'positive',
+              title: 'Upfront Revenue',
+              description: `Processing fees provide immediate revenue upon disbursement. You've collected ${currencySymbol}${formatSmartNumber(calculatedProcessingFees).number}${formatSmartNumber(calculatedProcessingFees).suffix} from ${loansWithFees.length} loans.`
+            },
+            {
+              type: 'neutral',
+              title: 'Fee Structure',
+              description: `Your average processing fee is ${currencySymbol}${formatNum(avgFee)} per loan, which is ${safeToFixed(safeDivideNum(avgFee, filteredDisbursedTotal / filteredLoansForDisbursement.length) * 100, 1)}% of the average loan amount. Ensure this remains competitive.`
+            }
+          ]
+        };
+        break;
+
+      case 'total-clients':
+        modalData = {
+          metricType: 'total-clients',
+          metricLabel: 'Total Clients',
+          metricValue: filteredTotalClients.toString(),
+          icon: <Users className="size-6" />,
+          color: COLORS[0],
+          calculation: {
+            formula: 'Total Clients = Count of all registered clients in the selected timeframe',
+            steps: [
+              { label: 'Total Registered Clients', value: `${totalClients} clients` },
+              { label: 'Filtered Clients (Based on Duration)', value: `${filteredTotalClients} clients` },
+              { label: 'Client Growth Rate', value: `${safeToFixed(safeDivideNum(filteredTotalClients, Math.max(totalClients - filteredTotalClients, 1)) * 100, 1)}%` }
+            ]
+          },
+          breakdown: {
+            clients: filteredClientsForCount.slice(0, 50).map((c: any) => {
+              const clientLoansCount = contextLoans.filter((l: any) => l.clientUuid === c.id || l.clientId === c.id).length;
+              return {
+                clientId: c.id,
+                name: c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim(),
+                status: c.status || 'Active',
+                joinDate: c.createdAt || c.registrationDate,
+                totalLoans: clientLoansCount
+              };
+            }),
+            summary: [
+              { label: 'Active Clients', value: filteredClientsForCount.filter((c: any) => c.status === 'Active' || c.status === 'Good Standing').length },
+              { label: 'Clients with Loans', value: filteredClientsForCount.filter((c: any) => contextLoans.some((l: any) => l.clientUuid === c.id || l.clientId === c.id)).length },
+              { label: 'Average Loans per Client', value: safeToFixed(safeDivideNum(contextLoans.length, Math.max(filteredTotalClients, 1)), 1) }
+            ]
+          },
+          insights: [
+            {
+              type: filteredTotalClients > 50 ? 'positive' : 'neutral',
+              title: 'Client Base Size',
+              description: filteredTotalClients > 50 
+                ? `You have ${filteredTotalClients} registered clients, indicating a strong and growing customer base. Continue nurturing these relationships.`
+                : `Your client base of ${filteredTotalClients} shows potential for growth. Focus on acquisition and retention strategies to scale up.`
+            },
+            {
+              type: 'positive',
+              title: 'Client Engagement',
+              description: `${safeToFixed(safeDivideNum(filteredClientsForCount.filter((c: any) => contextLoans.some((l: any) => l.clientUuid === c.id || l.clientId === c.id)).length, Math.max(filteredTotalClients, 1)) * 100, 1)}% of your clients have taken loans. ${safeToFixed(safeDivideNum(filteredClientsForCount.filter((c: any) => contextLoans.some((l: any) => l.clientUuid === c.id || l.clientId === c.id)).length, Math.max(filteredTotalClients, 1)) * 100, 1) > 70 ? 'Excellent engagement rate!' : 'Consider strategies to convert more clients to borrowers.'}`
+            }
+          ]
+        };
+        break;
+
+      case 'disbursed-total':
+        modalData = {
+          metricType: 'disbursed-total',
+          metricLabel: 'Disbursed (Total)',
+          metricValue: `${currencySymbol} ${formatSmartNumber(filteredDisbursedTotal || 0).number}${formatSmartNumber(filteredDisbursedTotal || 0).suffix}`,
+          icon: <DollarSign className="size-6" />,
+          color: COLORS[1],
+          calculation: {
+            formula: 'Total Disbursed = Sum of all principal amounts disbursed to clients',
+            steps: [
+              { label: 'Total Loans Disbursed', value: `${filteredLoansForDisbursement.length} loans` },
+              { label: 'Total Amount Disbursed', value: `${currencySymbol} ${formatNum(filteredDisbursedTotal)}` },
+              { label: 'Average Loan Size', value: `${currencySymbol} ${formatNum(filteredDisbursedTotal / Math.max(filteredLoansForDisbursement.length, 1))}` }
+            ]
+          },
+          breakdown: {
+            loans: filteredLoansForDisbursement.slice(0, 50).map((l: any) => ({
+              loanNumber: l.loanNumber || l.id,
+              clientName: l.clientName || 'Unknown',
+              amount: l.principalAmount || 0,
+              status: l.status,
+              date: l.disbursementDate
+            })),
+            summary: [
+              { label: 'Loans Disbursed', value: filteredLoansForDisbursement.length },
+              { label: 'Largest Loan', value: `${currencySymbol} ${formatNum(Math.max(...filteredLoansForDisbursement.map((l: any) => l.principalAmount || 0)))}` },
+              { label: 'Smallest Loan', value: `${currencySymbol} ${formatNum(Math.min(...filteredLoansForDisbursement.map((l: any) => l.principalAmount || 0)))}` },
+              { label: 'Median Loan Size', value: `${currencySymbol} ${formatNum(filteredDisbursedTotal / Math.max(filteredLoansForDisbursement.length, 1))}` }
+            ]
+          },
+          insights: [
+            {
+              type: 'positive',
+              title: 'Lending Activity',
+              description: `You've disbursed ${currencySymbol}${formatSmartNumber(filteredDisbursedTotal).number}${formatSmartNumber(filteredDisbursedTotal).suffix} across ${filteredLoansForDisbursement.length} loans. This shows active lending operations.`
+            },
+            {
+              type: 'neutral',
+              title: 'Loan Size Distribution',
+              description: `Your average loan size is ${currencySymbol}${formatNum(filteredDisbursedTotal / Math.max(filteredLoansForDisbursement.length, 1))}. Ensure this aligns with your target market and risk appetite.`
+            }
+          ]
+        };
+        break;
+
+      case 'collections-total':
+        modalData = {
+          metricType: 'collections-total',
+          metricLabel: 'Collections (Total)',
+          metricValue: `${currencySymbol} ${formatSmartNumber(filteredCollectionsTotal || 0).number}${formatSmartNumber(filteredCollectionsTotal || 0).suffix}`,
+          icon: <Wallet className="size-6" />,
+          color: COLORS[2],
+          calculation: {
+            formula: 'Total Collections = Sum of all payment amounts received from clients',
+            steps: [
+              { label: 'Total Payments Received', value: `${filteredPayments.length} payments` },
+              { label: 'Total Amount Collected', value: `${currencySymbol} ${formatNum(filteredCollectionsTotal)}` },
+              { label: 'Average Payment Size', value: `${currencySymbol} ${formatNum(filteredCollectionsTotal / Math.max(filteredPayments.length, 1))}` },
+              { label: 'Collection Rate', value: `${safeToFixed(safeDivideNum(filteredCollectionsTotal, filteredDisbursedTotal) * 100, 1)}%`, description: 'Percentage of disbursed amount collected back' }
+            ]
+          },
+          breakdown: {
+            payments: filteredPayments.slice(0, 50).map((p: any) => {
+              const loan = contextLoans.find((l: any) => l.id === p.loanId);
+              return {
+                paymentId: p.id,
+                loanNumber: loan?.loanNumber || p.loanId,
+                clientName: p.clientName || loan?.clientName || 'Unknown',
+                amount: p.amount || 0,
+                date: p.paymentDate || p.createdAt
+              };
+            }),
+            summary: [
+              { label: 'Total Payments', value: filteredPayments.length },
+              { label: 'Collection Efficiency', value: `${safeToFixed(safeDivideNum(filteredCollectionsTotal, filteredDisbursedTotal) * 100, 1)}%` },
+              { label: 'Average per Day', value: `${currencySymbol} ${formatNum(filteredCollectionsTotal / 30)}` }
+            ]
+          },
+          insights: [
+            {
+              type: filteredCollectionsTotal / filteredDisbursedTotal > 0.5 ? 'positive' : 'warning',
+              title: 'Collection Performance',
+              description: `You've collected ${safeToFixed(safeDivideNum(filteredCollectionsTotal, filteredDisbursedTotal) * 100, 1)}% of total disbursed amount. ${filteredCollectionsTotal / filteredDisbursedTotal > 0.5 ? 'Strong collection performance!' : 'Focus on improving collection efficiency.'}`
+            },
+            {
+              type: 'neutral',
+              title: 'Payment Frequency',
+              description: `You're receiving an average of ${safeToFixed(filteredPayments.length / 30, 1)} payments per day, collecting approximately ${currencySymbol}${formatNum(filteredCollectionsTotal / 30)} daily.`
+            }
+          ]
+        };
+        break;
+
+      case 'par30':
+        modalData = {
+          metricType: 'par30',
+          metricLabel: 'PAR 30 Days',
+          metricValue: `${par30Rate.toFixed(2)}%`,
+          icon: <AlertTriangle className="size-6" />,
+          color: COLORS[3],
+          calculation: {
+            formula: 'PAR 30 = (Outstanding Balance of Loans 30+ Days Overdue ÷ Total Outstanding) × 100',
+            steps: [
+              { label: 'Loans 30+ Days Overdue', value: `${par30Loans.length} loans` },
+              { label: 'Outstanding Balance (30+ Days)', value: `${currencySymbol} ${formatNum(par30Amount)}` },
+              { label: 'Total Outstanding Balance', value: `${currencySymbol} ${formatNum(totalOutstanding)}` },
+              { label: 'PAR 30 Ratio', value: `${par30Rate.toFixed(2)}%`, description: 'Industry standard: <5% is excellent, 5-10% is acceptable' }
+            ]
+          },
+          breakdown: {
+            loans: par30Loans.map((l: any) => ({
+              loanNumber: l.loanNumber || l.id,
+              clientName: l.clientName || 'Unknown',
+              amount: l.outstandingBalance || 0,
+              status: l.status,
+              daysInArrears: l.daysInArrears || 0,
+              date: l.applicationDate || l.disbursementDate || l.createdAt
+            })),
+            summary: [
+              { label: 'Loans in Arrears', value: par30Loans.length },
+              { label: 'Total at Risk', value: `${currencySymbol} ${formatNum(par30Amount)}` },
+              { label: 'Average Days Overdue', value: Math.round(par30Loans.reduce((sum: number, l: any) => sum + (l.daysInArrears || 0), 0) / Math.max(par30Loans.length, 1)) },
+              { label: 'Recovery Target', value: `${currencySymbol} ${formatNum(par30Amount)}` }
+            ]
+          },
+          insights: [
+            {
+              type: par30Rate < 5 ? 'positive' : par30Rate < 10 ? 'warning' : 'negative',
+              title: 'Portfolio Quality',
+              description: par30Rate < 5 
+                ? `Your PAR 30 of ${par30Rate.toFixed(2)}% is excellent! This indicates strong credit quality and effective collection processes.`
+                : par30Rate < 10
+                  ? `Your PAR 30 of ${par30Rate.toFixed(2)}% is acceptable but needs monitoring. Consider strengthening follow-up procedures.`
+                  : `Your PAR 30 of ${par30Rate.toFixed(2)}% is concerning. Urgent action needed to improve collections and reduce delinquency.`
+            },
+            {
+              type: par30Loans.length > 0 ? 'warning' : 'positive',
+              title: 'Recovery Strategy',
+              description: par30Loans.length > 0
+                ? `You have ${par30Loans.length} loans overdue by 30+ days totaling ${currencySymbol}${formatSmartNumber(par30Amount).number}${formatSmartNumber(par30Amount).suffix}. Prioritize these for immediate follow-up.`
+                : 'Excellent! No loans are overdue by 30+ days. Maintain this standard through proactive client communication.'
+            }
+          ]
+        };
+        break;
+
+      case 'collection-efficiency':
+        const isOverPerforming = collectionEfficiency > 100;
+        
+        modalData = {
+          metricType: 'collection-efficiency',
+          metricLabel: 'Collection Efficiency',
+          metricValue: `${collectionEfficiency.toFixed(1)}%`,
+          icon: <Activity className="size-6" />,
+          color: COLORS[4] || COLORS[0],
+          calculation: {
+            formula: 'Collection Efficiency = (Total Collected ÷ Expected Collections) × 100',
+            steps: [
+              { label: 'Total Collected', value: `${currencySymbol} ${formatNum(totalCollected)}` },
+              { label: 'Total Disbursed', value: `${currencySymbol} ${formatNum(totalDisbursedForEfficiency)}` },
+              { label: 'Outstanding Balance', value: `${currencySymbol} ${formatNum(totalOutstandingForEfficiency)}` },
+              { label: 'Expected Collections', value: `${currencySymbol} ${formatNum(expectedCollections)}`, description: 'Disbursed - Outstanding' },
+              { label: 'Collection Efficiency', value: `${collectionEfficiency.toFixed(1)}%`, description: isOverPerforming ? 'Over-performance: collecting more than expected (fees, early payments)' : 'Under-performance: collecting less than expected' }
+            ]
+          },
+          breakdown: {
+            summary: [
+              { label: 'Total Disbursed', value: `${currencySymbol} ${formatNum(totalDisbursedForEfficiency)}` },
+              { label: 'Total Collected', value: `${currencySymbol} ${formatNum(totalCollected)}` },
+              { label: 'Still Outstanding', value: `${currencySymbol} ${formatNum(totalOutstandingForEfficiency)}` },
+              { label: 'Expected vs Actual', value: isOverPerforming ? `+${currencySymbol}${formatNum(totalCollected - expectedCollections)}` : `-${currencySymbol}${formatNum(expectedCollections - totalCollected)}` }
+            ]
+          },
+          insights: [
+            {
+              type: isOverPerforming ? 'positive' : collectionEfficiency > 80 ? 'neutral' : 'warning',
+              title: 'Collection Performance',
+              description: isOverPerforming
+                ? `Outstanding! You're collecting ${collectionEfficiency.toFixed(1)}% of expected amounts. This over-performance likely includes processing fees, penalties, or early payments.`
+                : collectionEfficiency > 80
+                  ? `Your collection efficiency of ${collectionEfficiency.toFixed(1)}% is good. Continue monitoring and optimizing collection processes.`
+                  : `Your collection efficiency of ${collectionEfficiency.toFixed(1)}% needs improvement. Review collection strategies and client follow-up procedures.`
+            },
+            {
+              type: 'neutral',
+              title: 'Cash Flow Impact',
+              description: `You've collected ${currencySymbol}${formatSmartNumber(totalCollected).number}${formatSmartNumber(totalCollected).suffix} against expected collections of ${currencySymbol}${formatSmartNumber(expectedCollections).number}${formatSmartNumber(expectedCollections).suffix}. ${isOverPerforming ? 'This positive variance strengthens your cash position.' : 'Focus on improving collection rates to boost cash flow.'}`
+            }
+          ]
+        };
+        break;
+
+      default:
+        return;
+    }
+
+    if (modalData) {
+      setSelectedMetricData(modalData);
+      setShowMetricModal(true);
+    }
+  };
+
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-5 md:space-y-6" style={{
       backgroundColor: 'transparent'
@@ -1166,17 +1710,18 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
             {/* Gross Loan Portfolio */}
             <div 
-              className="transition-colors rounded-lg p-4"
+              className="transition-all rounded-lg p-4 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5"
               style={{ 
                 backgroundColor: isDark ? 'rgba(59, 130, 246, 0.08)' : 'rgba(59, 130, 246, 0.05)',
                 border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.15)'}`
               }}
+              onClick={() => showMetricDetail('gross-portfolio')}
             >
               <div className="flex items-start gap-3">
                 <DollarSign className="size-6 flex-shrink-0 mt-1" style={{ color: COLORS[0] }} />
                 <div className="flex-1">
                   <p className="text-sm mb-1" style={{ color: themeColors.cardTextSecondary }}>Gross Loan Portfolio</p>
-                  <p className="text-2xl mb-1 cursor-pointer" onClick={() => onNavigate?.('loans')} style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(filteredPortfolioTotal || 0).number}{formatSmartNumber(filteredPortfolioTotal || 0).suffix}</p>
+                  <p className="text-2xl mb-1" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(filteredPortfolioTotal || 0).number}{formatSmartNumber(filteredPortfolioTotal || 0).suffix}</p>
                   <p className="text-xs" style={{ color: themeColors.textSecondary }}>{filteredLoansForPortfolio.length} active loans</p>
                 </div>
               </div>
@@ -1184,17 +1729,18 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
             {/* Outstanding Principal */}
             <div 
-              className="transition-colors rounded-lg p-4"
+              className="transition-all rounded-lg p-4 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5"
               style={{ 
                 backgroundColor: isDark ? 'rgba(34, 197, 94, 0.08)' : 'rgba(34, 197, 94, 0.05)',
                 border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)'}`
               }}
+              onClick={() => showMetricDetail('outstanding-principal')}
             >
               <div className="flex items-start gap-3">
                 <Banknote className="size-6 flex-shrink-0 mt-1" style={{ color: COLORS[1] }} />
                 <div className="flex-1">
                   <p className="text-sm mb-1" style={{ color: themeColors.cardTextSecondary }}>Outstanding Principal</p>
-                  <p className="text-2xl mb-1 cursor-pointer" onClick={() => onNavigate?.('loans')} style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(filteredPrincipalTotal || 0).number}{formatSmartNumber(filteredPrincipalTotal || 0).suffix}</p>
+                  <p className="text-2xl mb-1" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(filteredPrincipalTotal || 0).number}{formatSmartNumber(filteredPrincipalTotal || 0).suffix}</p>
                   <p className="text-xs" style={{ color: themeColors.textSecondary }}>from {filteredLoansForPrincipal.length} active loans</p>
                 </div>
               </div>
@@ -1202,17 +1748,18 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
             {/* Outstanding Interest */}
             <div 
-              className="transition-colors rounded-lg p-4"
+              className="transition-all rounded-lg p-4 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5"
               style={{ 
                 backgroundColor: isDark ? 'rgba(251, 146, 60, 0.08)' : 'rgba(251, 146, 60, 0.05)',
                 border: `1px solid ${isDark ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.15)'}`
               }}
+              onClick={() => showMetricDetail('outstanding-interest')}
             >
               <div className="flex items-start gap-3">
                 <TrendingUp className="size-6 flex-shrink-0 mt-1" style={{ color: COLORS[4] || COLORS[2] }} />
                 <div className="flex-1">
                   <p className="text-sm mb-1" style={{ color: themeColors.cardTextSecondary }}>Outstanding Interest</p>
-                  <p className="text-2xl mb-1 cursor-pointer" onClick={() => onNavigate?.('loans')} style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(filteredInterestTotal || 0).number}{formatSmartNumber(filteredInterestTotal || 0).suffix}</p>
+                  <p className="text-2xl mb-1" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(filteredInterestTotal || 0).number}{formatSmartNumber(filteredInterestTotal || 0).suffix}</p>
                   <p className="text-xs" style={{ color: themeColors.textSecondary }}>Accrued interest</p>
                 </div>
               </div>
@@ -1220,17 +1767,18 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
             {/* Collected Interest */}
             <div 
-              className="transition-colors rounded-lg p-4"
+              className="transition-all rounded-lg p-4 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5"
               style={{ 
                 backgroundColor: isDark ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.05)',
                 border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.15)'}`
               }}
+              onClick={() => showMetricDetail('collected-interest')}
             >
               <div className="flex items-start gap-3">
                 <Wallet className="size-6 flex-shrink-0 mt-1" style={{ color: '#10b981' }} />
                 <div className="flex-1">
                   <p className="text-sm mb-1" style={{ color: themeColors.cardTextSecondary }}>Collected Interest</p>
-                  <p className="text-2xl mb-1 cursor-pointer" onClick={() => onNavigate?.('loans')} style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(filteredCollectedInterestTotal || 0).number}{formatSmartNumber(filteredCollectedInterestTotal || 0).suffix}</p>
+                  <p className="text-2xl mb-1" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(filteredCollectedInterestTotal || 0).number}{formatSmartNumber(filteredCollectedInterestTotal || 0).suffix}</p>
                   <div className="flex items-center gap-2">
                     <p className="text-xs" style={{ color: themeColors.textSecondary }}>{filteredRepaymentsForInterest.length} payments</p>
                     <select
@@ -1260,17 +1808,18 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
             {/* Processing Fee Revenue */}
             <div 
-              className="transition-colors rounded-lg p-4"
+              className="transition-all rounded-lg p-4 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5"
               style={{ 
                 backgroundColor: isDark ? 'rgba(168, 85, 247, 0.08)' : 'rgba(168, 85, 247, 0.05)',
                 border: `1px solid ${isDark ? 'rgba(168, 85, 247, 0.2)' : 'rgba(168, 85, 247, 0.15)'}`
               }}
+              onClick={() => showMetricDetail('processing-fees')}
             >
               <div className="flex items-start gap-3">
                 <Receipt className="size-6 flex-shrink-0 mt-1" style={{ color: COLORS[5] || COLORS[1] }} />
                 <div className="flex-1">
                   <p className="text-sm mb-1" style={{ color: themeColors.cardTextSecondary }}>Processing Fee Revenue</p>
-                  <p className="text-2xl mb-1 cursor-pointer" onClick={() => onNavigate?.('accounting')} style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(calculatedProcessingFees || 0).number}{formatSmartNumber(calculatedProcessingFees || 0).suffix}</p>
+                  <p className="text-2xl mb-1" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(calculatedProcessingFees || 0).number}{formatSmartNumber(calculatedProcessingFees || 0).suffix}</p>
                   <div className="flex items-center gap-2">
                     <p className="text-xs" style={{ color: themeColors.textSecondary }}>{filteredLoansForDisbursement.filter((l: any) => (l.processing_fee || 0) > 0).length} fees collected</p>
                     <select
@@ -1303,7 +1852,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         <h3 className="mb-2 sm:mb-3 text-base sm:text-lg" style={{ color: themeColors.cardText }}>Operational Health & Risk</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
           <div 
-            onClick={() => showBreakdown('total-clients')}
+            onClick={() => showMetricDetail('total-clients')}
             className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[0]}15, ${themeColors.cardBackground})`,
@@ -1340,7 +1889,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           </div>
 
           <div 
-            onClick={() => showBreakdown('disbursed-total')}
+            onClick={() => showMetricDetail('disbursed-total')}
             className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[1]}15, ${themeColors.cardBackground})`,
@@ -1377,7 +1926,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           </div>
 
           <div 
-            onClick={() => showBreakdown('collections-total')}
+            onClick={() => showMetricDetail('collections-total')}
             className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[2]}15, ${themeColors.cardBackground})`,
@@ -1414,7 +1963,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           </div>
 
           <div 
-            onClick={() => showBreakdown('par30')}
+            onClick={() => showMetricDetail('par30')}
             className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[3]}15, ${themeColors.cardBackground})`,
@@ -1434,7 +1983,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           </div>
 
           <div 
-            onClick={() => showBreakdown('collection-efficiency')}
+            onClick={() => showMetricDetail('collection-efficiency')}
             className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[4] || COLORS[0]}15, ${themeColors.cardBackground})`,
@@ -1548,6 +2097,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 {isMounted && <ResponsiveContainer width="100%" height={200} aspect={undefined}>
                   <RechartsPieChart>
                     <Pie
+                      key="pie-loans-by-product"
                       data={loansByProduct}
                       dataKey="value"
                       nameKey="name"
@@ -1655,7 +2205,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 }}
                 labelStyle={{ color: isDark ? '#e1e8f0' : '#111827' }}
               />
-              <Bar dataKey="amount" radius={8}>
+              <Bar key="bar-disbursements" dataKey="amount" radius={8}>
                 {monthlyDisbursements.map((entry: any, index: number) => (
                   <Cell key={`cell-disbursement-${index}`} fill={entry.amount > 0 ? COLORS[1] : 'transparent'} />
                 ))}
@@ -1708,6 +2258,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 iconType="rect"
               />
               <Area
+                key="area-expected"
                 dataKey="expected"
                 type="monotone"
                 fill="#9333ea"
@@ -1717,6 +2268,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 name="Expected"
               />
               <Area
+                key="area-collected"
                 dataKey="collected"
                 type="monotone"
                 fill="#ef4444"
@@ -1784,6 +2336,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 labelStyle={{ color: isDark ? '#e1e8f0' : '#111827' }}
               />
               <Bar
+                key="bar-status-distribution"
                 dataKey="count"
                 layout="vertical"
                 radius={4}
@@ -1792,6 +2345,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   <Cell key={`cell-status-${index}`} fill={entry.color} />
                 ))}
                 <LabelList
+                  key="label-status"
                   dataKey="status"
                   content={(props: any) => {
                     const { x, y, width, height, value, index } = props;
@@ -1817,6 +2371,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   }}
                 />
                 <LabelList
+                  key="label-count"
                   dataKey="count"
                   content={(props: any) => {
                     const { x, y, width, height, value, index } = props;
@@ -2735,6 +3290,28 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           </div>
         </div>
       )}
+
+      {/* ✅ New Enhanced Metric Detail Modal */}
+      {showMetricModal && selectedMetricData && (
+        <MetricDetailModal
+          isOpen={showMetricModal}
+          onClose={() => {
+            setShowMetricModal(false);
+            setSelectedMetricData(null);
+          }}
+          metricType={selectedMetricData.metricType}
+          metricValue={selectedMetricData.metricValue}
+          metricLabel={selectedMetricData.metricLabel}
+          icon={selectedMetricData.icon}
+          color={selectedMetricData.color}
+          breakdown={selectedMetricData.breakdown}
+          calculation={selectedMetricData.calculation}
+          insights={selectedMetricData.insights}
+          currencySymbol={currencySymbol}
+          isDark={isDark}
+        />
+      )}
+
       {/* Modal for Upcoming Payments Details */}
       {showUpcomingPaymentsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">

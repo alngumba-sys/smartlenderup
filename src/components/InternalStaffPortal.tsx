@@ -8,7 +8,7 @@ import { useNavigation } from '../contexts/NavigationContext';
 import { canViewTab, canEditInTab, canCreateInTab, canDeleteInTab } from '../utils/staffPermissions';
 import { PermissionsDebugPanel } from './PermissionsDebugPanel';
 import { DashboardTab } from './tabs/DashboardTab';
-import { ClientsTab } from './tabs/ClientsTab';
+import { ClientsTabRedesigned as ClientsTab } from './tabs/ClientsTabRedesigned';
 import { InstitutionsTab } from './tabs/InstitutionsTab';
 import { LoansTab } from './tabs/LoansTab';
 import { ApprovalsTab } from './tabs/ApprovalsTab';

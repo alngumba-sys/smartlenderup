@@ -194,7 +194,7 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <span className="text-xs text-gray-500 dark:text-gray-400">Client Name:</span>
-                  <p className="text-gray-900 dark:text-white">{selectedLoan?.clientName || 'N/A'}</p>
+                  <p className="text-gray-900 dark:text-white">{selectedLoan?.clientName || selectedClient?.name || 'N/A'}</p>
                 </div>
                 <div>
                   <span className="text-xs text-gray-500 dark:text-gray-400">Loan ID:</span>

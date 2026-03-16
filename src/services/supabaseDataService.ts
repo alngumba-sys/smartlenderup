@@ -923,20 +923,38 @@ export const loanProductService = {
 
 export const loanService = {
   /**
-   * Get all loans
+   * Get all loans with client and product details
    */
   async getAll(organizationId: string) {
     console.log(`📊 Fetching loans for org: ${organizationId}`);
     
     const { data, error } = await supabase
       .from('loans')
-      .select('*') // ✅ FIXED: Remove foreign key joins - fetch related data separately if needed
+      .select(`
+        *,
+        client:clients!client_id(
+          id,
+          client_number,
+          first_name,
+          last_name,
+          name,
+          email,
+          phone,
+          id_number
+        ),
+        product:loan_products!product_id(
+          id,
+          product_name,
+          product_code,
+          interest_rate
+        )
+      `)
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false });
     
     if (error) {
       if (isTableNotFoundError(error)) {
-        console.log('ℹ️ Table \'loans\' not found - returning empty array');
+        console.log('���️ Table \'loans\' not found - returning empty array');
         return [];
       }
       console.error('❌ Error fetching loans:', error);
@@ -948,12 +966,30 @@ export const loanService = {
   },
 
   /**
-   * Get loans by client
+   * Get loans by client with client and product details
    */
   async getByClient(clientId: string, organizationId: string) {
     const { data, error } = await supabase
       .from('loans')
-      .select('*')
+      .select(`
+        *,
+        client:clients!client_id(
+          id,
+          client_number,
+          first_name,
+          last_name,
+          name,
+          email,
+          phone,
+          id_number
+        ),
+        product:loan_products!product_id(
+          id,
+          product_name,
+          product_code,
+          interest_rate
+        )
+      `)
       .eq('client_id', clientId)
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false });

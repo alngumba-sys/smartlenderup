@@ -36,6 +36,10 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
   const [viewMode, setViewMode] = useState<'tile' | 'list'>('list');
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
   const [outstandingSortOrder, setOutstandingSortOrder] = useState<'asc' | 'desc' | null>(null);
+  
+  // Sorting state for all columns
+  const [sortField, setSortField] = useState<'name' | 'id' | 'status' | 'contact' | 'score' | 'outstanding' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Listen to NavigationContext for selectedClientId
   useEffect(() => {
@@ -77,16 +81,50 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
         newRiskRating = 'High'; // Very Poor
       }
       
-      // Calculate client status based on loans
-      const clientLoans = loans.filter(l => l.clientUuid === client.id);
-      const activeLoans = clientLoans.filter(l => l.status === 'Active' || l.status === 'In Arrears');
+      // Calculate client status based on loans (check both clientUuid and clientId for compatibility)
+      const clientLoans = loans.filter(l => l.clientUuid === client.id || l.clientId === client.id);
+      
+      // Only consider disbursed loans for status calculation
+      const disbursedLoans = clientLoans.filter(l => {
+        const status = (l.status || '').toLowerCase();
+        return status === 'active' || status === 'in arrears' || status === 'disbursed' ||
+               status === 'paid' || status === 'closed' || status === 'fully paid' ||
+               status === 'default' || status === 'default / past due' || status === 'written off';
+      });
+      
+      const activeLoans = disbursedLoans.filter(l => {
+        const status = (l.status || '').toLowerCase();
+        return status === 'active' || status === 'in arrears' || status === 'disbursed' ||
+               status === 'default' || status === 'default / past due' || status === 'written off';
+      });
+      
       let newStatus: 'Active' | 'Inactive' | 'Blacklisted' | 'Good Standing' | 'In Arrears' | 'Paid' | 'Current' = 'Active';
       
-      if (activeLoans.length === 0 && clientLoans.length > 0) {
+      // Check if client has ANY loans at all (including pending applications)
+      const hasAnyLoans = clientLoans.length > 0;
+      
+      // ✅ FIXED: Client with 0 loans cannot have "Paid" status
+      // If client has NO loans at all (not even applications), set status to Active (new client)
+      if (clientLoans.length === 0) {
+        newStatus = 'Active';
+      }
+      // If client has loan applications but NO disbursed loans, set status to Active (waiting for disbursement)
+      else if (disbursedLoans.length === 0 && clientLoans.length > 0) {
+        newStatus = 'Active';
+      } 
+      // If client has disbursed loans but none are active (all paid/closed), set status to Paid
+      else if (activeLoans.length === 0 && disbursedLoans.length > 0) {
         newStatus = 'Paid';
-      } else if (activeLoans.some(l => l.status === 'In Arrears' || (l.daysInArrears && l.daysInArrears > 0))) {
+      } 
+      // If client has active loans with arrears, set status to In Arrears
+      else if (activeLoans.some(l => {
+        const status = (l.status || '').toLowerCase();
+        return status === 'in arrears' || (l.daysInArrears && l.daysInArrears > 0);
+      })) {
         newStatus = 'In Arrears';
-      } else if (activeLoans.length > 0) {
+      } 
+      // If client has active loans with no arrears, set status to Good Standing
+      else if (activeLoans.length > 0) {
         newStatus = 'Good Standing';
       }
       
@@ -157,6 +195,28 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
     }
   };
 
+  // Handle column sorting
+  const handleSort = (field: 'name' | 'id' | 'status' | 'contact' | 'score' | 'outstanding') => {
+    if (sortField === field) {
+      // Toggle direction or clear
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else {
+        setSortField(null);
+        setSortDirection('asc');
+      }
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Get sort icon
+  const getSortIcon = (field: string) => {
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' ? ' ↑' : ' ↓';
+  };
+
   const filteredClients = clients.filter(client => {
     const matchesSearch = (client.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (client.phone || '').includes(searchTerm) ||
@@ -174,25 +234,27 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Good Standing':
-        return 'bg-emerald-100 text-emerald-800';
+        return 'bg-emerald-500 text-white dark:bg-emerald-600 dark:text-white font-semibold';
       case 'In Arrears':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-600 text-white dark:bg-red-600 dark:text-white font-semibold';
       case 'Paid':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-600 text-white dark:bg-blue-600 dark:text-white font-semibold';
       case 'Active':
-        return 'bg-blue-600 text-white dark:bg-blue-500 dark:text-white';
+        return 'bg-blue-600 text-white dark:bg-blue-500 dark:text-white font-semibold';
+      case 'Inactive':
+        return 'bg-gray-500 text-white dark:bg-gray-600 dark:text-white font-semibold';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-500 text-white dark:bg-gray-600 dark:text-white font-semibold';
     }
   };
 
   const getCreditScoreColor = (score: number) => {
-    if (score >= 800) return 'text-green-500';    // Excellent: 800-850
-    if (score >= 740) return 'text-blue-500';     // Very Good: 740-799
-    if (score >= 670) return 'text-cyan-500';     // Good: 670-739
-    if (score >= 580) return 'text-yellow-500';   // Fair: 580-669
-    if (score >= 300) return 'text-orange-500';   // Poor: 300-579
-    return 'text-gray-500';                        // Below 300
+    if (score >= 800) return 'text-emerald-600 dark:text-emerald-400 font-bold';    // Excellent: 800-850
+    if (score >= 740) return 'text-blue-600 dark:text-blue-400 font-bold';     // Very Good: 740-799
+    if (score >= 670) return 'text-cyan-600 dark:text-cyan-400 font-bold';     // Good: 670-739
+    if (score >= 580) return 'text-amber-600 dark:text-amber-400 font-bold';   // Fair: 580-669
+    if (score >= 300) return 'text-orange-600 dark:text-orange-400 font-bold';   // Poor: 300-579
+    return 'text-gray-600 dark:text-gray-400 font-bold';                        // Below 300
   };
 
   // Calculate summary statistics based on selected client type tab
@@ -210,7 +272,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
   const threeMonthsAgo = new Date();
   threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
   const activeClients = clientsOfType.filter(client => {
-    const clientLoans = loans.filter(l => l.clientUuid === client.id);
+    const clientLoans = loans.filter(l => l.clientUuid === client.id || l.clientId === client.id);
     return clientLoans.some(loan => {
       const disbursementDate = loan.disbursementDate ? new Date(loan.disbursementDate) : null;
       const lastPaymentDate = loan.lastPaymentDate ? new Date(loan.lastPaymentDate) : null;
@@ -246,16 +308,27 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
     .reduce((sum, l) => sum + (l.outstandingBalance || 0), 0);
 
   return (
-    <div className="p-6 space-y-6 bg-transparent">
+    <div className="min-h-screen" style={{ backgroundColor: isDark ? '#0f172a' : '#FFF5E1' }}>
+      <div className="max-w-[1600px] mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className={isDark ? 'text-white' : 'text-gray-900'}>Client Management</h2>
-          <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Manage all your clients and their information</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-xl shadow-lg" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
+            <Users className="size-7 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold" style={{ color: isDark ? '#f1f5f9' : '#111120' }}>
+              Client Management
+            </h1>
+            <p className="text-sm mt-1" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
+              Manage all your clients and their information
+            </p>
+          </div>
         </div>
         <PermissionButton
           permission={PERMISSIONS.CLIENTS.ADD_CLIENT}
-          className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 text-sm"
+          className="px-6 py-3 rounded-xl text-white font-semibold flex items-center gap-2 shadow-lg hover:shadow-xl transition-all"
+          style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
           onClick={() => {
             if (!hasPermission(PERMISSIONS.CLIENTS.ADD_CLIENT)) {
               toast.error('You don\'t have permission to add clients');
@@ -264,38 +337,50 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
             setShowNewClientModal(true);
           }}
         >
-          <Plus className="size-4" />
+          <Plus className="size-5" />
           Add Client
         </PermissionButton>
       </div>
 
       {/* Client Type Tabs */}
-      <div className="flex gap-2 border-b-2 border-gray-200 dark:border-gray-700">
+      <div className="p-1.5 rounded-xl inline-flex gap-2 shadow-sm" style={{ backgroundColor: isDark ? '#1e293b' : '#ffffff' }}>
         <button
           onClick={() => setClientTypeTab('individual')}
-          className={`px-6 py-3 flex-shrink-0 transition-all ${
+          className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all ${
             clientTypeTab === 'individual'
-              ? 'border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-400 -mb-[2px]'
+              ? 'text-white shadow-lg'
               : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
           }`}
+          style={clientTypeTab === 'individual' ? { background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' } : {}}
         >
-          <div className="flex items-center gap-2">
-            <User className="size-4" />
-            Individuals
-          </div>
+          <User className="size-5" />
+          Individuals
+          <span className={`ml-2 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+            clientTypeTab === 'individual'
+              ? 'bg-white/20 text-white'
+              : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+          }`}>
+            {individualClients}
+          </span>
         </button>
         <button
           onClick={() => setClientTypeTab('business')}
-          className={`px-6 py-3 flex-shrink-0 transition-all ${
+          className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all ${
             clientTypeTab === 'business'
-              ? 'border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-400 -mb-[2px]'
+              ? 'text-white shadow-lg'
               : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
           }`}
+          style={clientTypeTab === 'business' ? { background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' } : {}}
         >
-          <div className="flex items-center gap-2">
-            <Building2 className="size-4" />
-            Businesses
-          </div>
+          <Building2 className="size-5" />
+          Businesses
+          <span className={`ml-2 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+            clientTypeTab === 'business'
+              ? 'bg-white/20 text-white'
+              : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+          }`}>
+            {businessClients}
+          </span>
         </button>
       </div>
 
@@ -347,107 +432,161 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
       {activeSubTab === 'all' && (
         <>
       {/* Summary Cards */}
-      <div className="grid grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Total Clients */}
-        <div className={`p-4 sm:p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
-          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}
+        <div 
+          className="p-6 rounded-xl border backdrop-blur-sm shadow-sm hover:shadow-lg transition-all cursor-pointer"
+          style={{ 
+            backgroundColor: isDark ? '#1e293b' : '#ffffff',
+            borderColor: isDark ? '#334155' : '#e2e8f0'
+          }}
         >
-          <div className="flex items-start gap-3">
-            {clientTypeTab === 'individual' ? (
-              <User className="size-5 sm:size-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" />
-            ) : (
-              <Building2 className="size-5 sm:size-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" />
-            )}
-            <div className="flex-1">
-              <p className={`text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                {clientTypeTab === 'individual' ? 'Total Individuals' : 'Total Businesses'}
-              </p>
-              <p className={`text-xl sm:text-2xl mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{totalClients}</p>
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 rounded-xl" style={{ backgroundColor: '#3b82f620' }}>
+              {clientTypeTab === 'individual' ? (
+                <User className="size-6 text-blue-600 dark:text-blue-400" />
+              ) : (
+                <Building2 className="size-6 text-blue-600 dark:text-blue-400" />
+              )}
             </div>
           </div>
+          <p className="text-sm font-medium mb-1" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
+            {clientTypeTab === 'individual' ? 'Total Individuals' : 'Total Businesses'}
+          </p>
+          <p className="text-3xl font-bold" style={{ color: isDark ? '#f1f5f9' : '#111120' }}>
+            {totalClients}
+          </p>
         </div>
 
         {/* Active Clients */}
-        <div className={`p-4 sm:p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
-          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}
+        <div 
+          className="p-6 rounded-xl border backdrop-blur-sm shadow-sm hover:shadow-lg transition-all cursor-pointer"
+          style={{ 
+            backgroundColor: isDark ? '#1e293b' : '#ffffff',
+            borderColor: isDark ? '#334155' : '#e2e8f0'
+          }}
         >
-          <div className="flex items-start gap-3">
-            <TrendingUp className="size-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-1" />
-            <div className="flex-1">
-              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Active (Last 3 months)</p>
-              <p className={`text-2xl mt-1 mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{activeClients}</p>
-              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{safePercentage(activeClients, totalClients, 1)}%</p>
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 rounded-xl" style={{ backgroundColor: '#10b98120' }}>
+              <TrendingUp className="size-6 text-emerald-600 dark:text-emerald-400" />
             </div>
           </div>
+          <p className="text-sm font-medium mb-1" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
+            Active (Last 3 months)
+          </p>
+          <p className="text-3xl font-bold mb-2" style={{ color: isDark ? '#f1f5f9' : '#111120' }}>
+            {activeClients}
+          </p>
+          <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+            {safePercentage(activeClients, totalClients, 1)}% of total
+          </p>
         </div>
 
         {/* Clients in Arrears */}
-        <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
-          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}
+        <div 
+          className="p-6 rounded-xl border backdrop-blur-sm shadow-sm hover:shadow-lg transition-all cursor-pointer"
+          style={{ 
+            backgroundColor: isDark ? '#1e293b' : '#ffffff',
+            borderColor: isDark ? '#334155' : '#e2e8f0'
+          }}
         >
-          <div className="flex items-start gap-3">
-            <TrendingDown className="size-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-1" />
-            <div className="flex-1">
-              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>In Arrears</p>
-              <p className={`text-2xl mt-1 mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{clientsInArrears}</p>
-              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{safePercentage(clientsInArrears, totalClients, 1)}%</p>
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 rounded-xl" style={{ backgroundColor: '#ef444420' }}>
+              <AlertCircle className="size-6 text-red-600 dark:text-red-400" />
             </div>
+            {clientsInArrears > 0 && <div className="size-2 rounded-full bg-red-500 animate-pulse" />}
           </div>
+          <p className="text-sm font-medium mb-1" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
+            In Arrears
+          </p>
+          <p className="text-3xl font-bold mb-2" style={{ color: isDark ? '#f1f5f9' : '#111120' }}>
+            {clientsInArrears}
+          </p>
+          <p className="text-xs font-semibold text-red-600 dark:text-red-400">
+            {safePercentage(clientsInArrears, totalClients, 1)}% of total
+          </p>
         </div>
 
         {/* Average Credit Score */}
-        <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
-          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}
+        <div 
+          className="p-6 rounded-xl border backdrop-blur-sm shadow-sm hover:shadow-lg transition-all cursor-pointer"
+          style={{ 
+            backgroundColor: isDark ? '#1e293b' : '#ffffff',
+            borderColor: isDark ? '#334155' : '#e2e8f0'
+          }}
         >
-          <div className="flex items-start gap-3">
-            <CreditCard className="size-6 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-1" />
-            <div className="flex-1">
-              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Avg Credit Score</p>
-              <p className={`text-2xl mt-1 ${getCreditScoreColor(averageCreditScore)}`}>{averageCreditScore}</p>
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 rounded-xl" style={{ backgroundColor: '#a855f720' }}>
+              <CreditCard className="size-6 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
+          <p className="text-sm font-medium mb-1" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
+            Avg Credit Score
+          </p>
+          <p className={`text-3xl font-bold ${getCreditScoreColor(averageCreditScore)}`}>
+            {averageCreditScore}
+          </p>
         </div>
 
         {/* Total Outstanding */}
-        <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
-          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}
+        <div 
+          className="p-6 rounded-xl border backdrop-blur-sm shadow-sm hover:shadow-lg transition-all cursor-pointer"
+          style={{ 
+            backgroundColor: isDark ? '#1e293b' : '#ffffff',
+            borderColor: isDark ? '#334155' : '#e2e8f0'
+          }}
         >
-          <div className="flex items-start gap-3">
-            <DollarSign className="size-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-1" />
-            <div className="flex-1">
-              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Outstanding</p>
-              <p className={`text-xl mt-1 mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>KES {safeToFixed(totalOutstandingAll / 1000000, 1)}M</p>
-              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>KES {totalOutstandingAll.toLocaleString()}</p>
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 rounded-xl" style={{ backgroundColor: '#f59e0b20' }}>
+              <DollarSign className="size-6 text-amber-600 dark:text-amber-400" />
             </div>
           </div>
+          <p className="text-sm font-medium mb-1" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
+            Total Outstanding
+          </p>
+          <p className="text-2xl font-bold mb-1" style={{ color: isDark ? '#f1f5f9' : '#111120' }}>
+            KES {safeToFixed(totalOutstandingAll / 1000000, 1)}M
+          </p>
+          <p className="text-xs" style={{ color: isDark ? '#64748b' : '#94a3b8' }}>
+            KES {totalOutstandingAll.toLocaleString()}
+          </p>
         </div>
       </div>
 
       {/* Search and Filters */}
-      <div className={`p-3 sm:p-4 rounded-lg border ${
-        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-      }`}>
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center">
-          <div className="flex-1 relative">
-            <Search className="size-4 sm:size-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      <div 
+        className="p-5 rounded-xl border backdrop-blur-sm shadow-sm"
+        style={{ 
+          backgroundColor: isDark ? '#1e293b' : '#ffffff',
+          borderColor: isDark ? '#334155' : '#e2e8f0'
+        }}
+      >
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+          <div className="flex-1 w-full relative">
+            <Search className="size-5 absolute left-4 top-1/2 -translate-y-1/2" style={{ color: isDark ? '#64748b' : '#94a3b8' }} />
             <input
               type="text"
               placeholder="Search by name, phone, or Client ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 sm:pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+              className="w-full pl-12 pr-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+              style={{
+                backgroundColor: isDark ? '#0f172a' : '#f8fafc',
+                borderColor: isDark ? '#334155' : '#e2e8f0',
+                color: isDark ? '#f1f5f9' : '#111120'
+              }}
             />
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 w-full lg:w-auto">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="flex-1 sm:flex-none px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+              className="flex-1 lg:flex-none px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none cursor-pointer transition-all"
+              style={{
+                backgroundColor: isDark ? '#0f172a' : '#f8fafc',
+                borderColor: isDark ? '#334155' : '#e2e8f0',
+                color: isDark ? '#f1f5f9' : '#111120'
+              }}
             >
               <option value="all">All Status</option>
               <option value="Good Standing">Good Standing</option>
@@ -468,9 +607,19 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
       {viewMode === 'tile' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto pr-2">
           {[...filteredClients].reverse().map((client) => {
-            const clientLoans = loans.filter(l => l.clientUuid === client.id);
-            const activeLoans = clientLoans.filter(l => l.status === 'Active' || l.status === 'In Arrears');
-            const totalOutstanding = activeLoans.reduce((sum, l) => sum + l.outstandingBalance, 0);
+            const clientLoans = loans.filter(l => l.clientUuid === client.id || l.clientId === client.id);
+            // Only count disbursed loans with outstanding balance
+            const activeLoans = clientLoans.filter(l => {
+              const status = (l.status || '').toLowerCase();
+              const isDisbursed = status === 'active' || 
+                                 status === 'in arrears' || 
+                                 status === 'disbursed' ||
+                                 status === 'default' ||
+                                 status === 'default / past due' ||
+                                 status === 'written off';
+              return isDisbursed && (l.outstandingBalance || 0) > 0;
+            });
+            const totalOutstanding = activeLoans.reduce((sum, l) => sum + (l.outstandingBalance || 0), 0);
 
             return (
               <div
@@ -552,48 +701,124 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
             <table className="w-full">
               <thead className={`sticky top-0 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
                 <tr>
-                  <th className={`px-4 py-2 text-left text-[11px] ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Name</th>
-                  <th className={`px-4 py-2 text-left text-[11px] ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>ID</th>
-                  <th className={`px-4 py-2 text-center text-[11px] ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Status</th>
-                  <th className={`px-4 py-2 text-left text-[11px] ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Contact</th>
-                  <th className={`px-4 py-2 text-center text-[11px] ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Score</th>
+                  <th 
+                    className={`px-4 py-2 text-left text-[11px] cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
+                    onClick={() => handleSort('name')}
+                  >
+                    Name{getSortIcon('name')}
+                  </th>
+                  <th 
+                    className={`px-4 py-2 text-left text-[11px] cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
+                    onClick={() => handleSort('id')}
+                  >
+                    ID{getSortIcon('id')}
+                  </th>
+                  <th 
+                    className={`px-4 py-2 text-center text-[11px] cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
+                    onClick={() => handleSort('status')}
+                  >
+                    Status{getSortIcon('status')}
+                  </th>
+                  <th 
+                    className={`px-4 py-2 text-left text-[11px] cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
+                    onClick={() => handleSort('contact')}
+                  >
+                    Contact{getSortIcon('contact')}
+                  </th>
+                  <th 
+                    className={`px-4 py-2 text-center text-[11px] cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
+                    onClick={() => handleSort('score')}
+                  >
+                    Score{getSortIcon('score')}
+                  </th>
                   <th 
                     className={`px-4 py-2 text-right text-[11px] cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
-                    onClick={() => {
-                      setOutstandingSortOrder(prev => 
-                        prev === null ? 'desc' : prev === 'desc' ? 'asc' : null
-                      );
-                    }}
+                    onClick={() => handleSort('outstanding')}
                   >
-                    Outstanding {outstandingSortOrder === 'desc' ? '↓' : outstandingSortOrder === 'asc' ? '↑' : ''}
+                    Outstanding{getSortIcon('outstanding')}
                   </th>
                   <th className={`px-4 py-2 text-center text-[11px] ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {(() => {
-                  // Calculate outstanding for each client for sorting
+                  // Calculate outstanding for each client
                   const clientsWithOutstanding = filteredClients.map(client => {
-                    const clientLoans = loans.filter(l => l.clientUuid === client.id);
-                    // Outstanding loans = loans with balance > 0
-                    const outstandingLoans = clientLoans.filter(l => (l.outstandingBalance || 0) > 0);
+                    // Match loans by both clientUuid and clientId for compatibility
+                    const clientLoans = loans.filter(l => l.clientUuid === client.id || l.clientId === client.id);
+                    
+                    // Outstanding loans = ONLY disbursed loans with balance > 0
+                    // Must be in Active, In Arrears, Disbursed, Default, or Written Off status
+                    const outstandingLoans = clientLoans.filter(l => {
+                      const status = (l.status || '').toLowerCase();
+                      
+                      // Only count loans that have been disbursed (exclude pending, rejected, etc.)
+                      const isDisbursed = status === 'active' || 
+                                         status === 'in arrears' || 
+                                         status === 'disbursed' ||
+                                         status === 'default' ||
+                                         status === 'default / past due' ||
+                                         status === 'written off';
+                      
+                      return isDisbursed && (l.outstandingBalance || 0) > 0;
+                    });
+                    
                     const totalOutstanding = outstandingLoans.reduce((sum, l) => sum + (l.outstandingBalance || 0), 0);
                     return { client, totalOutstanding, outstandingCount: outstandingLoans.length };
                   });
 
-                  // Sort by outstanding if sort order is set
+                  // Apply sorting based on sortField and sortDirection
                   let sortedClients = [...clientsWithOutstanding];
-                  if (outstandingSortOrder === 'desc') {
-                    sortedClients.sort((a, b) => b.totalOutstanding - a.totalOutstanding);
-                  } else if (outstandingSortOrder === 'asc') {
-                    sortedClients.sort((a, b) => a.totalOutstanding - b.totalOutstanding);
+                  if (sortField) {
+                    sortedClients.sort((a, b) => {
+                      let aVal: any, bVal: any;
+                      
+                      switch (sortField) {
+                        case 'name':
+                          aVal = (a.client.name || '').toLowerCase();
+                          bVal = (b.client.name || '').toLowerCase();
+                          break;
+                        case 'id':
+                          aVal = (a.client.clientNumber || a.client.client_number || a.client.id || '').toLowerCase();
+                          bVal = (b.client.clientNumber || b.client.client_number || b.client.id || '').toLowerCase();
+                          break;
+                        case 'status':
+                          aVal = (a.client.status || '').toLowerCase();
+                          bVal = (b.client.status || '').toLowerCase();
+                          break;
+                        case 'contact':
+                          aVal = (a.client.phone || '').toLowerCase();
+                          bVal = (b.client.phone || '').toLowerCase();
+                          break;
+                        case 'score':
+                          aVal = a.client.creditScore || 300;
+                          bVal = b.client.creditScore || 300;
+                          break;
+                        case 'outstanding':
+                          aVal = a.totalOutstanding;
+                          bVal = b.totalOutstanding;
+                          break;
+                        default:
+                          return 0;
+                      }
+                      
+                      if (sortDirection === 'asc') {
+                        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+                      } else {
+                        return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+                      }
+                    });
                   } else {
-                    sortedClients.reverse(); // Default reverse order
+                    // Default: reverse order (most recent first)
+                    sortedClients.reverse();
                   }
 
                   return sortedClients.map(({ client, totalOutstanding, outstandingCount }) => {
-                  const clientLoans = loans.filter(l => l.clientUuid === client.id);
-                  const activeLoans = clientLoans.filter(l => l.status === 'Active' || l.status === 'In Arrears');
+                  const clientLoans = loans.filter(l => l.clientUuid === client.id || l.clientId === client.id);
+                  const activeLoans = clientLoans.filter(l => {
+                    const status = (l.status || '').toLowerCase();
+                    return status === 'active' || status === 'in arrears';
+                  });
 
                   return (
                     <tr 
@@ -671,7 +896,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
                               e.stopPropagation();
                               setDetailModalClient(client.id);
                             }}
-                            className="dark:text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-400 text-xs text-emerald-700"
+                            className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white px-3 py-1 rounded-md font-semibold transition-colors text-[10px]"
                           >
                             View
                           </button>
@@ -1488,6 +1713,7 @@ For more information, contact us at +254 700 000 000.`}
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

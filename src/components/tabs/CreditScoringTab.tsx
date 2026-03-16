@@ -568,17 +568,6 @@ export function CreditScoringTab() {
           <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>AI-powered credit risk assessment</p>
         </div>
         <div className="flex gap-2">
-          <button 
-            onClick={() => setShowParametersModal(true)}
-            className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm"
-          >
-            <Settings className="size-3.5" />
-            Configure
-          </button>
-          <button className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm">
-            <RefreshCw className="size-3.5" />
-            Recalculate
-          </button>
           <button className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 text-sm">
             <Download className="size-3.5" />
             Export

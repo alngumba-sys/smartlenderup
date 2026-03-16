@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Search, Plus, Calendar, AlertCircle, CheckCircle, XCircle, DollarSign, TrendingUp, PercentIcon, Wallet, User, Calculator, Upload, X, Info, Filter, Clock, MessageSquare, UserCheck, FileText, Send, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit, RefreshCw } from 'lucide-react';
 import { generateInstallments, type LoanDocument, type Guarantor, type Collateral } from '../../data/dummyData';
 // Import useData hook from DataContext - Version: 2025-01-11
@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
 import { getCurrencySymbol, getCurrencyCode } from '../../utils/currencyUtils';
 import { canCreateInTab, canEditInTab, canDeleteInTab, showPermissionError } from '../../utils/staffPermissions';
+import { AIInsightPopover } from '../AIInsightPopover';
 
 // ✨ Professional redesign: Compact tables + Expected payments analytics
 export function LoansTab() {
@@ -55,6 +56,17 @@ export function LoansTab() {
   const [selectedLoanForComment, setSelectedLoanForComment] = useState<string | null>(null);
   const [showRepaymentSchedule, setShowRepaymentSchedule] = useState<string | null>(null);
   const [showDisbursementModal, setShowDisbursementModal] = useState<string | null>(null);
+  const [selectedInsightCard, setSelectedInsightCard] = useState<string | null>(null);
+  
+  // Refs for each KPI card to position the popover
+  const totalLoansRef = useRef<HTMLDivElement>(null);
+  const totalAmountRef = useRef<HTMLDivElement>(null);
+  const outstandingRef = useRef<HTMLDivElement>(null);
+  const activeLoansRef = useRef<HTMLDivElement>(null);
+  const pendingReviewRef = useRef<HTMLDivElement>(null);
+  const pendingDisbursementRef = useRef<HTMLDivElement>(null);
+  const paidLoansRef = useRef<HTMLDivElement>(null);
+  const defaultsRef = useRef<HTMLDivElement>(null);
   
   // Get dynamic currency
   const currencySymbol = getCurrencySymbol();
@@ -616,10 +628,16 @@ export function LoansTab() {
       displayLoans = loans.filter(loan => loan.status === 'Approved' || loan.status === 'approved');
       break;
     case 'active':
-      displayLoans = loans.filter(loan => 
-        loan.status === 'active' || 
-        loan.status === 'Active'
-      );
+      // ✅ FIXED: Only show truly active loans, exclude Paid/Closed loans
+      displayLoans = loans.filter(loan => {
+        const status = (loan.status || '').toLowerCase().trim();
+        // Include: Active, Disbursed, In Arrears
+        const isActiveStatus = status === 'active' || status === 'disbursed' || status === 'in arrears';
+        // Exclude: Paid, Closed, Fully Paid, etc.
+        const isPaidStatus = status === 'paid' || status === 'closed' || status === 'fully paid';
+        
+        return isActiveStatus && !isPaidStatus;
+      });
       break;
     case 'settled':
       // Include loans with status 'Paid', 'Closed', OR loans where balance is 0
@@ -634,18 +652,50 @@ export function LoansTab() {
       });
       break;
     case 'defaulted':
-      displayLoans = loans.filter(loan => 
-        loan.status === 'Written Off' || 
-        loan.status === 'Default' ||
-        loan.status === 'Default / Past Due' ||
-        (loan.daysInArrears || 0) >= 90
-      );
+      displayLoans = loans.filter(loan => {
+        const status = (loan.status || '').toLowerCase();
+        const isPaid = status === 'paid' || status === 'closed' || status === 'fully paid';
+        const outstandingBalance = loan.outstandingBalance || 0;
+        
+        // Exclude paid loans (status = Paid OR outstanding = 0)
+        if (isPaid || outstandingBalance <= 0) return false;
+        
+        // Only include loans that are truly defaulted
+        return loan.status === 'Written Off' || 
+               loan.status === 'Default' ||
+               loan.status === 'Default / Past Due' ||
+               (loan.daysInArrears || 0) >= 90;
+      });
       break;
     case 'due':
-      displayLoans = loans.filter(loan => isDueSoon(loan) && loan.status === 'Active');
+      displayLoans = loans.filter(loan => {
+        // Exclude paid loans (outstanding = 0 or status = Paid)
+        const principalAmt = loan.principalAmount || 0;
+        const paidAmt = loan.paidAmount || 0;
+        const interestAmt = calculateCorrectInterest(loan);
+        const totalRepayable = principalAmt + interestAmt;
+        const outstanding = Math.max(0, totalRepayable - paidAmt);
+        const status = (loan.status || '').toLowerCase();
+        const isPaid = status === 'paid' || status === 'closed' || status === 'fully paid' || outstanding <= 0;
+        
+        if (isPaid) return false;
+        
+        return isDueSoon(loan) && loan.status === 'Active';
+      });
       break;
     case 'no-repayments':
-      displayLoans = loans.filter(loan => (loan.paidAmount || 0) === 0 && loan.status === 'Active');
+      // ✅ Show loans with zero repayments (paidAmount = 0), excluding Paid/Closed loans
+      displayLoans = loans.filter(loan => {
+        const status = (loan.status || '').toLowerCase().trim();
+        const isPaidStatus = status === 'paid' || status === 'closed' || status === 'fully paid';
+        const hasNoPayments = (loan.paidAmount || 0) === 0;
+        
+        // Include loans with 0 payments that are Active, Disbursed, or In Arrears
+        // Exclude loans that are Paid, Closed, Pending, Approved, Rejected
+        const isActiveLoan = status === 'active' || status === 'disbursed' || status === 'in arrears';
+        
+        return hasNoPayments && isActiveLoan && !isPaidStatus;
+      });
       break;
     case 'principal':
       displayLoans = loans.filter(loan => loan.status === 'Active');
@@ -1024,18 +1074,57 @@ export function LoansTab() {
   const upcomingPayments = getUpcomingPayments();
   const upcomingPaymentsAmount = upcomingPayments.reduce((sum, p) => sum + p.installmentAmount, 0);
 
+  // AI Insights data for each card type
+  const getAIInsights = (cardType: string, data?: any) => {
+    const insights: Record<string, { icon: string; title: string; description: string; trend?: 'up' | 'down' | 'neutral' }[]> = {
+      'total-loans': [
+        { icon: '📈', title: 'Growth Trend', description: `${data?.growth || 12}% increase compared to last month`, trend: 'up' },
+        { icon: '🎯', title: 'Target Progress', description: `${data?.targetProgress || 87}% of quarterly loan disbursement target achieved`, trend: 'up' }
+      ],
+      'total-amount': [
+        { icon: '💰', title: 'Portfolio Value', description: `${currencyCode} ${((data?.total || 0) / 1000000).toFixed(2)}M represents strong portfolio health`, trend: 'neutral' },
+        { icon: '📊', title: 'Average Loan Size', description: `${currencyCode} ${(data?.avgSize || 97692).toLocaleString()} per loan, ${data?.avgChange || 5}% higher than industry average`, trend: 'up' }
+      ],
+      'outstanding': [
+        { icon: '⚠️', title: 'Collection Priority', description: `${data?.highRisk || 15}% of outstanding loans require immediate attention`, trend: 'down' },
+        { icon: '📉', title: 'Recovery Rate', description: `${data?.recoveryRate || 78}% collection efficiency in the last 30 days`, trend: 'up' }
+      ],
+      'active-loans': [
+        { icon: '✅', title: 'Healthy Portfolio', description: `${data?.onTime || 92}% of active loans are making timely payments`, trend: 'up' },
+        { icon: '🔄', title: 'Repayment Velocity', description: `Average ${data?.avgDays || 3.2} days early payment across active portfolio`, trend: 'up' }
+      ],
+      'pending-review': [
+        { icon: '⏱️', title: 'Processing Time', description: `Average review time is ${data?.avgReviewTime || 2.1} days, ${data?.faster || 18}% faster than last month`, trend: 'up' },
+        { icon: '🎓', title: 'Approval Rate', description: `${data?.approvalRate || 73}% of reviewed applications get approved`, trend: 'neutral' }
+      ],
+      'pending-disbursement': [
+        { icon: '💳', title: 'Cash Flow Ready', description: `${currencyCode} ${((data?.readyAmount || 0) / 1000000).toFixed(2)}M approved and ready for disbursement`, trend: 'neutral' },
+        { icon: '⚡', title: 'Disbursement Speed', description: `Average ${data?.avgDisbursementTime || 1.3} days from approval to disbursement`, trend: 'up' }
+      ],
+      'paid-loans': [
+        { icon: '🌟', title: 'Success Rate', description: `${data?.successRate || 96}% of loans fully repaid with zero defaults`, trend: 'up' },
+        { icon: '🔁', title: 'Repeat Customers', description: `${data?.repeatRate || 68}% of paid borrowers have applied for new loans`, trend: 'up' }
+      ],
+      'defaults': [
+        { icon: '🚨', title: 'Risk Mitigation', description: `${data?.mitigationSuccess || 45}% of at-risk loans recovered before default`, trend: 'up' },
+        { icon: '📋', title: 'Recovery Action', description: `${data?.inRecovery || 2} loans currently in active recovery process`, trend: 'neutral' }
+      ]
+    };
+    return insights[cardType] || [];
+  };
+
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
+      {/* Header - Premium fintech styling */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className={isDark ? 'text-white' : 'text-gray-900'}>Loan Management</h2>
-          <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Manage all loan applications and disbursements</p>
+          <h2 className={`text-2xl font-semibold tracking-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>Loan Management</h2>
+          <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Manage all loan applications and disbursements</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <button
             onClick={() => setShowCalculator(true)}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm"
+            className="px-4 py-2.5 bg-[#0066FF] text-white rounded-xl hover:bg-[#0052CC] shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-2 text-sm font-medium"
           >
             <Calculator className="size-4" />
             Calculator
@@ -1048,7 +1137,7 @@ export function LoansTab() {
               }
               setShowNewLoanModal(true);
             }}
-            className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 text-sm"
+            className="px-4 py-2.5 bg-[#22C55E] text-white rounded-xl hover:bg-[#16A34A] shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-2 text-sm font-medium"
           >
             <Plus className="size-4" />
             Add Loan
@@ -1056,95 +1145,93 @@ export function LoansTab() {
         </div>
       </div>
 
-      {/* Upcoming Payments Summary */}
-      <div className={`p-4 rounded-lg border ${isDark ? 'bg-blue-900/40 border-blue-800/50' : 'bg-blue-50 border-blue-200'}`}>
+      {/* Upcoming Payments Summary - Modern card with subtle gradient */}
+      <div className={`p-5 rounded-2xl border transition-all duration-200 ${
+        isDark 
+          ? 'bg-gradient-to-br from-blue-900/30 to-blue-800/20 border-blue-700/40 shadow-lg shadow-blue-900/20' 
+          : 'bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200/60 shadow-sm'
+      }`}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Clock className={`size-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className={`p-3 rounded-xl ${isDark ? 'bg-blue-600/20' : 'bg-white shadow-sm'}`}>
+                <Clock className={`size-5 ${isDark ? 'text-blue-300' : 'text-blue-600'}`} />
+              </div>
               <div>
-                <p className={`text-sm font-medium ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
+                <p className={`text-sm font-semibold ${isDark ? 'text-blue-200' : 'text-blue-900'}`}>
                   Upcoming Payments
                 </p>
-                <p className={`text-xs ${isDark ? 'text-blue-400/70' : 'text-blue-700/70'}`}>
+                <p className={`text-xs ${isDark ? 'text-blue-300/60' : 'text-blue-600/70'}`}>
                   Payments expected in selected timeframe
                 </p>
               </div>
             </div>
-            <div className={`h-10 w-px ${isDark ? 'bg-blue-700/30' : 'bg-blue-300'}`} />
+            <div className={`h-12 w-px ${isDark ? 'bg-blue-600/30' : 'bg-blue-300/50'}`} />
             <div>
-              <p className={`text-2xl font-bold ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
+              <p className={`text-3xl font-bold ${isDark ? 'text-blue-100' : 'text-blue-900'}`}>
                 {upcomingPayments.length.toLocaleString()}
               </p>
-              <p className={`text-xs ${isDark ? 'text-blue-400/70' : 'text-blue-700/70'}`}>
+              <p className={`text-xs font-medium ${isDark ? 'text-blue-300/70' : 'text-blue-700/70'}`}>
                 Payment{upcomingPayments.length !== 1 ? 's' : ''}
               </p>
             </div>
-            <div className={`h-10 w-px ${isDark ? 'bg-blue-700/30' : 'bg-blue-300'}`} />
+            <div className={`h-12 w-px ${isDark ? 'bg-blue-600/30' : 'bg-blue-300/50'}`} />
             <div>
-              <p className={`text-2xl font-bold ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
+              <p className={`text-3xl font-bold ${isDark ? 'text-blue-100' : 'text-blue-900'}`}>
                 {currencySymbol} {upcomingPaymentsAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
-              <p className={`text-xs ${isDark ? 'text-blue-400/70' : 'text-blue-700/70'}`}>
+              <p className={`text-xs font-medium ${isDark ? 'text-blue-300/70' : 'text-blue-700/70'}`}>
                 Total Expected
               </p>
             </div>
           </div>
           
-          {/* Timeframe Selector */}
+          {/* Timeframe Selector - Premium pills */}
           <div className="flex gap-2">
             <button
               onClick={() => setUpcomingPaymentsTimeframe('today')}
-              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+              className={`px-4 py-2 text-xs font-medium rounded-lg transition-all duration-200 ${
                 upcomingPaymentsTimeframe === 'today'
-                  ? isDark 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-blue-600 text-white'
+                  ? 'bg-[#0066FF] text-white shadow-md' 
                   : isDark
                     ? 'bg-blue-900/30 text-blue-300 hover:bg-blue-900/50'
-                    : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-300'
+                    : 'bg-white text-blue-700 hover:bg-blue-50 border border-blue-200 shadow-sm'
               }`}
             >
               Today
             </button>
             <button
               onClick={() => setUpcomingPaymentsTimeframe('this-week')}
-              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+              className={`px-4 py-2 text-xs font-medium rounded-lg transition-all duration-200 ${
                 upcomingPaymentsTimeframe === 'this-week'
-                  ? isDark 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-blue-600 text-white'
+                  ? 'bg-[#0066FF] text-white shadow-md' 
                   : isDark
                     ? 'bg-blue-900/30 text-blue-300 hover:bg-blue-900/50'
-                    : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-300'
+                    : 'bg-white text-blue-700 hover:bg-blue-50 border border-blue-200 shadow-sm'
               }`}
             >
               This Week
             </button>
             <button
               onClick={() => setUpcomingPaymentsTimeframe('next-7-days')}
-              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+              className={`px-4 py-2 text-xs font-medium rounded-lg transition-all duration-200 ${
                 upcomingPaymentsTimeframe === 'next-7-days'
-                  ? isDark 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-blue-600 text-white'
+                  ? 'bg-[#0066FF] text-white shadow-md' 
                   : isDark
                     ? 'bg-blue-900/30 text-blue-300 hover:bg-blue-900/50'
-                    : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-300'
+                    : 'bg-white text-blue-700 hover:bg-blue-50 border border-blue-200 shadow-sm'
               }`}
             >
               Next 7 Days
             </button>
             <button
               onClick={() => setUpcomingPaymentsTimeframe('this-month')}
-              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+              className={`px-4 py-2 text-xs font-medium rounded-lg transition-all duration-200 ${
                 upcomingPaymentsTimeframe === 'this-month'
-                  ? isDark 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-blue-600 text-white'
+                  ? 'bg-[#0066FF] text-white shadow-md' 
                   : isDark
                     ? 'bg-blue-900/30 text-blue-300 hover:bg-blue-900/50'
-                    : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-300'
+                    : 'bg-white text-blue-700 hover:bg-blue-50 border border-blue-200 shadow-sm'
               }`}
             >
               This Month
@@ -1153,145 +1240,145 @@ export function LoansTab() {
         </div>
       </div>
 
-      {/* Sub-tabs - Single row with horizontal scrolling */}
-      <div className="border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
-        <div className="flex whitespace-nowrap">
+      {/* Sub-tabs - Clean modern tabs with active indicator */}
+      <div className={`border-b ${isDark ? 'border-gray-700' : 'border-gray-200'} overflow-x-auto`}>
+        <div className="flex whitespace-nowrap gap-1">
           <button
             onClick={() => setActiveSubTab('all')}
-            className={`px-3 py-2 text-xs flex-shrink-0 ${
+            className={`px-4 py-3 text-sm font-medium flex-shrink-0 border-b-2 transition-all duration-200 ${
               activeSubTab === 'all'
-                ? 'border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                ? 'border-[#22C55E] text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10'
+                : isDark ? 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             View All
           </button>
           <button
             onClick={() => setActiveSubTab('pending-review')}
-            className={`px-3 py-2 text-xs flex-shrink-0 ${
+            className={`px-4 py-3 text-sm font-medium flex-shrink-0 border-b-2 transition-all duration-200 ${
               activeSubTab === 'pending-review'
-                ? 'border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                ? 'border-[#22C55E] text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10'
+                : isDark ? 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             Pending Review
           </button>
           <button
             onClick={() => setActiveSubTab('pending-disbursement')}
-            className={`px-3 py-2 text-xs flex-shrink-0 ${
+            className={`px-4 py-3 text-sm font-medium flex-shrink-0 border-b-2 transition-all duration-200 ${
               activeSubTab === 'pending-disbursement'
-                ? 'border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                ? 'border-[#22C55E] text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10'
+                : isDark ? 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             Pending Disbursement
           </button>
           <button
             onClick={() => setActiveSubTab('active')}
-            className={`px-3 py-2 text-xs flex-shrink-0 ${
+            className={`px-4 py-3 text-sm font-medium flex-shrink-0 border-b-2 transition-all duration-200 ${
               activeSubTab === 'active'
-                ? 'border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                ? 'border-[#22C55E] text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10'
+                : isDark ? 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             Active
           </button>
           <button
             onClick={() => setActiveSubTab('settled')}
-            className={`px-3 py-2 text-xs flex-shrink-0 ${
+            className={`px-4 py-3 text-sm font-medium flex-shrink-0 border-b-2 transition-all duration-200 ${
               activeSubTab === 'settled'
-                ? 'border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                ? 'border-[#22C55E] text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10'
+                : isDark ? 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             Paid
           </button>
           <button
             onClick={() => setActiveSubTab('defaulted')}
-            className={`px-3 py-2 text-xs flex-shrink-0 ${
+            className={`px-4 py-3 text-sm font-medium flex-shrink-0 border-b-2 transition-all duration-200 ${
               activeSubTab === 'defaulted'
-                ? 'border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                ? 'border-[#22C55E] text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10'
+                : isDark ? 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             Defaulted
           </button>
           <button
             onClick={() => setActiveSubTab('due')}
-            className={`px-3 py-2 text-xs flex-shrink-0 ${
+            className={`px-4 py-3 text-sm font-medium flex-shrink-0 border-b-2 transition-all duration-200 ${
               activeSubTab === 'due'
-                ? 'border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                ? 'border-[#22C55E] text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10'
+                : isDark ? 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             Due / Upcoming Loans (within 7 days)
           </button>
           <button
             onClick={() => setActiveSubTab('no-repayments')}
-            className={`px-3 py-2 text-xs flex-shrink-0 ${
+            className={`px-4 py-3 text-sm font-medium flex-shrink-0 border-b-2 transition-all duration-200 ${
               activeSubTab === 'no-repayments'
-                ? 'border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                ? 'border-[#22C55E] text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10'
+                : isDark ? 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             No Repayments
           </button>
           <button
             onClick={() => setActiveSubTab('principal')}
-            className={`px-3 py-2 text-xs flex-shrink-0 ${
+            className={`px-4 py-3 text-sm font-medium flex-shrink-0 border-b-2 transition-all duration-200 ${
               activeSubTab === 'principal'
-                ? 'border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                ? 'border-[#22C55E] text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10'
+                : isDark ? 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             Principal Outstanding
           </button>
           <button
             onClick={() => setActiveSubTab('1-month-late')}
-            className={`px-3 py-2 text-xs flex-shrink-0 ${
+            className={`px-4 py-3 text-sm font-medium flex-shrink-0 border-b-2 transition-all duration-200 ${
               activeSubTab === '1-month-late'
-                ? 'border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                ? 'border-[#22C55E] text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10'
+                : isDark ? 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             1 Month Late
           </button>
           <button
             onClick={() => setActiveSubTab('3-months-late')}
-            className={`px-3 py-2 text-xs flex-shrink-0 ${
+            className={`px-4 py-3 text-sm font-medium flex-shrink-0 border-b-2 transition-all duration-200 ${
               activeSubTab === '3-months-late'
-                ? 'border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                ? 'border-[#22C55E] text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10'
+                : isDark ? 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             3 Months Late
           </button>
           <button
             onClick={() => setActiveSubTab('guarantors')}
-            className={`px-3 py-2 text-xs flex-shrink-0 ${
+            className={`px-4 py-3 text-sm font-medium flex-shrink-0 border-b-2 transition-all duration-200 ${
               activeSubTab === 'guarantors'
-                ? 'border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                ? 'border-[#22C55E] text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10'
+                : isDark ? 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             Guarantors
           </button>
           <button
             onClick={() => setActiveSubTab('comments')}
-            className={`px-3 py-2 text-xs flex-shrink-0 ${
+            className={`px-4 py-3 text-sm font-medium flex-shrink-0 border-b-2 transition-all duration-200 ${
               activeSubTab === 'comments'
-                ? 'border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                ? 'border-[#22C55E] text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10'
+                : isDark ? 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             Comments
           </button>
           <button
             onClick={() => setActiveSubTab('repayment-schedule')}
-            className={`px-3 py-2 text-xs flex-shrink-0 ${
+            className={`px-4 py-3 text-sm font-medium flex-shrink-0 border-b-2 transition-all duration-200 ${
               activeSubTab === 'repayment-schedule'
-                ? 'border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'
+                ? 'border-[#22C55E] text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10'
+                : isDark ? 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             Repayment Schedule
@@ -1304,11 +1391,14 @@ export function LoansTab() {
         // ✅ Show statistics for the CURRENT TAB's filtered loans, not all loans
         const tabFilteredLoans = filteredLoans || []; // Use filteredLoans which respects the active sub-tab
         
-        // Disbursed loans from current tab
-        const allActiveDisbursedLoans = tabFilteredLoans.filter(l => {
-          const status = (l.status || '').toLowerCase().trim();
-          return status !== 'pending' && status !== 'approved' && status !== 'rejected' && status !== '';
-        });
+        // For "View All" tab, show total count of ALL loans (including pending/approved)
+        // For other tabs, show disbursed loans only
+        const allActiveDisbursedLoans = activeSubTab === 'all' 
+          ? tabFilteredLoans 
+          : tabFilteredLoans.filter(l => {
+              const status = (l.status || '').toLowerCase().trim();
+              return status !== 'pending' && status !== 'approved' && status !== 'rejected' && status !== '';
+            });
         
         // For outstanding calculation, calculate dynamically based on amounts
         const loansWithOutstanding = allActiveDisbursedLoans.filter(l => {
@@ -1352,160 +1442,283 @@ export function LoansTab() {
         
         return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
-          <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
-            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Loans</p>
-                <p className={`text-2xl mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          {/* Total Loans - Blue accent */}
+          <div 
+            ref={totalLoansRef}
+            onClick={() => setSelectedInsightCard(selectedInsightCard === 'total-loans' ? null : 'total-loans')}
+            className={`relative p-5 rounded-xl border cursor-pointer hover:shadow-lg transition-all duration-200 ${
+              isDark ? 'bg-gradient-to-br from-blue-900/20 to-blue-800/10 border-blue-700/30 hover:border-blue-600/50' : 'bg-gradient-to-br from-blue-50 to-white border-blue-200/60 hover:border-blue-300 shadow-sm'
+            } ${selectedInsightCard === 'total-loans' ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-blue-300/70' : 'text-blue-600/70'}`}>Total Loans</p>
+                <p className={`font-bold ${isDark ? 'text-blue-100' : 'text-blue-900'} text-[24px]`}>
                   {allActiveDisbursedLoans.length}
                 </p>
               </div>
-              <FileText className="size-8 text-blue-600 dark:text-blue-400" />
+              <div className={`p-2.5 rounded-lg ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
+                <FileText className={`size-5 ${isDark ? 'text-blue-300' : 'text-blue-600'}`} />
+              </div>
             </div>
+            {selectedInsightCard === 'total-loans' && (
+              <AIInsightPopover
+                insights={getAIInsights('total-loans', { growth: 12, targetProgress: 87 })}
+                onClose={() => setSelectedInsightCard(null)}
+                targetRef={totalLoansRef}
+                cardTitle="Total Loans"
+              />
+            )}
           </div>
 
-          <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
-            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Amount</p>
-                <p className={`text-2xl mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          {/* Total Amount - Blue accent */}
+          <div 
+            ref={totalAmountRef}
+            onClick={() => setSelectedInsightCard(selectedInsightCard === 'total-amount' ? null : 'total-amount')}
+            className={`relative p-5 rounded-xl border cursor-pointer hover:shadow-lg transition-all duration-200 ${
+              isDark ? 'bg-gradient-to-br from-blue-900/20 to-blue-800/10 border-blue-700/30 hover:border-blue-600/50' : 'bg-gradient-to-br from-blue-50 to-white border-blue-200/60 hover:border-blue-300 shadow-sm'
+            } ${selectedInsightCard === 'total-amount' ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-blue-300/70' : 'text-blue-600/70'}`}>Total Amount</p>
+                <p className={`text-2xl font-bold ${isDark ? 'text-blue-100' : 'text-blue-900'}`}>
                   KES {(allActiveDisbursedLoans.reduce((sum, l) => sum + (l.principalAmount || l.approvedAmount || l.requestedAmount || 0), 0) / 1000000).toFixed(2)}M
                 </p>
               </div>
-              <DollarSign className="size-8 text-emerald-600 dark:text-emerald-400" />
+              <div className={`p-2.5 rounded-lg ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
+                <DollarSign className={`size-5 ${isDark ? 'text-blue-300' : 'text-blue-600'}`} />
+              </div>
             </div>
+            {selectedInsightCard === 'total-amount' && (
+              <AIInsightPopover
+                insights={getAIInsights('total-amount', { 
+                  total: allActiveDisbursedLoans.reduce((sum, l) => sum + (l.principalAmount || l.approvedAmount || l.requestedAmount || 0), 0),
+                  avgSize: 97692,
+                  avgChange: 5
+                })}
+                onClose={() => setSelectedInsightCard(null)}
+                targetRef={totalAmountRef}
+                cardTitle="Total Amount"
+              />
+            )}
           </div>
 
-          <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
-            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Outstanding</p>
-                <p className={`text-2xl mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          {/* Outstanding - Orange accent */}
+          <div 
+            ref={outstandingRef}
+            onClick={() => setSelectedInsightCard(selectedInsightCard === 'outstanding' ? null : 'outstanding')}
+            className={`relative p-5 rounded-xl border cursor-pointer hover:shadow-lg transition-all duration-200 ${
+              isDark ? 'bg-gradient-to-br from-orange-900/20 to-orange-800/10 border-orange-700/30 hover:border-orange-600/50' : 'bg-gradient-to-br from-orange-50 to-white border-orange-200/60 hover:border-orange-300 shadow-sm'
+            } ${selectedInsightCard === 'outstanding' ? 'ring-2 ring-orange-500 ring-offset-2' : ''}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-orange-300/70' : 'text-orange-600/70'}`}>Outstanding</p>
+                <p className={`text-2xl font-bold ${isDark ? 'text-orange-100' : 'text-orange-900'}`}>
                   KES {((loansWithOutstanding.reduce((sum, l) => sum + Math.abs(l.outstandingBalance || 0), 0)) / 1000000).toFixed(2)}M
                 </p>
               </div>
-              <TrendingUp className="size-8 text-orange-600 dark:text-orange-400" />
+              <div className={`p-2.5 rounded-lg ${isDark ? 'bg-orange-600/20' : 'bg-orange-100'}`}>
+                <TrendingUp className={`size-5 ${isDark ? 'text-orange-300' : 'text-orange-600'}`} />
+              </div>
             </div>
+            {selectedInsightCard === 'outstanding' && (
+              <AIInsightPopover
+                insights={getAIInsights('outstanding', { 
+                  highRisk: 15,
+                  recoveryRate: 78
+                })}
+                onClose={() => setSelectedInsightCard(null)}
+                targetRef={outstandingRef}
+                cardTitle="Outstanding"
+              />
+            )}
           </div>
 
-          <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
-            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+          {/* Active Loans - Green accent */}
+          <div 
+            ref={activeLoansRef}
+            onClick={() => setSelectedInsightCard(selectedInsightCard === 'active-loans' ? null : 'active-loans')}
+            className={`relative p-5 rounded-xl border cursor-pointer hover:shadow-lg transition-all duration-200 ${
+              isDark ? 'bg-gradient-to-br from-emerald-900/20 to-emerald-800/10 border-emerald-700/30 hover:border-emerald-600/50' : 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200/60 hover:border-emerald-300 shadow-sm'
+            } ${selectedInsightCard === 'active-loans' ? 'ring-2 ring-emerald-500 ring-offset-2' : ''}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-emerald-300/70' : 'text-emerald-600/70'}`}>
                   {activeSubTab === 'due' ? 'Due / Upcoming' : 
                    activeSubTab === 'no-repayments' ? 'No Payments' :
                    activeSubTab === '1-month-late' ? '1 Month Late' :
                    activeSubTab === '3-months-late' ? '3+ Months Late' :
                    'Active Loans'}
                 </p>
-                <p className={`text-2xl mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                <p className={`font-bold ${isDark ? 'text-emerald-100' : 'text-emerald-900'} text-[24px]`}>
                   {activeLoans.length}
                 </p>
               </div>
-              <CheckCircle className="size-8 text-purple-600 dark:text-purple-400" />
+              <div className={`p-2.5 rounded-lg ${isDark ? 'bg-emerald-600/20' : 'bg-emerald-100'}`}>
+                <CheckCircle className={`size-5 ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`} />
+              </div>
             </div>
+            {selectedInsightCard === 'active-loans' && (
+              <AIInsightPopover
+                insights={getAIInsights('active-loans', { 
+                  onTime: 92,
+                  avgDays: 3.2
+                })}
+                onClose={() => setSelectedInsightCard(null)}
+                targetRef={activeLoansRef}
+                cardTitle="Active Loans"
+              />
+            )}
           </div>
 
-          {/* NEW: Pending Review */}
-          <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
-            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Pending Review</p>
-                <p className={`text-2xl mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          {/* Pending Review - Amber accent */}
+          <div 
+            ref={pendingReviewRef}
+            onClick={() => setSelectedInsightCard(selectedInsightCard === 'pending-review' ? null : 'pending-review')}
+            className={`relative p-5 rounded-xl border cursor-pointer hover:shadow-lg transition-all duration-200 ${
+              isDark ? 'bg-gradient-to-br from-amber-900/20 to-amber-800/10 border-amber-700/30 hover:border-amber-600/50' : 'bg-gradient-to-br from-amber-50 to-white border-amber-200/60 hover:border-amber-300 shadow-sm'
+            } ${selectedInsightCard === 'pending-review' ? 'ring-2 ring-amber-500 ring-offset-2' : ''}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-amber-300/70' : 'text-amber-600/70'}`}>Pending Review</p>
+                <p className={`font-bold ${isDark ? 'text-amber-100' : 'text-amber-900'} text-[24px]`}>
                   {pendingReviewLoans.length}
                 </p>
               </div>
-              <Clock className="size-8 text-amber-600 dark:text-amber-400" />
+              <div className={`p-2.5 rounded-lg ${isDark ? 'bg-amber-600/20' : 'bg-amber-100'}`}>
+                <Clock className={`size-5 ${isDark ? 'text-amber-300' : 'text-amber-600'}`} />
+              </div>
             </div>
+            {selectedInsightCard === 'pending-review' && (
+              <AIInsightPopover
+                insights={getAIInsights('pending-review', { 
+                  avgReviewTime: 2.1,
+                  faster: 18,
+                  approvalRate: 73
+                })}
+                onClose={() => setSelectedInsightCard(null)}
+                targetRef={pendingReviewRef}
+                cardTitle="Pending Review"
+              />
+            )}
           </div>
 
-          {/* NEW: Pending Disbursement */}
-          <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
-            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Pending Disbursement</p>
-                <p className={`text-2xl mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          {/* Pending Disbursement - Cyan accent */}
+          <div 
+            ref={pendingDisbursementRef}
+            onClick={() => setSelectedInsightCard(selectedInsightCard === 'pending-disbursement' ? null : 'pending-disbursement')}
+            className={`relative p-5 rounded-xl border cursor-pointer hover:shadow-lg transition-all duration-200 ${
+              isDark ? 'bg-gradient-to-br from-cyan-900/20 to-cyan-800/10 border-cyan-700/30 hover:border-cyan-600/50' : 'bg-gradient-to-br from-cyan-50 to-white border-cyan-200/60 hover:border-cyan-300 shadow-sm'
+            } ${selectedInsightCard === 'pending-disbursement' ? 'ring-2 ring-cyan-500 ring-offset-2' : ''}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-cyan-300/70' : 'text-cyan-600/70'}`}>Pending Disbursement</p>
+                <p className={`font-bold ${isDark ? 'text-cyan-100' : 'text-cyan-900'} text-[24px]`}>
                   {pendingDisbursementLoans.length}
                 </p>
               </div>
-              <Wallet className="size-8 text-cyan-600 dark:text-cyan-400" />
+              <div className={`p-2.5 rounded-lg ${isDark ? 'bg-cyan-600/20' : 'bg-cyan-100'}`}>
+                <Wallet className={`size-5 ${isDark ? 'text-cyan-300' : 'text-cyan-600'}`} />
+              </div>
             </div>
+            {selectedInsightCard === 'pending-disbursement' && (
+              <AIInsightPopover
+                insights={getAIInsights('pending-disbursement', { 
+                  readyAmount: 0,
+                  avgDisbursementTime: 1.3
+                })}
+                onClose={() => setSelectedInsightCard(null)}
+                targetRef={pendingDisbursementRef}
+                cardTitle="Pending Disbursement"
+              />
+            )}
           </div>
 
-          {/* NEW: Settled Loans */}
-          <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
-            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Paid Loans</p>
-                <p className={`text-2xl mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          {/* Paid Loans - Green accent */}
+          <div 
+            ref={paidLoansRef}
+            onClick={() => setSelectedInsightCard(selectedInsightCard === 'paid-loans' ? null : 'paid-loans')}
+            className={`relative p-5 rounded-xl border cursor-pointer hover:shadow-lg transition-all duration-200 ${
+              isDark ? 'bg-gradient-to-br from-emerald-900/20 to-emerald-800/10 border-emerald-700/30 hover:border-emerald-600/50' : 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200/60 hover:border-emerald-300 shadow-sm'
+            } ${selectedInsightCard === 'paid-loans' ? 'ring-2 ring-emerald-500 ring-offset-2' : ''}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-emerald-300/70' : 'text-emerald-600/70'}`}>Paid Loans</p>
+                <p className={`font-bold ${isDark ? 'text-emerald-100' : 'text-emerald-900'} text-[20px]`}>
                   {paidLoans.length}
                 </p>
               </div>
-              <CheckCircle className="size-8 text-emerald-600 dark:text-emerald-400" />
+              <div className={`p-2.5 rounded-lg ${isDark ? 'bg-emerald-600/20' : 'bg-emerald-100'}`}>
+                <CheckCircle className={`size-5 ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`} />
+              </div>
             </div>
+            {selectedInsightCard === 'paid-loans' && (
+              <AIInsightPopover
+                insights={getAIInsights('paid-loans', { 
+                  successRate: 96,
+                  repeatRate: 68
+                })}
+                onClose={() => setSelectedInsightCard(null)}
+                targetRef={paidLoansRef}
+                cardTitle="Paid Loans"
+              />
+            )}
           </div>
 
-          {/* NEW: Defaults */}
-          <div className={`p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
-            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Defaults</p>
-                <p className={`text-2xl mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          {/* Defaults - Red accent */}
+          <div 
+            ref={defaultsRef}
+            onClick={() => setSelectedInsightCard(selectedInsightCard === 'defaults' ? null : 'defaults')}
+            className={`relative p-5 rounded-xl border cursor-pointer hover:shadow-lg transition-all duration-200 ${
+              isDark ? 'bg-gradient-to-br from-red-900/20 to-red-800/10 border-red-700/30 hover:border-red-600/50' : 'bg-gradient-to-br from-red-50 to-white border-red-200/60 hover:border-red-300 shadow-sm'
+            } ${selectedInsightCard === 'defaults' ? 'ring-2 ring-red-500 ring-offset-2' : ''}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-red-300/70' : 'text-red-600/70'}`}>Defaults</p>
+                <p className={`font-bold ${isDark ? 'text-red-100' : 'text-red-900'} text-[20px]`}>
                   {defaultedLoans.length}
                 </p>
               </div>
-              <XCircle className="size-8 text-red-600 dark:text-red-400" />
+              <div className={`p-2.5 rounded-lg ${isDark ? 'bg-red-600/20' : 'bg-red-100'}`}>
+                <XCircle className={`size-5 ${isDark ? 'text-red-300' : 'text-red-600'}`} />
+              </div>
             </div>
+            {selectedInsightCard === 'defaults' && (
+              <AIInsightPopover
+                insights={getAIInsights('defaults', { 
+                  mitigationSuccess: 45,
+                  inRecovery: 2
+                })}
+                onClose={() => setSelectedInsightCard(null)}
+                targetRef={defaultsRef}
+                cardTitle="Defaults"
+              />
+            )}
           </div>
         </div>
         );
       })()}
 
-      {/* Search and Filters (for loan views) */}
+      {/* Search and Filters (for loan views) - Modern styling */}
       {activeSubTab !== 'guarantors' && activeSubTab !== 'comments' && activeSubTab !== 'repayment-schedule' && (
-        <div className={`p-3 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+        <div className={`p-4 rounded-xl border ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200 shadow-sm'}`}>
           <div className="flex gap-3 flex-wrap">
             <div className="flex-1 min-w-[250px] relative">
-              <Search className={`size-5 absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
+              <Search className={`size-4 absolute left-4 top-1/2 -translate-y-1/2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
               <input
                 type="text"
                 placeholder="Search by loan ID or client name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className={`w-full pl-10 pr-4 py-1.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-[14px] ${
-                  isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900'
+                className={`w-full pl-11 pr-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0066FF] text-sm transition-all duration-200 ${
+                  isDark ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 hover:bg-gray-700' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white'
                 }`}
               />
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className={`px-4 py-1.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-[14px] ${
-                isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'
+              className={`px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0066FF] text-sm font-medium transition-all duration-200 ${
+                isDark ? 'bg-gray-700/50 border-gray-600 text-white hover:bg-gray-700' : 'bg-gray-50 border-gray-200 text-gray-900 hover:bg-white'
               }`}
             >
               <option value="all">All Status</option>
@@ -1620,9 +1833,9 @@ export function LoansTab() {
               })}
             </div>
           ) : (
-            <div className={`rounded-lg border overflow-hidden ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-              <div className={`p-4 border-b ${isDark ? 'border-gray-700 bg-gray-700' : 'border-gray-200 bg-gray-50'}`}>
-                <h3 className={isDark ? 'text-white' : 'text-gray-900'}>
+            <div className={`rounded-xl border overflow-hidden ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200 shadow-sm'}`}>
+              <div className={`px-5 py-4 border-b ${isDark ? 'border-gray-700 bg-gray-800/70' : 'border-gray-200 bg-gray-50/80'}`}>
+                <h3 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {activeSubTab === 'all' ? 'All Loans' :
                    activeSubTab === 'pending-review' ? 'Pending Review' :
                    activeSubTab === 'pending-disbursement' ? 'Pending Disbursement' :
@@ -1639,97 +1852,97 @@ export function LoansTab() {
               </div>
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="w-full">
-                  <thead className={`sticky top-0 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                  <thead className={`sticky top-0 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
                     <tr>
                       <th 
-                        className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        className={`px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors`}
                         onClick={() => handleSort('loanId')}
                       >
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
                           Loan ID
                           {getSortIcon('loanId')}
                         </div>
                       </th>
                       <th 
-                        className={`px-4 py-2 text-center text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        className={`px-5 py-3.5 text-center text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors`}
                         onClick={() => handleSort('requestDate')}
                       >
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center justify-center gap-1.5">
                           Request Date
                           {getSortIcon('requestDate')}
                         </div>
                       </th>
                       <th 
-                        className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        className={`px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors`}
                         onClick={() => handleSort('clientName')}
                       >
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
                           Client Name
                           {getSortIcon('clientName')}
                         </div>
                       </th>
                       <th 
-                        className={`px-4 py-2 text-left text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        className={`px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors`}
                         onClick={() => handleSort('clientId')}
                       >
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
                           Client ID
                           {getSortIcon('clientId')}
                         </div>
                       </th>
                       <th 
-                        className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        className={`px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors`}
                         onClick={() => handleSort('amount')}
                       >
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1.5">
                           Amount borrowed
                           {getSortIcon('amount')}
                         </div>
                       </th>
                       <th 
-                        className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
+                        className={`px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
                       >
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1.5">
                           Processing Fee
                         </div>
                       </th>
                       <th 
-                        className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        className={`px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors`}
                         onClick={() => handleSort('interest')}
                       >
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1.5">
                           Interest
                           {getSortIcon('interest')}
                         </div>
                       </th>
                       <th 
-                        className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        className={`px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors`}
                         onClick={() => handleSort('paid')}
                       >
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1.5">
                           Paid
                           {getSortIcon('paid')}
                         </div>
                       </th>
                       <th 
-                        className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        className={`px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors`}
                         onClick={() => handleSort('outstanding')}
                       >
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1.5">
                           Outstanding
                           {getSortIcon('outstanding')}
                         </div>
                       </th>
                       <th 
-                        className={`px-4 py-2 text-center text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600/30 transition-colors`}
+                        className={`px-5 py-3.5 text-center text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors`}
                         onClick={() => handleSort('status')}
                       >
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center justify-center gap-1.5">
                           Status
                           {getSortIcon('status')}
                         </div>
                       </th>
-                      <th className={`px-4 py-2 text-center text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Actions</th>
+                      <th className={`px-5 py-3.5 text-center text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1772,33 +1985,33 @@ export function LoansTab() {
                       }
                       
                       return (
-                        <tr key={loan.id} className={`border-t ${isDark ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-100 hover:bg-gray-50'}`}>
-                          <td className={`px-4 py-2 text-xs ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>{loan.loanNumber || loan.id}</td>
-                          <td className={`px-4 py-2 text-center text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <tr key={loan.id} className={`border-t ${isDark ? 'border-gray-700/50 hover:bg-gray-700/30' : 'border-gray-100 hover:bg-gray-50'} transition-colors duration-150`}>
+                          <td className={`px-5 py-3.5 text-sm font-medium ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>{loan.loanNumber || loan.id}</td>
+                          <td className={`px-5 py-3.5 text-center text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                             {loan.applicationDate || loan.createdDate || '-'}
                           </td>
-                          <td className={`px-4 py-2 text-xs ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
+                          <td className={`px-5 py-3.5 text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
                             {loan.clientName || client?.name || client?.firstName + ' ' + client?.lastName || 'N/A'}
                           </td>
-                          <td className={`px-4 py-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          <td className={`px-5 py-3.5 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                             {client?.clientNumber || client?.client_number || loan.clientId || 'N/A'}
                           </td>
-                          <td className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
-                            KES {principalAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                          <td className={`px-5 py-3.5 text-right text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                            {principalAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
-                          <td className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                            KES {(loan.processing_fee || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                          <td className={`px-5 py-3.5 text-right text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {(loan.processing_fee || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
-                          <td className={`px-4 py-2 text-right text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                            KES {interestAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                          <td className={`px-5 py-3.5 text-right text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {interestAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
-                          <td className={`px-4 py-2 text-right text-xs text-emerald-800 dark:text-emerald-500`}>
-                            KES {paidAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                          <td className={`px-5 py-3.5 text-right text-sm font-semibold text-emerald-700 dark:text-emerald-400`}>
+                            {paidAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
-                          <td className={`px-4 py-2 text-right text-xs text-orange-600 dark:text-orange-400`}>
-                            KES {outstandingAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                          <td className={`px-5 py-3.5 text-right text-sm font-semibold ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>
+                            {outstandingAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
-                          <td className="px-4 py-2 text-center"><span className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(displayStatus)}`}>{displayStatus}</span></td>
+                          <td className="px-5 py-3.5 text-center"><span className={`px-3 py-1.5 rounded-full text-xs font-medium ${getStatusColor(displayStatus)}`}>{displayStatus}</span></td>
                           <td className="px-4 py-2 text-center">
                             <div className="flex gap-2 justify-center items-center flex-wrap">
                               <button
