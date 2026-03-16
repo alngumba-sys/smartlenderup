@@ -155,18 +155,6 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   // Get dynamic currency
   const currencySymbol = getCurrencySymbol();
   const currencyCode = getCurrencyCode();
-  
-  // Safety check: Show loading state if context isn't ready (AFTER extracting data with defaults)
-  if (!dataContext) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
 
   // Helper function to calculate accurate days in arrears based on disbursement date and repayment frequency
   const calculateDaysInArrears = (loan: any): number => {
@@ -244,7 +232,12 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   };
   
   // Apply duration filters to data
-  const filteredClientsForCount = filterByDuration(contextClients, 'registrationDate', clientsDuration);
+  // ✅ FIX: Ensure we only count unique, active clients
+  const filteredClientsForCount = filterByDuration(
+    contextClients.filter((c: any) => c.status !== 'Inactive' && c.status !== 'Deleted'), 
+    'registrationDate', 
+    clientsDuration
+  );
   
   // Portfolio metrics show ALL active loans (snapshot), not filtered by time
   // Helper function to normalize status (handle both lowercase and capitalized)
@@ -624,35 +617,24 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   // ✅ Calculate portfolio total correctly
   const filteredPortfolioTotal = filteredLoansForPortfolio.reduce((sum: number, l: any) => sum + calculateOutstanding(l), 0);
   
-  // Calculate principal outstanding correctly: 
+  // ✅ Calculate principal outstanding correctly: Principal - Principal Paid
   // ALWAYS calculate - don't use stored principalOutstanding from imports (may be wrong)
   const filteredPrincipalTotal = filteredLoansForPrincipal.reduce((sum: number, l: any) => {
     const principalAmount = l.principalAmount || 0;
-    const totalInterest = calculateCorrectInterest(l);
-    const totalRepayable = l.totalRepayable || (principalAmount + totalInterest);
-    const outstandingBalance = calculateOutstanding(l);
-    
-    // If we have interest paid info, use it for accurate calculation
-    if (l.interestPaid !== undefined && l.interestPaid !== null) {
-      const totalPaid = l.paidAmount || 0;
-      const interestPaid = l.interestPaid || 0;
-      const principalPaid = totalPaid - interestPaid;
-      const principalOutstanding = Math.max(0, principalAmount - principalPaid);
-      return sum + principalOutstanding;
-    }
-    
-    // Calculate proportionally: principal outstanding = outstanding * (principal / total repayable)
-    if (totalRepayable > 0) {
-      const principalProportion = principalAmount / totalRepayable;
-      const principalOutstanding = outstandingBalance * principalProportion;
-      return sum + principalOutstanding;
-    }
-    
-    // Fallback: assume all outstanding is principal if no interest info
-    return sum + outstandingBalance;
+    const paidAmount = l.paidAmount || l.amountPaid || 0;
+    const interestPaid = l.interestPaid || 0;
+    const principalPaid = paidAmount - interestPaid;
+    const principalOutstanding = Math.max(0, principalAmount - principalPaid);
+    return sum + principalOutstanding;
   }, 0);
   
-  const filteredInterestTotal = filteredLoansForInterest.reduce((sum: number, l: any) => sum + Math.abs(l.interestOutstanding || ((calculateCorrectInterest(l)) - (l.interestPaid || 0))), 0);
+  // ✅ Calculate outstanding interest correctly: Total Interest - Interest Paid
+  const filteredInterestTotal = filteredLoansForInterest.reduce((sum: number, l: any) => {
+    const totalInterest = calculateCorrectInterest(l);
+    const interestPaid = l.interestPaid || 0;
+    const interestOutstanding = Math.max(0, totalInterest - interestPaid);
+    return sum + interestOutstanding;
+  }, 0);
   
   // Calculate collected interest based on duration filter
   const filteredRepaymentsForInterest = filterByDuration(
@@ -668,14 +650,19 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   
 
   
-  // Calculate Collection Efficiency: (Total Collected / Expected Collections) × 100
-  // Expected Collections = What SHOULD have been collected = Total Disbursed - Outstanding Balance
+  // ✅ Calculate Collection Efficiency: (Total Collected / Total Expected Repayments) × 100
+  // Total Expected Repayments = Sum of (Principal + Interest + Fees) for all disbursed loans
   // Total Collected = All payments received
   const totalCollected = payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-  const totalDisbursedForEfficiency = contextLoans.reduce((sum: number, l: any) => sum + (l.principalAmount || 0), 0);
-  const totalOutstandingForEfficiency = contextLoans.reduce((sum: number, l: any) => sum + calculateOutstanding(l), 0);
-  const expectedCollections = totalDisbursedForEfficiency - totalOutstandingForEfficiency;
-  const collectionEfficiency = expectedCollections > 0 ? (totalCollected / expectedCollections) * 100 : 0;
+  const totalExpectedRepayments = contextLoans
+    .filter((l: any) => l.disbursementDate && l.status !== 'Rejected')
+    .reduce((sum: number, l: any) => {
+      const principal = l.principalAmount || 0;
+      const interest = calculateCorrectInterest(l);
+      const fees = l.processing_fee || 0;
+      return sum + principal + interest + fees;
+    }, 0);
+  const collectionEfficiency = totalExpectedRepayments > 0 ? (totalCollected / totalExpectedRepayments) * 100 : 0;
   
   // Calculate AI Insights - clients at risk (loans with arrears >= 30 days)
   // ✅ Use calculated daysInArrears instead of database value to fix incorrect 1500+ days
@@ -1052,13 +1039,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         breakdown = {
           metric: 'collection-efficiency',
           title: 'Collection Efficiency Calculation',
-          formula: 'Collection Efficiency = (Total Collected / Expected Collections) × 100',
+          formula: 'Collection Efficiency = (Total Collected / Total Expected Repayments) × 100',
           components: [
             { label: 'Total Payments Collected', value: `${currencyCode} ${totalCollected.toLocaleString()}` },
-            { label: 'Total Principal Disbursed', value: `${currencyCode} ${totalDisbursedForEfficiency.toLocaleString()}` },
-            { label: 'Current Outstanding Balance', value: `${currencyCode} ${totalOutstandingForEfficiency.toLocaleString()}` },
-            { label: 'Expected Collections', value: `${currencyCode} ${expectedCollections.toLocaleString()}` },
-            { label: 'Calculation', value: `(${totalCollected.toLocaleString()} ÷ ${expectedCollections.toLocaleString()}) × 100` }
+            { label: 'Total Expected Repayments', value: `${currencyCode} ${totalExpectedRepayments.toLocaleString()}`, description: 'Principal + Interest + Fees for all disbursed loans' },
+            { label: 'Calculation', value: `(${totalCollected.toLocaleString()} ÷ ${totalExpectedRepayments.toLocaleString()}) × 100` }
           ],
           result: `${collectionEfficiency.toFixed(1)}%`,
           details: [
@@ -1164,11 +1149,16 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           },
           breakdown: {
             loans: filteredLoansForPrincipal.slice(0, 50).map((l: any) => {
-              const principal = l.principalOutstanding || (l.principalAmount - (l.paidAmount || 0));
+              // ✅ Use consistent calculation with filteredPrincipalTotal
+              const principalAmount = l.principalAmount || 0;
+              const paidAmount = l.paidAmount || l.amountPaid || 0;
+              const interestPaid = l.interestPaid || 0;
+              const principalPaid = paidAmount - interestPaid;
+              const principal = Math.max(0, principalAmount - principalPaid);
               return {
                 loanNumber: l.loanNumber || l.id,
                 clientName: l.clientName || 'Unknown',
-                amount: Math.max(0, principal),
+                amount: principal,
                 status: l.status,
                 date: l.applicationDate || l.disbursementDate || l.createdAt
               };
@@ -1542,21 +1532,18 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           icon: <Activity className="size-6" />,
           color: COLORS[4] || COLORS[0],
           calculation: {
-            formula: 'Collection Efficiency = (Total Collected ÷ Expected Collections) × 100',
+            formula: 'Collection Efficiency = (Total Collected ÷ Total Expected Repayments) × 100',
             steps: [
               { label: 'Total Collected', value: `${currencySymbol} ${formatNum(totalCollected)}` },
-              { label: 'Total Disbursed', value: `${currencySymbol} ${formatNum(totalDisbursedForEfficiency)}` },
-              { label: 'Outstanding Balance', value: `${currencySymbol} ${formatNum(totalOutstandingForEfficiency)}` },
-              { label: 'Expected Collections', value: `${currencySymbol} ${formatNum(expectedCollections)}`, description: 'Disbursed - Outstanding' },
-              { label: 'Collection Efficiency', value: `${collectionEfficiency.toFixed(1)}%`, description: isOverPerforming ? 'Over-performance: collecting more than expected (fees, early payments)' : 'Under-performance: collecting less than expected' }
+              { label: 'Total Expected Repayments', value: `${currencySymbol} ${formatNum(totalExpectedRepayments)}`, description: 'Principal + Interest + Fees for all disbursed loans' },
+              { label: 'Collection Efficiency', value: `${collectionEfficiency.toFixed(1)}%`, description: isOverPerforming ? 'Over 100%: Outstanding performance!' : `${collectionEfficiency.toFixed(1)}% of expected repayments collected` }
             ]
           },
           breakdown: {
             summary: [
-              { label: 'Total Disbursed', value: `${currencySymbol} ${formatNum(totalDisbursedForEfficiency)}` },
+              { label: 'Total Expected Repayments', value: `${currencySymbol} ${formatNum(totalExpectedRepayments)}` },
               { label: 'Total Collected', value: `${currencySymbol} ${formatNum(totalCollected)}` },
-              { label: 'Still Outstanding', value: `${currencySymbol} ${formatNum(totalOutstandingForEfficiency)}` },
-              { label: 'Expected vs Actual', value: isOverPerforming ? `+${currencySymbol}${formatNum(totalCollected - expectedCollections)}` : `-${currencySymbol}${formatNum(expectedCollections - totalCollected)}` }
+              { label: 'Gap', value: totalCollected >= totalExpectedRepayments ? `+${currencySymbol}${formatNum(totalCollected - totalExpectedRepayments)}` : `-${currencySymbol}${formatNum(totalExpectedRepayments - totalCollected)}` }
             ]
           },
           insights: [
@@ -1564,7 +1551,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
               type: isOverPerforming ? 'positive' : collectionEfficiency > 80 ? 'neutral' : 'warning',
               title: 'Collection Performance',
               description: isOverPerforming
-                ? `Outstanding! You're collecting ${collectionEfficiency.toFixed(1)}% of expected amounts. This over-performance likely includes processing fees, penalties, or early payments.`
+                ? `Outstanding! You're collecting ${collectionEfficiency.toFixed(1)}% of expected repayments. This over-performance indicates excellent collection practices.`
                 : collectionEfficiency > 80
                   ? `Your collection efficiency of ${collectionEfficiency.toFixed(1)}% is good. Continue monitoring and optimizing collection processes.`
                   : `Your collection efficiency of ${collectionEfficiency.toFixed(1)}% needs improvement. Review collection strategies and client follow-up procedures.`
@@ -1572,7 +1559,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             {
               type: 'neutral',
               title: 'Cash Flow Impact',
-              description: `You've collected ${currencySymbol}${formatSmartNumber(totalCollected).number}${formatSmartNumber(totalCollected).suffix} against expected collections of ${currencySymbol}${formatSmartNumber(expectedCollections).number}${formatSmartNumber(expectedCollections).suffix}. ${isOverPerforming ? 'This positive variance strengthens your cash position.' : 'Focus on improving collection rates to boost cash flow.'}`
+              description: `You've collected ${currencySymbol}${formatSmartNumber(totalCollected).number}${formatSmartNumber(totalCollected).suffix} against expected repayments of ${currencySymbol}${formatSmartNumber(totalExpectedRepayments).number}${formatSmartNumber(totalExpectedRepayments).suffix}. ${isOverPerforming ? 'This positive variance strengthens your cash position.' : 'Focus on improving collection rates to boost cash flow.'}`
             }
           ]
         };
@@ -1588,6 +1575,18 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     }
   };
 
+  // Safety check: Show loading state if context isn't ready
+  if (!dataContext) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-5 md:space-y-6" style={{
       backgroundColor: 'transparent'
@@ -1600,7 +1599,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
       {/* Upcoming Payments Summary */}
       <div 
-        className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${isDark ? 'bg-blue-900/40 border-blue-800/50 hover:bg-blue-900/50' : 'bg-blue-50 border-blue-200 hover:bg-blue-100/50'}`}
+        className={`rounded-lg border cursor-pointer transition-all hover:shadow-md ${isDark ? 'bg-blue-900/40 border-blue-800/50 hover:bg-blue-900/50' : 'bg-blue-50 border-blue-200 hover:bg-blue-100/50'} px-[16px] py-[7px]`}
         onClick={() => setShowUpcomingPaymentsModal(true)}
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -1703,7 +1702,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       {/* Loan Health Metrics - Top Row */}
       <div>
         <h3 className={`${theme.textPrimary} mb-2 sm:mb-3 text-base sm:text-lg`}>Loan Health Metrics</h3>
-        <div className="rounded-lg shadow-sm border p-3 sm:p-4 md:p-6" style={{
+        <div className="rounded-lg shadow-sm border px-[24px] py-[7px]" style={{
           backgroundColor: isDark ? '#1a1d29' : '#ffffff',
           borderColor: isDark ? '#252932' : '#e5e7eb'
         }}>
@@ -1853,7 +1852,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
           <div 
             onClick={() => showMetricDetail('total-clients')}
-            className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
+            className="rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer px-[16px] py-[10px]"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[0]}15, ${themeColors.cardBackground})`,
               borderColor: COLORS[0]
@@ -1890,7 +1889,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
           <div 
             onClick={() => showMetricDetail('disbursed-total')}
-            className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
+            className="rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer px-[16px] py-[10px]"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[1]}15, ${themeColors.cardBackground})`,
               borderColor: COLORS[1]
@@ -1927,7 +1926,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
           <div 
             onClick={() => showMetricDetail('collections-total')}
-            className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
+            className="rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer px-[16px] py-[10px]"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[2]}15, ${themeColors.cardBackground})`,
               borderColor: COLORS[2]
@@ -1964,7 +1963,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
           <div 
             onClick={() => showMetricDetail('par30')}
-            className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
+            className="rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer px-[16px] py-[10px]"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[3]}15, ${themeColors.cardBackground})`,
               borderColor: COLORS[3]
@@ -1984,7 +1983,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
           <div 
             onClick={() => showMetricDetail('collection-efficiency')}
-            className="p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
+            className="rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer px-[16px] py-[10px]"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[4] || COLORS[0]}15, ${themeColors.cardBackground})`,
               borderColor: COLORS[4] || COLORS[0]

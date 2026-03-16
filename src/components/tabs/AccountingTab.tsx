@@ -142,24 +142,36 @@ export function AccountingTab() {
 
   // Calculate dynamic values from real data
   // Include ALL loans that have been disbursed (Active, Disbursed, Default, Paid)
-  // Exclude only Pending, Rejected, Draft statuses
+  // Exclude Pending, Rejected, Draft statuses
   const disbursedLoanStatuses = ['Active', 'Disbursed', 'Default', 'Paid', 'Closed'];
   const totalLoansDisbursed = loans
-    .filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate)
+    .filter(l => {
+      const status = (l.status || '').toLowerCase().trim();
+      return (disbursedLoanStatuses.includes(l.status) || l.disbursementDate) && status !== 'rejected';
+    })
     .reduce((sum, l) => sum + (l.principalAmount || 0), 0);
   
   const totalLoansOutstanding = loans
-    .filter(l => disbursedLoanStatuses.includes(l.status))
+    .filter(l => {
+      const status = (l.status || '').toLowerCase().trim();
+      return disbursedLoanStatuses.includes(l.status) && status !== 'rejected';
+    })
     .reduce((sum, l) => sum + (l.outstandingBalance || 0), 0);
   
   const totalProcessingFeeRevenue = processingFeeRecords.filter(r => r.status === 'Collected').reduce((sum, r) => sum + Number(r.amount || 0), 0);
   
   const totalIndividualLoans = loans
-    .filter(l => disbursedLoanStatuses.includes(l.status) && l.clientType !== 'Group')
+    .filter(l => {
+      const status = (l.status || '').toLowerCase().trim();
+      return disbursedLoanStatuses.includes(l.status) && l.clientType !== 'Group' && status !== 'rejected';
+    })
     .reduce((sum, l) => sum + (l.principalAmount || 0), 0);
   
   const totalGroupLoans = loans
-    .filter(l => disbursedLoanStatuses.includes(l.status) && l.clientType === 'Group')
+    .filter(l => {
+      const status = (l.status || '').toLowerCase().trim();
+      return disbursedLoanStatuses.includes(l.status) && l.clientType === 'Group' && status !== 'rejected';
+    })
     .reduce((sum, l) => sum + (l.principalAmount || 0), 0);
 
   // 💰 CASH FLOW CALCULATION
@@ -173,12 +185,18 @@ export function AccountingTab() {
   
   // ✅ Use total paid from loans table (matches "Paid" column in All Loans)
   const totalRepaymentsFromLoans = loans
-    .filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate)
+    .filter(l => {
+      const status = (l.status || '').toLowerCase().trim();
+      return (disbursedLoanStatuses.includes(l.status) || l.disbursementDate) && status !== 'rejected';
+    })
     .reduce((sum, l) => sum + (l.paidAmount || l.amountPaid || 0), 0);
   
   // Use loans table as source of truth for total repayments
   const totalRepayments = totalRepaymentsFromLoans;
+  
+  // ✅ Available Cash to Lend = Initial capital - Total disbursed + Total repaid
   const availableCash = INITIAL_FUNDING - totalLoansDisbursed + totalRepayments;
+  
   const cashUtilizationRate = totalLoansDisbursed > 0 ? ((totalLoansDisbursed / (INITIAL_FUNDING + totalRepayments)) * 100) : 0;
 
   // Calculate expense balances by category
@@ -1173,7 +1191,10 @@ export function AccountingTab() {
             <p className="text-2xl font-bold text-red-700">
               -{currencyCode} {totalLoansDisbursed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-gray-500 mt-1">{loans.filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate).length} total loans</p>
+            <p className="text-xs text-gray-500 mt-1">{loans.filter(l => {
+              const status = (l.status || '').toLowerCase().trim();
+              return (disbursedLoanStatuses.includes(l.status) || l.disbursementDate) && status !== 'rejected';
+            }).length} loans (excludes rejected)</p>
           </div>
 
           {/* Repayments Received */}
@@ -1185,7 +1206,10 @@ export function AccountingTab() {
             <p className="text-2xl font-bold text-emerald-700">
               +{currencyCode} {totalRepayments.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-gray-500 mt-1">{loans.filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate).filter(l => (l.paidAmount || l.amountPaid || 0) > 0).length} loans with payments</p>
+            <p className="text-xs text-gray-500 mt-1">{loans.filter(l => {
+              const status = (l.status || '').toLowerCase().trim();
+              return (disbursedLoanStatuses.includes(l.status) || l.disbursementDate) && status !== 'rejected';
+            }).filter(l => (l.paidAmount || l.amountPaid || 0) > 0).length} loans with payments</p>
           </div>
 
           {/* Available Cash */}
@@ -3718,7 +3742,10 @@ export function AccountingTab() {
                   <div className="bg-red-50 px-6 py-4 border-b border-red-200">
                     <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                       <TrendingDown className="size-5 text-red-600" />
-                      Loans Disbursed ({loans.filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate).length} loans)
+                      Loans Disbursed ({loans.filter(l => {
+                        const status = (l.status || '').toLowerCase().trim();
+                        return (disbursedLoanStatuses.includes(l.status) || l.disbursementDate) && status !== 'rejected';
+                      }).length} loans - excludes rejected)
                     </h4>
                   </div>
                   <div className="p-6">
@@ -3770,9 +3797,11 @@ export function AccountingTab() {
                         </tbody>
                         <tfoot className="bg-red-50 border-t-2 border-red-300 sticky bottom-0">
                           <tr>
-                            <td className="py-3 px-4 text-gray-900 font-bold" colSpan={4}>Total Loans Disbursed</td>
+                            <td className="py-3 px-4 text-gray-900 font-bold" colSpan={4}>
+                              Total Loans Disbursed <span className="text-xs font-normal text-gray-600">(excludes rejected)</span>
+                            </td>
                             <td className="py-3 px-4 text-right text-red-700 font-bold text-lg">
-                              {currencyCode} {totalLoansDisbursed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {currencyCode} {totalLoansDisbursed.toLocaleString('en-US', { minimumFractionDigints: 2, maximumFractionDigits: 2 })}
                             </td>
                             <td className="py-3 px-4 text-center"></td>
                           </tr>

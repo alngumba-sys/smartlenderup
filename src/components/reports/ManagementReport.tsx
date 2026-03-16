@@ -168,13 +168,24 @@ export function ManagementReport({ dateRange }: ReportProps) {
   const totalDisbursed = filteredLoans.filter(l => l.status === 'Active' || l.status === 'Disbursed').reduce((sum, l) => sum + l.principalAmount, 0);
   const totalOutstanding = activeLoans.reduce((sum, l) => sum + l.outstandingBalance, 0);
   
-  // Calculate outstanding breakdown from real data
+  // ✅ Calculate outstanding breakdown using corrected formulas
   const totalPrincipalOutstanding = activeLoans.reduce((sum, l) => {
-    return sum + (l.principalOutstanding || 0);
+    const principalAmount = l.principalAmount || 0;
+    const paidAmount = l.paidAmount || l.amountPaid || 0;
+    const interestPaid = l.interestPaid || 0;
+    const principalPaid = paidAmount - interestPaid;
+    const principalOutstanding = Math.max(0, principalAmount - principalPaid);
+    return sum + principalOutstanding;
   }, 0);
   
   const totalInterestOutstanding = activeLoans.reduce((sum, l) => {
-    return sum + (l.interestOutstanding || 0);
+    const principalAmount = l.principalAmount || 0;
+    const rate = l.interestRate || 0;
+    const term = l.term || l.termPeriod || l.loanTerm || l.termMonths || 1;
+    const totalInterest = (principalAmount * rate * term) / 100; // Flat rate formula
+    const interestPaid = l.interestPaid || 0;
+    const interestOutstanding = Math.max(0, totalInterest - interestPaid);
+    return sum + interestOutstanding;
   }, 0);
   
   const totalFeesOutstanding = 0; // Real data: no fees

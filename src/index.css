@@ -649,6 +649,10 @@
     visibility: visible !important;
   }
 
+  .collapse {
+    visibility: collapse;
+  }
+
   .invisible {
     visibility: hidden;
   }
@@ -1800,6 +1804,10 @@
 
   .grow {
     flex-grow: 1;
+  }
+
+  .border-collapse {
+    border-collapse: collapse;
   }
 
   .-translate-x-1\/2 {
@@ -3995,6 +4003,16 @@
     background-color: var(--color-red-50);
   }
 
+  .bg-red-50\/30 {
+    background-color: color-mix(in srgb, oklch(.971 .013 17.38) 30%, transparent);
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .bg-red-50\/30 {
+      background-color: color-mix(in oklab, var(--color-red-50) 30%, transparent);
+    }
+  }
+
   .bg-red-100 {
     background-color: var(--color-red-100);
   }
@@ -5015,6 +5033,14 @@
     padding-block: 7px;
   }
 
+  .py-\[10px\] {
+    padding-block: 10px;
+  }
+
+  .py-\[11px\] {
+    padding-block: 11px;
+  }
+
   .py-\[23px\] {
     padding-block: 23px;
   }
@@ -5325,6 +5351,11 @@
   .font-medium {
     --tw-font-weight: var(--font-weight-medium);
     font-weight: var(--font-weight-medium);
+  }
+
+  .font-normal {
+    --tw-font-weight: var(--font-weight-normal);
+    font-weight: var(--font-weight-normal);
   }
 
   .font-semibold {
@@ -7674,6 +7705,12 @@
   }
 
   @media (width >= 40rem) {
+    .sm\:inline {
+      display: inline;
+    }
+  }
+
+  @media (width >= 40rem) {
     .sm\:size-6 {
       width: calc(var(--spacing) * 6);
       height: calc(var(--spacing) * 6);
@@ -9697,20 +9734,20 @@
 
 :root {
   --font-size: 16px;
-  --background: #f5fffa;
+  --background: #fff5e1;
   --foreground: oklch(.145 0 0);
   --card: #fff;
   --card-foreground: oklch(.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(.145 0 0);
-  --primary: #030213;
+  --primary: #111120;
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(.95 .0058 264.53);
-  --secondary-foreground: #030213;
+  --secondary-foreground: #111120;
   --muted: #ececf0;
   --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
+  --accent: #ec7347;
+  --accent-foreground: #fff;
   --destructive: #d4183d;
   --destructive-foreground: #fff;
   --border: #0000001a;
@@ -9728,7 +9765,7 @@
   --radius: .625rem;
   --sidebar: oklch(.985 0 0);
   --sidebar-foreground: oklch(.145 0 0);
-  --sidebar-primary: #030213;
+  --sidebar-primary: #111120;
   --sidebar-primary-foreground: oklch(.985 0 0);
   --sidebar-accent: oklch(.97 0 0);
   --sidebar-accent-foreground: oklch(.205 0 0);
@@ -9776,7 +9813,7 @@
 }
 
 body:not(.dark) {
-  background-color: var(--color-appBackground, #f3f4f6);
+  background-color: #fff5e1;
 }
 
 .bg-white {

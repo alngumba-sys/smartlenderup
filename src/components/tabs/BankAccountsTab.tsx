@@ -13,6 +13,39 @@ import { shortenReferenceUUID } from '../../utils/uuidUtils';
 // TEMPORARILY DISABLED - causing loading issues
 // import { DevMigrationPanel } from '../DevMigrationPanel';
 
+// Helper component to display bank summary breakdown
+function BankSummaryBreakdown({ activeBankAccounts, availableToLend }: { activeBankAccounts: any[], availableToLend: number }) {
+  // ✅ Since we only have one total "Available Cash to Lend" for all accounts,
+  // we should show the same amount for each bank (not individual balances)
+  // This is because availableToLend already accounts for all transactions across all banks
+  const bankGroups = activeBankAccounts.reduce((groups, account) => {
+    const bankName = account.bankName || account.name || 'Unknown Bank';
+    if (!groups[bankName]) {
+      groups[bankName] = {
+        bankName,
+        accountCount: 0
+      };
+    }
+    groups[bankName].accountCount += 1;
+    return groups;
+  }, {} as Record<string, { bankName: string; accountCount: number }>);
+
+  const bankSummaries = Object.values(bankGroups);
+
+  return (
+    <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      {bankSummaries.map((bank) => (
+        <div key={bank.bankName} className="bg-white border border-blue-200 rounded-lg p-3">
+          <p className="text-gray-600 text-xs mb-1">{bank.bankName}</p>
+          <p className="text-sm font-semibold text-gray-900">
+            {formatCurrency(availableToLend, { showCode: true, decimals: 0 })}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function BankAccountsTab() {
   const { 
     bankAccounts,
@@ -354,12 +387,18 @@ export function BankAccountsTab() {
     .filter(t => t.transactionType === 'Credit' && t.source !== 'Loan Repayment') // ✅ Exclude loan repayments
     .reduce((sum, t) => sum + t.amount, 0);
   const totalLoansDisbursed = loans
-    .filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate)
+    .filter(l => {
+      const status = (l.status || '').toLowerCase().trim();
+      return (disbursedLoanStatuses.includes(l.status) || l.disbursementDate) && status !== 'rejected';
+    })
     .reduce((sum, l) => sum + (l.principalAmount || 0), 0);
   
   // ✅ Use total paid from loans table (matches "Paid" column in All Loans)
   const totalRepaymentsFromLoans = loans
-    .filter(l => disbursedLoanStatuses.includes(l.status) || l.disbursementDate)
+    .filter(l => {
+      const status = (l.status || '').toLowerCase().trim();
+      return (disbursedLoanStatuses.includes(l.status) || l.disbursementDate) && status !== 'rejected';
+    })
     .reduce((sum, l) => sum + (l.paidAmount || l.amountPaid || 0), 0);
   const totalRepayments = totalRepaymentsFromLoans;
   
@@ -368,16 +407,9 @@ export function BankAccountsTab() {
     ? null
     : activeBankAccounts.find(acc => acc.id === activeBank);
   
-  const availableToLend = activeBank === 'all'
-    ? (totalBankOpeningBalance + totalFundingReceived - totalLoansDisbursed + totalRepayments)
-    : (() => {
-        // For individual account, calculate its specific available to lend
-        const accountOpeningBalance = currentAccount?.openingBalance || 0;
-        const accountFunding = fundingTransactions
-          .filter(t => t.bankAccountId === activeBank && t.transactionType === 'Credit' && t.source !== 'Loan Repayment')
-          .reduce((sum, t) => sum + t.amount, 0);
-        return accountOpeningBalance + accountFunding - totalLoansDisbursed + totalRepayments;
-      })();
+  // ✅ Available to lend is the same across all accounts since loans come from pooled funds
+  // Initial capital - Total disbursed + Total repaid
+  const availableToLend = totalBankOpeningBalance + totalFundingReceived - totalLoansDisbursed + totalRepayments;
   
   const currentAccountFunding = currentAccount
     ? fundingTransactions
@@ -643,37 +675,10 @@ export function BankAccountsTab() {
         </p>
         
         {/* Show all accounts breakdown for "All Accounts" view */}
-        {activeBank === 'all' && (() => {
-          // ✅ Since we only have one total "Available Cash to Lend" for all accounts,
-          // we should show the same amount for each bank (not individual balances)
-          // This is because availableToLend already accounts for all transactions across all banks
-          const bankGroups = activeBankAccounts.reduce((groups, account) => {
-            const bankName = account.bankName || account.name || 'Unknown Bank';
-            if (!groups[bankName]) {
-              groups[bankName] = {
-                bankName,
-                accountCount: 0
-              };
-            }
-            groups[bankName].accountCount += 1;
-            return groups;
-          }, {} as Record<string, { bankName: string; accountCount: number }>);
-
-          const bankSummaries = Object.values(bankGroups);
-
-          return (
-            <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {bankSummaries.map((bank) => (
-                <div key={bank.bankName} className="bg-white border border-blue-200 rounded-lg p-3">
-                  <p className="text-gray-600 text-xs mb-1">{bank.bankName}</p>
-                  <p className="text-sm font-semibold text-gray-900">
-                    {formatCurrency(availableToLend, { showCode: true, decimals: 0 })}
-                  </p>
-                </div>
-              ))}
-            </div>
-          );
-        })()}
+        {activeBank === 'all' && <BankSummaryBreakdown 
+          activeBankAccounts={activeBankAccounts}
+          availableToLend={availableToLend}
+        />}
         
         {/* Show single account details for individual account view - ALL IN ONE ROW */}
         {activeBank !== 'all' && currentAccount && (

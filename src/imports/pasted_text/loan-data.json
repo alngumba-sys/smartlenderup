@@ -1,0 +1,346 @@
+[
+  {
+    "id": "9f6b8029-1b36-4c74-b08a-0cea9d74104f",
+    "client_name": "Benson  Njoronge ",
+    "principal_amount": "20000.00",
+    "status": "Disbursed",
+    "outstanding_balance": "22000.00",
+    "disbursement_date": "2026-02-04 00:00:00+00"
+  },
+  {
+    "id": "77299df9-470b-4c55-896c-585afb968ef8",
+    "client_name": "Marion Matunda",
+    "principal_amount": "20000.00",
+    "status": "Disbursed",
+    "outstanding_balance": "21500.00",
+    "disbursement_date": "2026-02-27 00:00:00+00"
+  },
+  {
+    "id": "1b3e190f-aabe-4f61-83fa-a55a1c15db1f",
+    "client_name": "Moureen Atieno",
+    "principal_amount": "20000.00",
+    "status": "Disbursed",
+    "outstanding_balance": "21500.00",
+    "disbursement_date": "2026-02-27 00:00:00+00"
+  },
+  {
+    "id": "2754e454-c268-4419-bd14-f03e3b8a8acf",
+    "client_name": null,
+    "principal_amount": "20000.00",
+    "status": "fully_paid",
+    "outstanding_balance": "0.00",
+    "disbursement_date": "2025-12-23 00:00:00+00"
+  },
+  {
+    "id": "6b2c0fc5-115f-4188-b1c1-c77bfb8e47e6",
+    "client_name": "Alice Aoko",
+    "principal_amount": "30000.00",
+    "status": "Disbursed",
+    "outstanding_balance": "32250.00",
+    "disbursement_date": "2026-02-27 00:00:00+00"
+  },
+  {
+    "id": "2ee55f9c-82d2-40e7-8218-daad4f5f2528",
+    "client_name": "Jessica Adhiambo",
+    "principal_amount": "30000.00",
+    "status": "Disbursed",
+    "outstanding_balance": "32250.00",
+    "disbursement_date": "2026-02-27 00:00:00+00"
+  },
+  {
+    "id": "f9786530-010e-4ca5-ab3e-b6de23ad0293",
+    "client_name": null,
+    "principal_amount": "30000.00",
+    "status": "settled",
+    "outstanding_balance": "6000.00",
+    "disbursement_date": "2025-12-07 00:00:00+00"
+  },
+  {
+    "id": "a3bd8664-9be8-4093-9fae-41e6f6cdfba7",
+    "client_name": null,
+    "principal_amount": "33000.00",
+    "status": "active",
+    "outstanding_balance": "825.00",
+    "disbursement_date": "2026-01-28 00:00:00+00"
+  },
+  {
+    "id": "5a4427e3-4e60-491c-9730-12008dc75f5a",
+    "client_name": null,
+    "principal_amount": "35000.00",
+    "status": "active",
+    "outstanding_balance": "875.00",
+    "disbursement_date": "2026-01-21 00:00:00+00"
+  },
+  {
+    "id": "f2f5c64a-0c88-4532-9825-d4596697b87d",
+    "client_name": null,
+    "principal_amount": "35000.00",
+    "status": "Disbursed",
+    "outstanding_balance": "38500.00",
+    "disbursement_date": "2026-02-23 00:00:00+00"
+  },
+  {
+    "id": "5be352cd-9513-4e65-a5ea-a98a5b3809f6",
+    "client_name": "srre eetet",
+    "principal_amount": "40000.00",
+    "status": "Approved",
+    "outstanding_balance": "59200.00",
+    "disbursement_date": "2026-03-15 00:00:00+00"
+  },
+  {
+    "id": "20326fba-5099-4982-96b5-e25209bdf167",
+    "client_name": null,
+    "principal_amount": "40000.00",
+    "status": "Disbursed",
+    "outstanding_balance": "43000.00",
+    "disbursement_date": "2026-03-11 00:00:00+00"
+  },
+  {
+    "id": "e60b6420-b2f0-4c2b-861f-96791b9f0b90",
+    "client_name": null,
+    "principal_amount": "40000.00",
+    "status": "settled",
+    "outstanding_balance": "8000.00",
+    "disbursement_date": "2026-01-04 00:00:00+00"
+  },
+  {
+    "id": "2b23d515-b0c6-4091-8b74-ccd364271ab6",
+    "client_name": null,
+    "principal_amount": "50000.00",
+    "status": "settled",
+    "outstanding_balance": "10000.00",
+    "disbursement_date": "2025-12-03 00:00:00+00"
+  },
+  {
+    "id": "658b2143-2ba6-491a-a8f8-cef54d8b1003",
+    "client_name": null,
+    "principal_amount": "50000.00",
+    "status": "settled",
+    "outstanding_balance": "10000.00",
+    "disbursement_date": "2025-11-28 00:00:00+00"
+  },
+  {
+    "id": "086795be-9f1c-4120-a419-2f2d88b6f175",
+    "client_name": null,
+    "principal_amount": "50000.00",
+    "status": "settled",
+    "outstanding_balance": "10000.00",
+    "disbursement_date": "2025-11-27 00:00:00+00"
+  },
+  {
+    "id": "75bbe56e-738c-4c49-a33b-f7b782fe44cd",
+    "client_name": null,
+    "principal_amount": "50000.00",
+    "status": "settled",
+    "outstanding_balance": "10000.00",
+    "disbursement_date": "2025-12-29 00:00:00+00"
+  },
+  {
+    "id": "10d8108e-8f87-465b-bc2e-319f9b7989b0",
+    "client_name": null,
+    "principal_amount": "50000.00",
+    "status": "active",
+    "outstanding_balance": "2500.00",
+    "disbursement_date": "2025-12-27 00:00:00+00"
+  },
+  {
+    "id": "621ccbbe-8b7b-4033-87b9-18f0486474ec",
+    "client_name": null,
+    "principal_amount": "50000.00",
+    "status": "settled",
+    "outstanding_balance": "10000.00",
+    "disbursement_date": "2025-11-28 00:00:00+00"
+  },
+  {
+    "id": "b91c738c-ff68-4076-9146-9815cb13935a",
+    "client_name": null,
+    "principal_amount": "50000.00",
+    "status": "settled",
+    "outstanding_balance": "0.00",
+    "disbursement_date": "2026-02-20 00:00:00+00"
+  },
+  {
+    "id": "408afe36-bd8c-4c02-bf2f-ff5aafc1a883",
+    "client_name": null,
+    "principal_amount": "75000.00",
+    "status": "settled",
+    "outstanding_balance": "3750.00",
+    "disbursement_date": "2025-12-10 00:00:00+00"
+  },
+  {
+    "id": "c64e10af-5e75-4cb4-abf3-b00c7026edaf",
+    "client_name": null,
+    "principal_amount": "100000.00",
+    "status": "settled",
+    "outstanding_balance": "20000.00",
+    "disbursement_date": "2026-01-03 00:00:00+00"
+  },
+  {
+    "id": "930253d3-0cda-455c-a226-92c90798b1a3",
+    "client_name": null,
+    "principal_amount": "100000.00",
+    "status": "Disbursed",
+    "outstanding_balance": "110000.00",
+    "disbursement_date": "2026-03-04 00:00:00+00"
+  },
+  {
+    "id": "17951ddb-ec12-470c-9362-4c5fc3549ad5",
+    "client_name": null,
+    "principal_amount": "100000.00",
+    "status": "settled",
+    "outstanding_balance": "5000.00",
+    "disbursement_date": "2025-12-01 00:00:00+00"
+  },
+  {
+    "id": "146492b6-c39d-4081-8b00-5140ac373996",
+    "client_name": null,
+    "principal_amount": "100000.00",
+    "status": "active",
+    "outstanding_balance": "2500.00",
+    "disbursement_date": "2026-01-30 00:00:00+00"
+  },
+  {
+    "id": "ceea55af-2ae7-4d8c-8e37-477341c08327",
+    "client_name": null,
+    "principal_amount": "100000.00",
+    "status": "active",
+    "outstanding_balance": "115000.00",
+    "disbursement_date": "2026-03-06 00:00:00+00"
+  },
+  {
+    "id": "54fa4e53-062d-452a-879b-74a50f9dc296",
+    "client_name": null,
+    "principal_amount": "100000.00",
+    "status": "settled",
+    "outstanding_balance": "20000.00",
+    "disbursement_date": "2026-01-22 00:00:00+00"
+  },
+  {
+    "id": "16dbd465-f0f1-457e-82df-1c3ed02bb222",
+    "client_name": null,
+    "principal_amount": "100000.00",
+    "status": "settled",
+    "outstanding_balance": "20000.00",
+    "disbursement_date": "2025-12-13 00:00:00+00"
+  },
+  {
+    "id": "e25bd3ca-9ecd-47e2-9802-774a4c3ed711",
+    "client_name": null,
+    "principal_amount": "100000.00",
+    "status": "active",
+    "outstanding_balance": "115000.00",
+    "disbursement_date": "2026-03-06 00:00:00+00"
+  },
+  {
+    "id": "1261d0ef-a523-4a10-a50b-83068deb9cd8",
+    "client_name": null,
+    "principal_amount": "100000.00",
+    "status": "Disbursed",
+    "outstanding_balance": "107500.00",
+    "disbursement_date": "2026-02-27 00:00:00+00"
+  },
+  {
+    "id": "159acf11-20dc-4320-a887-525c8230dd1c",
+    "client_name": null,
+    "principal_amount": "100000.00",
+    "status": "Rejected",
+    "outstanding_balance": "110000.00",
+    "disbursement_date": "2026-03-04 00:00:00+00"
+  },
+  {
+    "id": "ff9a81a4-1809-49bb-ba7c-501e0c2c3dec",
+    "client_name": null,
+    "principal_amount": "100000.00",
+    "status": "Fully Paid",
+    "outstanding_balance": "0.00",
+    "disbursement_date": "2025-12-12 00:00:00+00"
+  },
+  {
+    "id": "988f47eb-d64b-489c-a3ac-d0ee9b53cb44",
+    "client_name": null,
+    "principal_amount": "100000.00",
+    "status": "settled",
+    "outstanding_balance": "20000.00",
+    "disbursement_date": "2025-12-06 00:00:00+00"
+  },
+  {
+    "id": "fea9295a-1da0-47db-a07f-4d58eb98a5c2",
+    "client_name": null,
+    "principal_amount": "100000.00",
+    "status": "fully_paid",
+    "outstanding_balance": "110000.00",
+    "disbursement_date": "2026-02-03 00:00:00+00"
+  },
+  {
+    "id": "3bd28fc6-4f63-4b04-b7aa-262b43d2bafb",
+    "client_name": "Jones Mundo  Musyoki",
+    "principal_amount": "150000.00",
+    "status": "active",
+    "outstanding_balance": "172500.00",
+    "disbursement_date": "2026-02-04 00:00:00+00"
+  },
+  {
+    "id": "9a463dc6-d22b-4f6e-b6db-aa7457db188b",
+    "client_name": null,
+    "principal_amount": "150000.00",
+    "status": "settled",
+    "outstanding_balance": "30000.00",
+    "disbursement_date": "2026-02-17 00:00:00+00"
+  },
+  {
+    "id": "f23e876c-f503-475e-9f6b-9373d5cc6fb3",
+    "client_name": null,
+    "principal_amount": "150000.00",
+    "status": "settled",
+    "outstanding_balance": "18750.00",
+    "disbursement_date": "2026-03-03 00:00:00+00"
+  },
+  {
+    "id": "89308884-2a27-4bcd-ba9b-e1d4727f4490",
+    "client_name": null,
+    "principal_amount": "150000.00",
+    "status": "active",
+    "outstanding_balance": "3750.00",
+    "disbursement_date": "2026-01-28 00:00:00+00"
+  },
+  {
+    "id": "a32c0719-0a45-4dd4-ba16-e45b175099f3",
+    "client_name": null,
+    "principal_amount": "200000.00",
+    "status": "Disbursed",
+    "outstanding_balance": "161250.00",
+    "disbursement_date": "2026-02-04 00:00:00+00"
+  },
+  {
+    "id": "89ac7f8d-1dc2-4cdb-a4d2-2e9032095f41",
+    "client_name": null,
+    "principal_amount": "200000.00",
+    "status": "default",
+    "outstanding_balance": "220000.00",
+    "disbursement_date": "2020-01-23 00:00:00+00"
+  },
+  {
+    "id": "2da3e66a-479f-42d4-ab30-28482e63797e",
+    "client_name": null,
+    "principal_amount": "200000.00",
+    "status": "settled",
+    "outstanding_balance": "10000.00",
+    "disbursement_date": "2026-02-04 00:00:00+00"
+  },
+  {
+    "id": "9ee833ed-6159-4a63-8fe3-41f070b567f5",
+    "client_name": null,
+    "principal_amount": "200000.00",
+    "status": "active",
+    "outstanding_balance": "188333.00",
+    "disbursement_date": "2025-12-05 00:00:00+00"
+  },
+  {
+    "id": "7140db97-9a5b-4a8e-a442-f38c99779c2b",
+    "client_name": null,
+    "principal_amount": "250000.00",
+    "status": "settled",
+    "outstanding_balance": "50000.00",
+    "disbursement_date": "2025-11-23 00:00:00+00"
+  }
+]

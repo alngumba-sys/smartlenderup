@@ -2868,31 +2868,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // Opening balances are handled separately as "Opening Balance" type, not "Funding"
   // This prevents double-counting of opening balances in bank statements
 
-  // Create journal entries for opening balances
-  useEffect(() => {
-    // Only run when bankAccounts exist and we don't have many journal entries yet
-    if (bankAccounts.length > 0 && journalEntries.length < 10) {
-      bankAccounts.forEach(account => {
-        if (account.openingBalance > 0) {
-          // Check if we already have a journal entry for this opening balance
-          const existingEntry = journalEntries.find(je => 
-            je.sourceType === 'Opening Balance' && je.sourceId === account.id
-          );
-          
-          if (!existingEntry) {
-            const journalEntryData = createOpeningBalanceEntry(
-              account.id,
-              account.name,
-              account.openingBalance,
-              account.openingDate,
-              account.createdBy
-            );
-            addJournalEntry(journalEntryData);
-          }
-        }
-      });
-    }
-  }, [bankAccounts.length]);
+  // ✅ DISABLED: Auto-creation of opening balance journal entries
+  // This useEffect was creating duplicate "Opening Balance - Main Account" entries
+  // because it ran whenever journalEntries.length < 10 or bankAccounts.length changed
+  // 
+  // Opening balance entries should only be created ONCE when an account is first created
+  // Use the "Sync Journal Entries" button in Accounting > Journal Entries tab
+  // to manually create any missing entries if needed
 
   // ✅ Recalculate bank account balances on load based on transactions
   useEffect(() => {

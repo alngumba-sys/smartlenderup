@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Search, Plus, Calendar, AlertCircle, CheckCircle, XCircle, DollarSign, TrendingUp, PercentIcon, Wallet, User, Calculator, Upload, X, Info, Filter, Clock, MessageSquare, UserCheck, FileText, Send, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit, RefreshCw } from 'lucide-react';
+import { Search, Plus, Calendar, AlertCircle, CheckCircle, XCircle, DollarSign, TrendingUp, PercentIcon, Wallet, User, Calculator, Upload, X, Info, Filter, Clock, MessageSquare, UserCheck, FileText, Send, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit, RefreshCw, Download, FileSpreadsheet } from 'lucide-react';
 import { generateInstallments, type LoanDocument, type Guarantor, type Collateral } from '../../data/dummyData';
 // Import useData hook from DataContext - Version: 2025-01-11
 import { useData } from '../../contexts/DataContext';
@@ -707,7 +707,11 @@ export function LoansTab() {
       displayLoans = loans.filter(loan => (loan.daysInArrears || 0) >= 90);
       break;
     default:
-      displayLoans = loans;
+      // For 'all' tab, exclude rejected loans
+      displayLoans = loans.filter(loan => {
+        const status = (loan.status || '').toLowerCase().trim();
+        return status !== 'rejected';
+      });
   }
 
   const filteredLoans = displayLoans.filter(loan => {
@@ -723,8 +727,19 @@ export function LoansTab() {
     return matchesSearch && matchesStatus && matchesDate;
   }).reverse(); // Reverse to show newest loans first (at the top)
 
-  // Sort the filtered loans
-  const sortedLoans = [...filteredLoans].sort((a, b) => {
+  // Separate deleted loans from active loans
+  const activeFilteredLoans = filteredLoans.filter(loan => {
+    const status = (loan.status || '').toLowerCase().trim();
+    return status !== 'deleted';
+  });
+  
+  const deletedLoans = filteredLoans.filter(loan => {
+    const status = (loan.status || '').toLowerCase().trim();
+    return status === 'deleted';
+  });
+
+  // Sort the active filtered loans
+  const sortedLoans = [...activeFilteredLoans].sort((a, b) => {
     if (!sortField) return 0;
 
     let aValue: any;
@@ -849,6 +864,222 @@ export function LoansTab() {
       return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
     } else {
       return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+    }
+  };
+
+  // Helper function to format date safely
+  const formatDateSafe = (date: any) => {
+    if (!date) return '';
+    try {
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    } catch {
+      return '';
+    }
+  };
+
+  // Export to Excel (CSV format) function
+  const exportToExcel = () => {
+    try {
+      // Prepare CSV data
+      const headers = ['Loan ID', 'Request Date', 'Client Name', 'Client ID', 'Amount Borrowed', 'Processing Fee', 'Interest', 'Paid', 'Outstanding', 'Status', 'Disbursement Date', 'Maturity Date'];
+      
+      const rows = sortedLoans.map(loan => {
+        const client = clients.find(c => c.id === loan.clientId);
+        const clientName = loan.clientName || (client ? `${client.firstName || ''} ${client.lastName || ''}`.trim() : '') || client?.name || '';
+        const principalAmt = loan.principalAmount || 0;
+        const paidAmt = loan.paidAmount || 0;
+        const calculatedInterest = calculateCorrectInterest(loan);
+        const calculatedTotal = principalAmt + calculatedInterest;
+        const dbTotal = loan.totalRepayable || loan.totalRepayment || 0;
+        const tolerance = calculatedTotal * 0.01;
+        const hasDiscount = dbTotal > 0 && dbTotal < (calculatedTotal - tolerance);
+        const totalRepayable = hasDiscount ? dbTotal : calculatedTotal;
+        const outstandingAmt = Math.max(0, totalRepayable - paidAmt);
+        
+        return [
+          loan.loanNumber || loan.id,
+          formatDateSafe(loan.requestDate || loan.createdAt || loan.applicationDate),
+          clientName,
+          loan.clientId || '',
+          principalAmt.toFixed(2),
+          (loan.processingFee || 0).toFixed(2),
+          calculatedInterest.toFixed(2),
+          paidAmt.toFixed(2),
+          outstandingAmt.toFixed(2),
+          loan.status || '',
+          formatDateSafe(loan.disbursementDate),
+          formatDateSafe(loan.maturityDate || loan.dueDate)
+        ];
+      });
+      
+      // Create CSV content
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+      
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `BV_Funguo_Loans_${activeSubTab}_${timestamp}.csv`;
+      
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('Excel file exported successfully');
+    } catch (error) {
+      console.error('Export to Excel error:', error);
+      toast.error('Failed to export to Excel');
+    }
+  };
+
+  // Export to PDF function (using print)
+  const exportToPDF = () => {
+    try {
+      // Create a printable HTML version
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        toast.error('Please allow popups to export PDF');
+        return;
+      }
+      
+      // Prepare table rows
+      const tableRows = sortedLoans.map(loan => {
+        const client = clients.find(c => c.id === loan.clientId);
+        const clientName = loan.clientName || (client ? `${client.firstName || ''} ${client.lastName || ''}`.trim() : '') || client?.name || '';
+        const principalAmt = loan.principalAmount || 0;
+        const paidAmt = loan.paidAmount || 0;
+        const calculatedInterest = calculateCorrectInterest(loan);
+        const calculatedTotal = principalAmt + calculatedInterest;
+        const dbTotal = loan.totalRepayable || loan.totalRepayment || 0;
+        const tolerance = calculatedTotal * 0.01;
+        const hasDiscount = dbTotal > 0 && dbTotal < (calculatedTotal - tolerance);
+        const totalRepayable = hasDiscount ? dbTotal : calculatedTotal;
+        const outstandingAmt = Math.max(0, totalRepayable - paidAmt);
+        
+        return `
+          <tr>
+            <td>${loan.loanNumber || loan.id}</td>
+            <td>${formatDateSafe(loan.requestDate || loan.createdAt || loan.applicationDate)}</td>
+            <td>${clientName}</td>
+            <td>${loan.clientId || ''}</td>
+            <td>${currencySymbol} ${principalAmt.toLocaleString()}</td>
+            <td>${currencySymbol} ${calculatedInterest.toLocaleString()}</td>
+            <td>${currencySymbol} ${paidAmt.toLocaleString()}</td>
+            <td>${currencySymbol} ${outstandingAmt.toLocaleString()}</td>
+            <td>${loan.status || ''}</td>
+          </tr>
+        `;
+      }).join('');
+      
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>BV Funguo Ltd - Loans Report</title>
+          <style>
+            @media print {
+              @page { 
+                size: landscape;
+                margin: 1cm;
+              }
+            }
+            body {
+              font-family: Arial, sans-serif;
+              padding: 20px;
+              color: #111120;
+            }
+            h1 {
+              color: #111120;
+              margin-bottom: 10px;
+            }
+            .metadata {
+              margin-bottom: 20px;
+              font-size: 12px;
+              color: #666;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 10px;
+            }
+            th {
+              background-color: #111120;
+              color: white;
+              padding: 8px;
+              text-align: left;
+              font-weight: bold;
+            }
+            td {
+              padding: 6px 8px;
+              border-bottom: 1px solid #ddd;
+            }
+            tr:nth-child(even) {
+              background-color: #f9f9f9;
+            }
+            .footer {
+              margin-top: 20px;
+              font-size: 10px;
+              color: #666;
+              text-align: center;
+            }
+          </style>
+        </head>
+        <body>
+          <h1>BV Funguo Ltd - Loans Report</h1>
+          <div class="metadata">
+            <p><strong>Report Date:</strong> ${new Date().toLocaleDateString()}</p>
+            <p><strong>Category:</strong> ${activeSubTab.replace('-', ' ').toUpperCase()}</p>
+            <p><strong>Total Loans:</strong> ${sortedLoans.length}</p>
+            <p><strong>Currency:</strong> ${currencyCode}</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Loan ID</th>
+                <th>Date</th>
+                <th>Client</th>
+                <th>Client ID</th>
+                <th>Principal</th>
+                <th>Interest</th>
+                <th>Paid</th>
+                <th>Outstanding</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+          <div class="footer">
+            <p>Generated by BV Funguo Ltd Microfinance Platform</p>
+          </div>
+        </body>
+        </html>
+      `;
+      
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      
+      // Wait for content to load, then print
+      printWindow.onload = () => {
+        printWindow.focus();
+        printWindow.print();
+      };
+      
+      toast.success('Opening print dialog for PDF export');
+    } catch (error) {
+      console.error('Export to PDF error:', error);
+      toast.error('Failed to export to PDF');
     }
   };
 
@@ -1124,7 +1355,7 @@ export function LoansTab() {
         <div className="flex gap-3">
           <button
             onClick={() => setShowCalculator(true)}
-            className="px-4 py-2.5 bg-[#0066FF] text-white rounded-xl hover:bg-[#0052CC] shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-2 text-sm font-medium"
+            className="py-2.5 bg-[#0066FF] text-white rounded-xl hover:bg-[#0052CC] shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-2 text-sm font-medium px-[16px] py-[7px]"
           >
             <Calculator className="size-4" />
             Calculator
@@ -1146,11 +1377,7 @@ export function LoansTab() {
       </div>
 
       {/* Upcoming Payments Summary - Modern card with subtle gradient */}
-      <div className={`p-5 rounded-2xl border transition-all duration-200 ${
-        isDark 
-          ? 'bg-gradient-to-br from-blue-900/30 to-blue-800/20 border-blue-700/40 shadow-lg shadow-blue-900/20' 
-          : 'bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200/60 shadow-sm'
-      }`}>
+      <div className={`rounded-2xl border transition-all duration-200 ${ isDark ? 'bg-gradient-to-br from-blue-900/30 to-blue-800/20 border-blue-700/40 shadow-lg shadow-blue-900/20' : 'bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200/60 shadow-sm' } px-[20px] py-[11px]`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3">
@@ -1393,8 +1620,12 @@ export function LoansTab() {
         
         // For "View All" tab, show total count of ALL loans (including pending/approved)
         // For other tabs, show disbursed loans only
+        // EXCLUDE REJECTED LOANS from all calculations
         const allActiveDisbursedLoans = activeSubTab === 'all' 
-          ? tabFilteredLoans 
+          ? tabFilteredLoans.filter(l => {
+              const status = (l.status || '').toLowerCase().trim();
+              return status !== 'rejected'; // Exclude rejected loans
+            })
           : tabFilteredLoans.filter(l => {
               const status = (l.status || '').toLowerCase().trim();
               return status !== 'pending' && status !== 'approved' && status !== 'rejected' && status !== '';
@@ -1731,6 +1962,30 @@ export function LoansTab() {
               <option value="Written Off">Written Off</option>
               <option value="Rejected">Rejected</option>
             </select>
+            
+            {/* Export Buttons */}
+            <button
+              onClick={exportToExcel}
+              className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0066FF] text-sm font-medium transition-all duration-200 ${
+                isDark ? 'bg-gray-700/50 border-gray-600 text-white hover:bg-gray-700' : 'bg-gray-50 border-gray-200 text-gray-900 hover:bg-white'
+              }`}
+              title="Export to Excel"
+            >
+              <FileSpreadsheet className="size-4" />
+              <span className="hidden sm:inline">Excel</span>
+            </button>
+            
+            <button
+              onClick={exportToPDF}
+              className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0066FF] text-sm font-medium transition-all duration-200 ${
+                isDark ? 'bg-gray-700/50 border-gray-600 text-white hover:bg-gray-700' : 'bg-gray-50 border-gray-200 text-gray-900 hover:bg-white'
+              }`}
+              title="Export to PDF"
+            >
+              <Download className="size-4" />
+              <span className="hidden sm:inline">PDF</span>
+            </button>
+            
             <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
           </div>
         </div>
@@ -1986,26 +2241,26 @@ export function LoansTab() {
                       
                       return (
                         <tr key={loan.id} className={`border-t ${isDark ? 'border-gray-700/50 hover:bg-gray-700/30' : 'border-gray-100 hover:bg-gray-50'} transition-colors duration-150`}>
-                          <td className={`px-5 py-3.5 text-sm font-medium ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>{loan.loanNumber || loan.id}</td>
-                          <td className={`px-5 py-3.5 text-center text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <td className={`px-5 py-3.5 font-medium ${isDark ? 'text-blue-300' : 'text-blue-700'} text-[13px]`}>{loan.loanNumber || loan.id}</td>
+                          <td className={`px-5 py-3.5 text-center ${isDark ? 'text-gray-400' : 'text-gray-600'} text-[13px]`}>
                             {loan.applicationDate || loan.createdDate || '-'}
                           </td>
-                          <td className={`px-5 py-3.5 text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                          <td className={`px-5 py-3.5 font-medium ${isDark ? 'text-gray-200' : 'text-gray-900'} text-[13px]`}>
                             {loan.clientName || client?.name || client?.firstName + ' ' + client?.lastName || 'N/A'}
                           </td>
-                          <td className={`px-5 py-3.5 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          <td className={`px-5 py-3.5 ${isDark ? 'text-gray-400' : 'text-gray-500'} text-[13px]`}>
                             {client?.clientNumber || client?.client_number || loan.clientId || 'N/A'}
                           </td>
-                          <td className={`px-5 py-3.5 text-right text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                          <td className={`px-5 py-3.5 text-right font-semibold ${isDark ? 'text-gray-200' : 'text-gray-900'} text-[13px]`}>
                             {principalAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
-                          <td className={`px-5 py-3.5 text-right text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <td className={`px-5 py-3.5 text-right ${isDark ? 'text-gray-400' : 'text-gray-600'} text-[13px]`}>
                             {(loan.processing_fee || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
-                          <td className={`px-5 py-3.5 text-right text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <td className={`px-5 py-3.5 text-right ${isDark ? 'text-gray-400' : 'text-gray-600'} text-[13px]`}>
                             {interestAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
-                          <td className={`px-5 py-3.5 text-right text-sm font-semibold text-emerald-700 dark:text-emerald-400`}>
+                          <td className={`px-5 py-3.5 text-right font-semibold text-emerald-700 dark:text-emerald-400 text-[13px]`}>
                             {paidAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </td>
                           <td className={`px-5 py-3.5 text-right text-sm font-semibold ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>
@@ -2069,7 +2324,7 @@ export function LoansTab() {
                   <tfoot className={`sticky bottom-0 ${isDark ? 'bg-gray-800 border-t-2 border-gray-600' : 'bg-gray-100 border-t-2 border-gray-300'}`}>
                     <tr className="font-semibold">
                       <td className={`px-4 py-3 text-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`} colSpan={4}>
-                        TOTAL
+                        TOTAL <span className={`text-[10px] font-normal ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>(excludes rejected)</span>
                       </td>
                       <td className={`px-4 py-3 text-right text-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
                         KES {sortedLoans.reduce((sum, loan) => sum + (loan.principalAmount || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
@@ -2107,6 +2362,160 @@ export function LoansTab() {
               </div>
             </div>
           )}
+
+          {/* Deleted Loans Table - Shown only if there are deleted loans */}
+          {activeSubTab === 'all' && deletedLoans.length > 0 && (
+            <div className={`mt-8 rounded-xl border ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'} shadow-sm`}>
+                <div className={`px-6 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <h3 className={`text-lg font-semibold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                    Deleted Loans ({deletedLoans.length})
+                  </h3>
+                  <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Loans that have been deleted from the system
+                  </p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className={`sticky top-0 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                      <tr>
+                        <th className={`px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Loan ID
+                        </th>
+                        <th className={`px-5 py-3.5 text-center text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Request Date
+                        </th>
+                        <th className={`px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Client Name
+                        </th>
+                        <th className={`px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Client ID
+                        </th>
+                        <th className={`px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Amount Borrowed
+                        </th>
+                        <th className={`px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Processing Fee
+                        </th>
+                        <th className={`px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Interest
+                        </th>
+                        <th className={`px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Paid
+                        </th>
+                        <th className={`px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Outstanding
+                        </th>
+                        <th className={`px-5 py-3.5 text-center text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Status
+                        </th>
+                        <th className={`px-5 py-3.5 text-center text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deletedLoans.map(loan => {
+                        const client = clients.find(c => c.id === loan.clientId);
+                        const principalAmt = loan.principalAmount || 0;
+                        const paidAmt = loan.paidAmount || 0;
+                        const calculatedInterest = calculateCorrectInterest(loan);
+                        const calculatedTotal = principalAmt + calculatedInterest;
+                        const dbTotal = loan.totalRepayable || loan.totalRepayment || 0;
+                        const tolerance = calculatedTotal * 0.01;
+                        const hasDiscount = dbTotal > 0 && dbTotal < (calculatedTotal - tolerance);
+                        const totalRepayable = hasDiscount ? dbTotal : calculatedTotal;
+                        const interestAmount = calculatedInterest;
+                        const outstandingAmt = Math.max(0, totalRepayable - paidAmt);
+                        
+                        return (
+                          <tr key={loan.id} className={`border-t ${isDark ? 'border-gray-700/50 bg-red-900/10' : 'border-gray-100 bg-red-50/30'}`}>
+                            <td className={`px-5 py-3.5 text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{loan.loanNumber || loan.id}</td>
+                            <td className={`px-5 py-3.5 text-center text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                              {loan.applicationDate || loan.createdDate || '-'}
+                            </td>
+                            <td className={`px-5 py-3.5 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {loan.clientName || client?.name || client?.firstName + ' ' + client?.lastName || 'N/A'}
+                            </td>
+                            <td className={`px-5 py-3.5 text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                              {client?.clientNumber || client?.client_number || loan.clientId || 'N/A'}
+                            </td>
+                            <td className={`px-5 py-3.5 text-right text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {principalAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </td>
+                            <td className={`px-5 py-3.5 text-right text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                              {(loan.processing_fee || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </td>
+                            <td className={`px-5 py-3.5 text-right text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                              {interestAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </td>
+                            <td className={`px-5 py-3.5 text-right text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                              {paidAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </td>
+                            <td className={`px-5 py-3.5 text-right text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                              {outstandingAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </td>
+                            <td className="px-5 py-3.5 text-center">
+                              <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                                Deleted
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 text-center">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setDetailModalLoan(loan.id);
+                                }}
+                                className="dark:text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-400 text-xs cursor-pointer hover:underline text-emerald-700"
+                              >
+                                View
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className={`sticky bottom-0 ${isDark ? 'bg-gray-800 border-t-2 border-gray-600' : 'bg-red-50 border-t-2 border-red-300'}`}>
+                      <tr className="font-semibold">
+                        <td className={`px-4 py-3 text-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`} colSpan={4}>
+                          DELETED TOTAL
+                        </td>
+                        <td className={`px-4 py-3 text-right text-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                          KES {deletedLoans.reduce((sum, loan) => sum + (loan.principalAmount || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </td>
+                        <td className={`px-4 py-3 text-right text-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                          KES {deletedLoans.reduce((sum, loan) => sum + (loan.processing_fee || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </td>
+                        <td className={`px-4 py-3 text-right text-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                          KES {deletedLoans.reduce((sum, loan) => sum + calculateCorrectInterest(loan), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </td>
+                        <td className={`px-4 py-3 text-right text-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                          KES {deletedLoans.reduce((sum, loan) => sum + (loan.paidAmount || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </td>
+                        <td className={`px-4 py-3 text-right text-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                          KES {deletedLoans.reduce((sum, loan) => {
+                            const principalAmt = loan.principalAmount || 0;
+                            const paidAmt = loan.paidAmount || 0;
+                            const correctInterest = calculateCorrectInterest(loan);
+                            const calculatedTotal = principalAmt + correctInterest;
+                            const dbTotal = loan.totalRepayable || loan.totalRepayment || 0;
+                            const tolerance = calculatedTotal * 0.01;
+                            const hasDiscount = dbTotal > 0 && dbTotal < (calculatedTotal - tolerance);
+                            const totalRepayable = hasDiscount ? dbTotal : calculatedTotal;
+                            const outstandingAmt = Math.max(0, totalRepayable - paidAmt);
+                            return sum + outstandingAmt;
+                          }, 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </td>
+                        <td className={`px-4 py-3 text-center text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`} colSpan={2}>
+                          {deletedLoans.length} {deletedLoans.length === 1 ? 'Loan' : 'Loans'}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
         </>
       )}
 
