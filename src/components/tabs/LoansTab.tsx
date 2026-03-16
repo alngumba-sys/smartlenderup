@@ -1169,7 +1169,7 @@ export function LoansTab() {
             <div className={`h-12 w-px ${isDark ? 'bg-blue-600/30' : 'bg-blue-300/50'}`} />
             <div>
               <p className={`text-3xl font-bold ${isDark ? 'text-blue-100' : 'text-blue-900'}`}>
-                {upcomingPayments.length.toLocaleString()}
+                {(upcomingPayments?.length || 0).toLocaleString()}
               </p>
               <p className={`text-xs font-medium ${isDark ? 'text-blue-300/70' : 'text-blue-700/70'}`}>
                 Payment{upcomingPayments.length !== 1 ? 's' : ''}
@@ -1452,12 +1452,12 @@ export function LoansTab() {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-blue-300/70' : 'text-blue-600/70'}`}>Total Loans</p>
-                <p className={`font-bold ${isDark ? 'text-blue-100' : 'text-blue-900'} text-[24px]`}>
+                <p className={`font-bold ${isDark ? 'text-blue-100' : 'text-blue-900'} text-[20px]`}>
                   {allActiveDisbursedLoans.length}
                 </p>
               </div>
-              <div className={`p-2.5 rounded-lg ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
-                <FileText className={`size-5 ${isDark ? 'text-blue-300' : 'text-blue-600'}`} />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
+                <FileText className={`size-4 ${isDark ? 'text-blue-300' : 'text-blue-600'}`} />
               </div>
             </div>
             {selectedInsightCard === 'total-loans' && (
@@ -1480,12 +1480,12 @@ export function LoansTab() {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-blue-300/70' : 'text-blue-600/70'}`}>Total Amount</p>
-                <p className={`text-2xl font-bold ${isDark ? 'text-blue-100' : 'text-blue-900'}`}>
+                <p className={`font-bold ${isDark ? 'text-blue-100' : 'text-blue-900'} text-[20px]`}>
                   KES {(allActiveDisbursedLoans.reduce((sum, l) => sum + (l.principalAmount || l.approvedAmount || l.requestedAmount || 0), 0) / 1000000).toFixed(2)}M
                 </p>
               </div>
-              <div className={`p-2.5 rounded-lg ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
-                <DollarSign className={`size-5 ${isDark ? 'text-blue-300' : 'text-blue-600'}`} />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
+                <DollarSign className={`size-4 ${isDark ? 'text-blue-300' : 'text-blue-600'}`} />
               </div>
             </div>
             {selectedInsightCard === 'total-amount' && (
@@ -1512,12 +1512,12 @@ export function LoansTab() {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-orange-300/70' : 'text-orange-600/70'}`}>Outstanding</p>
-                <p className={`text-2xl font-bold ${isDark ? 'text-orange-100' : 'text-orange-900'}`}>
+                <p className={`font-bold ${isDark ? 'text-orange-100' : 'text-orange-900'} text-[20px]`}>
                   KES {((loansWithOutstanding.reduce((sum, l) => sum + Math.abs(l.outstandingBalance || 0), 0)) / 1000000).toFixed(2)}M
                 </p>
               </div>
-              <div className={`p-2.5 rounded-lg ${isDark ? 'bg-orange-600/20' : 'bg-orange-100'}`}>
-                <TrendingUp className={`size-5 ${isDark ? 'text-orange-300' : 'text-orange-600'}`} />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-orange-600/20' : 'bg-orange-100'}`}>
+                <TrendingUp className={`size-4 ${isDark ? 'text-orange-300' : 'text-orange-600'}`} />
               </div>
             </div>
             {selectedInsightCard === 'outstanding' && (
@@ -1549,12 +1549,12 @@ export function LoansTab() {
                    activeSubTab === '3-months-late' ? '3+ Months Late' :
                    'Active Loans'}
                 </p>
-                <p className={`font-bold ${isDark ? 'text-emerald-100' : 'text-emerald-900'} text-[24px]`}>
+                <p className={`font-bold ${isDark ? 'text-emerald-100' : 'text-emerald-900'} text-[16px]`}>
                   {activeLoans.length}
                 </p>
               </div>
-              <div className={`p-2.5 rounded-lg ${isDark ? 'bg-emerald-600/20' : 'bg-emerald-100'}`}>
-                <CheckCircle className={`size-5 ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`} />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-emerald-600/20' : 'bg-emerald-100'}`}>
+                <CheckCircle className={`size-4 ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`} />
               </div>
             </div>
             {selectedInsightCard === 'active-loans' && (
@@ -1580,12 +1580,12 @@ export function LoansTab() {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-amber-300/70' : 'text-amber-600/70'}`}>Pending Review</p>
-                <p className={`font-bold ${isDark ? 'text-amber-100' : 'text-amber-900'} text-[24px]`}>
+                <p className={`font-bold ${isDark ? 'text-amber-100' : 'text-amber-900'} text-[20px]`}>
                   {pendingReviewLoans.length}
                 </p>
               </div>
-              <div className={`p-2.5 rounded-lg ${isDark ? 'bg-amber-600/20' : 'bg-amber-100'}`}>
-                <Clock className={`size-5 ${isDark ? 'text-amber-300' : 'text-amber-600'}`} />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-amber-600/20' : 'bg-amber-100'}`}>
+                <Clock className={`size-4 ${isDark ? 'text-amber-300' : 'text-amber-600'}`} />
               </div>
             </div>
             {selectedInsightCard === 'pending-review' && (
@@ -1612,12 +1612,12 @@ export function LoansTab() {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-cyan-300/70' : 'text-cyan-600/70'}`}>Pending Disbursement</p>
-                <p className={`font-bold ${isDark ? 'text-cyan-100' : 'text-cyan-900'} text-[24px]`}>
+                <p className={`font-bold ${isDark ? 'text-cyan-100' : 'text-cyan-900'} text-[20px]`}>
                   {pendingDisbursementLoans.length}
                 </p>
               </div>
-              <div className={`p-2.5 rounded-lg ${isDark ? 'bg-cyan-600/20' : 'bg-cyan-100'}`}>
-                <Wallet className={`size-5 ${isDark ? 'text-cyan-300' : 'text-cyan-600'}`} />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-cyan-600/20' : 'bg-cyan-100'}`}>
+                <Wallet className={`size-4 ${isDark ? 'text-cyan-300' : 'text-cyan-600'}`} />
               </div>
             </div>
             {selectedInsightCard === 'pending-disbursement' && (
@@ -1647,8 +1647,8 @@ export function LoansTab() {
                   {paidLoans.length}
                 </p>
               </div>
-              <div className={`p-2.5 rounded-lg ${isDark ? 'bg-emerald-600/20' : 'bg-emerald-100'}`}>
-                <CheckCircle className={`size-5 ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`} />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-emerald-600/20' : 'bg-emerald-100'}`}>
+                <CheckCircle className={`size-4 ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`} />
               </div>
             </div>
             {selectedInsightCard === 'paid-loans' && (
@@ -1678,8 +1678,8 @@ export function LoansTab() {
                   {defaultedLoans.length}
                 </p>
               </div>
-              <div className={`p-2.5 rounded-lg ${isDark ? 'bg-red-600/20' : 'bg-red-100'}`}>
-                <XCircle className={`size-5 ${isDark ? 'text-red-300' : 'text-red-600'}`} />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-red-600/20' : 'bg-red-100'}`}>
+                <XCircle className={`size-4 ${isDark ? 'text-red-300' : 'text-red-600'}`} />
               </div>
             </div>
             {selectedInsightCard === 'defaults' && (

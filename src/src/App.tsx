@@ -248,8 +248,8 @@ function AppContent() {
         username: 'admin'
       };
       
-      // Call login immediately
-      setTimeout(() => login(adminUser), 0);
+      // Call login directly (no setTimeout to avoid timing issues)
+      login(adminUser);
     } else {
       setAutoLoginAttempted(true);
     }
