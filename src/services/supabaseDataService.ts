@@ -1342,13 +1342,13 @@ export const loanService = {
       'applicationDate': 'application_date',
       'approvedDate': 'approval_date',
       'approvalDate': 'approval_date',
-      'disbursementDate': 'disbursement_date',
-      'disbursedDate': 'disbursement_date',
-      'maturityDate': 'maturity_date',
-      'expectedRepaymentDate': 'expected_repayment_date',
-      // ✅ Disbursement fields
-      'disbursementMethod': 'disbursement_method',
-      'disbursementAccount': 'disbursement_account',
+      // ❌ These columns don't exist in the deployed schema - commented out to avoid errors:
+      // 'disbursementDate': 'disbursement_date',
+      // 'disbursedDate': 'disbursement_date',
+      // 'maturityDate': 'maturity_date',
+      // 'expectedRepaymentDate': 'expected_repayment_date',
+      // 'disbursementMethod': 'disbursement_method',
+      // 'disbursementAccount': 'disbursement_account',
       // ✅ Approval fields
       'approvedBy': 'approved_by',
       'createdBy': 'created_by'
@@ -1383,7 +1383,15 @@ export const loanService = {
       'totalInterest',
       'total_interest',
       'daysInArrears',
-      'days_in_arrears'
+      'days_in_arrears',
+      // ❌ Non-existent date/disbursement fields - exclude from updates
+      'firstPaymentDate',
+      'maturityDate',
+      'expectedRepaymentDate',
+      'disbursementMethod',
+      'disbursementAccount',
+      'disbursementDate',
+      'disbursedDate'
     ];
     
     // Transform updates to match database schema

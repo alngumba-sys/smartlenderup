@@ -75,48 +75,36 @@ export function LoanRolloverModal({ isOpen, onClose, loanId }: LoanRolloverModal
       }
       const organization = JSON.parse(orgData);
       
-      // ✅ Create new loan with rollover details
-      const newLoanData = {
-        clientId: loan.client_id || loan.clientId,
-        loanProductId: loan.loan_product_id || loan.productId || loan.loanProductId,
-        amount: totalNewLoan, // This will map to principal_amount in the service
+      // ✅ Build extension note to append to existing purpose
+      const existingPurpose = loan.purpose || '';
+      const extensionNote = `\n\n--- Extended on ${new Date().toLocaleDateString('en-GB')} (${rolloverType}) ---\nPrevious Principal: ${formatCurrency(loan.principalAmount)} | Outstanding at Extension: ${formatCurrency(outstandingBalance)}${(additionalAmount && additionalAmount > 0) ? ` | Additional Top-up: ${formatCurrency(additionalAmount)}` : ''} | New Principal: ${formatCurrency(totalNewLoan)} | New Term: ${newTerm} months | New Interest: ${newInterestRate}% | Interest calculated from original principal: ${formatCurrency(baseForInterest)}`;
+      
+      // ✅ Update the existing loan with extended terms
+      const loanUpdates = {
         principalAmount: totalNewLoan,
         interestRate: newInterestRate,
         term: newTerm,
-        loanTerm: newTerm,
         disbursementDate: newLoanStartDate,
-        firstRepaymentDate: firstPaymentDate.toISOString().split('T')[0],
-        maturityDate: maturityDate.toISOString().split('T')[0],
         totalRepayable: totalRepayableNew,
         totalAmount: totalRepayableNew,
         status: 'active',
-        purpose: `Rollover of loan ${loan.loan_number || loan.loanNumber} (${rolloverType})`,
-        notes: `Rolled over from loan ${loan.loan_number || loan.loanNumber}. Outstanding balance: ${formatCurrency(outstandingBalance)}${(additionalAmount && additionalAmount > 0) ? `, Additional top-up: ${formatCurrency(additionalAmount)}` : ''}. Interest calculated from original principal: ${formatCurrency(baseForInterest)}.`
+        purpose: existingPurpose + extensionNote
       };
       
-      console.log('📝 Creating rollover loan:', newLoanData);
-      const createdLoan = await loanService.create(newLoanData, organization.id);
+      console.log('📝 Extending loan with updates:', loanUpdates);
+      await loanService.update(loan.id, loanUpdates, organization.id);
       
-      // ✅ Update old loan status to mark it as rolled over
-      const oldLoanUpdates = {
-        status: 'completed', // Mark as completed since it's been rolled over
-        notes: `${loan.notes || ''}\n\nRolled over on ${new Date().toLocaleDateString('en-GB')} into new loan ${createdLoan.loan_number}. Outstanding balance at rollover: ${formatCurrency(outstandingBalance)}.`.trim()
-      };
-      
-      console.log('📝 Updating old loan:', oldLoanUpdates);
-      await loanService.update(loan.id, oldLoanUpdates, organization.id);
-      
-      toast.success('Loan Rollover Completed', {
-        description: `New loan of ${formatCurrency(totalNewLoan)} created successfully. Loan #${createdLoan.loan_number}`,
+      toast.success('Loan Extended Successfully', {
+        description: `Loan extended with new principal of ${formatCurrency(totalNewLoan)} for ${newTerm} months`,
         duration: 6000,
       });
       
-      // ✅ Refresh data to show the new loan
+      // ✅ Refresh data to show the updated loan
       await refreshData();
       onClose();
     } catch (error: any) {
       console.error('❌ Error processing rollover:', error);
-      toast.error('Failed to process loan rollover', {
+      toast.error('Failed to extend loan', {
         description: error?.message || 'An unexpected error occurred',
         duration: 5000,
       });

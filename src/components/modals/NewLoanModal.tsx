@@ -538,6 +538,7 @@ export function NewLoanModal({ onClose, onSubmit, preselectedClientId, editingLo
                     required
                     value={formData.disbursementDate}
                     onChange={(e) => setFormData({ ...formData, disbursementDate: e.target.value })}
+                    max={new Date().toISOString().split('T')[0]} // Prevent future dates
                     className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                   />
                 </div>
