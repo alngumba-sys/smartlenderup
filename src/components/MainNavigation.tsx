@@ -82,6 +82,7 @@ const navItems: NavItem[] = [
     hasDropdown: true,
     dropdownItems: [
       { label: 'Reports & Analytics', icon: <FileBarChart className="size-4" />, value: 'reports', tabKey: 'reports_management' },
+      { label: 'Reconcile', icon: <FileCheck className="size-4" />, value: 'reconcile', tabKey: 'reports_management' },
       { label: 'Payroll', icon: <DollarSign className="size-4" />, value: 'payroll', tabKey: 'payroll' },
       { label: 'Expenses', icon: <Wallet className="size-4" />, value: 'expenses', tabKey: 'accounting_journal' },
       { label: 'Accounting', icon: <FileBarChart className="size-4" />, value: 'accounting', tabKey: 'accounting_chart' },

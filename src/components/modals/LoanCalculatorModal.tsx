@@ -183,10 +183,15 @@ export function LoanCalculatorModal({ isOpen = true, onClose }: LoanCalculatorMo
                       type="number"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
+                      onFocus={(e) => {
+                        if (e.target.value === '0') e.target.value = '';
+                        e.target.select();
+                      }}
+                      onBlur={(e) => {
+                        if (e.target.value === '') setAmount('0');
+                      }}
                       placeholder="0"
-                      className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      min="1000"
-                      max={selectedProduct?.maxAmount}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Max: {currencyCode} {selectedProduct?.maxAmount.toLocaleString()}
@@ -201,6 +206,13 @@ export function LoanCalculatorModal({ isOpen = true, onClose }: LoanCalculatorMo
                       type="number"
                       value={tenor}
                       onChange={(e) => setTenor(e.target.value)}
+                      onFocus={(e) => {
+                        if (e.target.value === '0') e.target.value = '';
+                        e.target.select();
+                      }}
+                      onBlur={(e) => {
+                        if (e.target.value === '') setTenor('0');
+                      }}
                       placeholder="0"
                       className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       min="1"

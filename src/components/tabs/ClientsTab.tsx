@@ -15,6 +15,7 @@ import { canCreateInTab, canEditInTab, canDeleteInTab, showPermissionError } fro
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { PermissionGate, PermissionButton } from '../PermissionGate';
 import { PERMISSIONS } from '../../utils/permissions';
+import { isPaidStatus, isDisbursedStatus } from '../../utils/statusUtils';
 
 interface ClientsTabProps {
   onClientSelect: (clientId: string) => void;
@@ -85,12 +86,7 @@ export function ClientsTab({ onClientSelect }: ClientsTabProps) {
       const clientLoans = loans.filter(l => l.clientUuid === client.id || l.clientId === client.id);
       
       // Only consider disbursed loans for status calculation
-      const disbursedLoans = clientLoans.filter(l => {
-        const status = (l.status || '').toLowerCase();
-        return status === 'active' || status === 'in arrears' || status === 'disbursed' ||
-               status === 'paid' || status === 'closed' || status === 'fully paid' ||
-               status === 'default' || status === 'default / past due' || status === 'written off';
-      });
+      const disbursedLoans = clientLoans.filter(l => isDisbursedStatus(l.status));
       
       const activeLoans = disbursedLoans.filter(l => {
         const status = (l.status || '').toLowerCase();

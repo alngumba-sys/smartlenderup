@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Wallet, Trash2, Edit, RefreshCw, AlertTriangle, DollarSign } from 'lucide-react';
+import { Plus, Wallet, Trash2, Edit, RefreshCw, AlertTriangle, DollarSign, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { getCurrencyCode } from '../../utils/currencyUtils';
 import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
@@ -79,6 +79,12 @@ export function BankAccountsTab() {
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
   const [showQuickBalanceUpdate, setShowQuickBalanceUpdate] = useState(false);
   const [balanceUpdateAccount, setBalanceUpdateAccount] = useState<BankAccount | null>(null);
+  
+  // Search and pagination state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 25;
+  
   const currencyCode = getCurrencyCode();
 
   const handleFundAccount = async (data: FundAccountData) => {
@@ -560,6 +566,50 @@ export function BankAccountsTab() {
 
   const statementTransactions = getStatementTransactions();
 
+  // Filter transactions based on search term
+  const filteredTransactions = statementTransactions.filter((transaction) => {
+    if (!searchTerm) return true;
+    
+    const repaymentTransactions = statementTransactions.filter(t => t.type === 'Loan Repayment');
+    const index = repaymentTransactions.indexOf(transaction);
+    
+    if (transaction.type !== 'Loan Repayment') return false;
+    
+    const repaymentId = transaction.id.replace('repayment-', '');
+    const repayment = repayments.find(r => r.id === repaymentId);
+    const loan = loans.find(l => l.id === repayment?.loanId);
+    const client = clients.find(c => c.id === loan?.clientId);
+    
+    const loanNumber = loan?.loanNumber || loan?.id || '';
+    const clientId = client?.clientId || '';
+    const clientName = client?.name || loan?.clientName || repayment?.clientName || transaction.depositor || '';
+    const receiptNumber = repayment?.receiptNumber || '';
+    const paymentMethod = repayment?.paymentMethod || '';
+    
+    const searchLower = searchTerm.toLowerCase();
+    
+    return (
+      loanNumber.toLowerCase().includes(searchLower) ||
+      clientId.toLowerCase().includes(searchLower) ||
+      clientName.toLowerCase().includes(searchLower) ||
+      receiptNumber.toLowerCase().includes(searchLower) ||
+      paymentMethod.toLowerCase().includes(searchLower) ||
+      transaction.date.toLowerCase().includes(searchLower)
+    );
+  });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedTransactions = filteredTransactions.slice(startIndex, endIndex);
+
+  // Reset to page 1 when search term changes
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
   return (
     <div className="p-6 space-y-6 bg-transparent">
       {/* Header */}
@@ -714,12 +764,28 @@ export function BankAccountsTab() {
       {/* Bank Statement Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div className="p-4 bg-gray-50 border-b border-gray-200">
-          <h3 className="font-semibold text-gray-900">
-            {activeBank === 'all' ? 'Combined Statement (All Accounts)' : `${currentAccount?.bankName || 'Account'} Statement`}
-          </h3>
-          <p className="text-sm text-gray-600 mt-1">
-            {statementTransactions.length} transactions found
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="font-semibold text-gray-900">
+                {activeBank === 'all' ? 'Combined Statement (All Accounts)' : `${currentAccount?.bankName || 'Account'} Statement`}
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Showing {filteredTransactions.length} of {statementTransactions.filter(t => t.type === 'Loan Repayment').length} transactions
+              </p>
+            </div>
+            
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by client, loan #, receipt..."
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-80"
+              />
+            </div>
+          </div>
         </div>
         
         <div className="overflow-x-auto">
@@ -737,14 +803,14 @@ export function BankAccountsTab() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {statementTransactions.length === 0 ? (
+              {paginatedTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                     No transactions found
                   </td>
                 </tr>
               ) : (
-                statementTransactions
+                paginatedTransactions
                   .filter((transaction) => transaction.type === 'Loan Repayment')
                   .map((transaction, index, filteredArray) => {
                     // Extract repayment ID from transaction ID
@@ -806,6 +872,29 @@ export function BankAccountsTab() {
               )}
             </tbody>
           </table>
+        </div>
+        
+        {/* Pagination Controls */}
+        <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            <button
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+            >
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
+          <p className="text-sm text-gray-600">
+            Page {currentPage} of {totalPages}
+          </p>
         </div>
       </div>
 

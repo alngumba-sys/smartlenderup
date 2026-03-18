@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { AddInstitutionModal } from '../modals/AddInstitutionModal';
 import { AssignClientsModal } from '../modals/AssignClientsModal';
 import { toast } from 'sonner';
+import { isPaidStatus, isDisbursedStatus } from '../../utils/statusUtils';
 
 export function InstitutionsTab() {
   const { isDark } = useTheme();
@@ -131,10 +132,7 @@ export function InstitutionsTab() {
           return sum + balance;
         }, 0);
         
-        const paidLoans = institutionLoans.filter(l => {
-          const status = l.status || '';
-          return status === 'Paid' || status === 'Completed' || status === 'Fully Paid';
-        });
+        const paidLoans = institutionLoans.filter(l => isPaidStatus(l.status));
         
         // Calculate PAR (Portfolio at Risk - loans overdue > 30 days)
         const today = new Date();
@@ -207,10 +205,7 @@ export function InstitutionsTab() {
         return sum + balance;
       }, 0);
       
-      const paidLoans = institutionLoans.filter(l => {
-        const status = l.status || '';
-        return status === 'Paid' || status === 'Completed' || status === 'Fully Paid';
-      });
+      const paidLoans = institutionLoans.filter(l => isPaidStatus(l.status));
       
       // Calculate PAR
       const today = new Date();
@@ -506,10 +501,7 @@ export function InstitutionsTab() {
                     return sum + balance;
                   }, 0);
 
-                  const paidLoans = institutionLoans.filter(l => {
-                    const status = l.status || '';
-                    return status === 'Paid' || status === 'Completed' || status === 'Fully Paid';
-                  });
+                  const paidLoans = institutionLoans.filter(l => isPaidStatus(l.status));
 
                   const today = new Date();
                   const parLoans = activeLoans.filter(l => {

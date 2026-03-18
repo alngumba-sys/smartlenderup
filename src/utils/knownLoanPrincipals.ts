@@ -1,20 +1,11 @@
 /**
- * ✅ CORRECT PRINCIPAL CALCULATION - v5.0 DATABASE-FIRST APPROACH
- * 
- * This module gets correct principal amounts using a 4-tier system:
- * 1. Database principal_amount (if it looks valid - TRUST THE SOURCE DATA)
- * 2. Disbursements/Journal entries (as verification or fallback)
- * 3. Known correct values (manual overrides for verified amounts)
- * 4. Reverse calculation (when principal_amount = total_amount in DB)
- */
-
-/**
  * Manual overrides for specific loans (use only if database AND disbursements are both wrong)
  */
 export const KNOWN_LOAN_PRINCIPALS: Record<string, number> = {
   // 📋 Add manual overrides here ONLY if database AND disbursements both have wrong data
   // Format: 'loan_number': principal_amount,
   // Example: '5224': 300000,
+  '5077': 100000, // ✅ Stephen Mulu Nzavi - Correct principal is KSh 100,000
 };
 
 /**

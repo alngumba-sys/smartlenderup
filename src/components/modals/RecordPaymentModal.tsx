@@ -271,7 +271,7 @@ export function RecordPaymentModal({ isOpen, onClose, onSubmit, preselectedLoanI
             {/* Warning Message */}
             <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg p-2 flex items-start gap-2">
               <AlertCircle className="size-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-              <p className="text-xs dark:text-amber-300 text-[#4e4520]">
+              <p className="text-xs dark:text-amber-300 text-[#352b07]">
                 Please verify all details are correct. This payment will be recorded and account balance updated.
               </p>
             </div>

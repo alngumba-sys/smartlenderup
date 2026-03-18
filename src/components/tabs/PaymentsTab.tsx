@@ -7,6 +7,7 @@ import { ViewToggle } from '../ViewToggle';
 import { toast } from 'sonner';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
+import { allocatePayment, logPaymentAllocation } from '../../utils/paymentAllocation';
 
 export function PaymentsTab() {
   const { isDark } = useTheme();
@@ -49,20 +50,27 @@ export function PaymentsTab() {
       return;
     }
 
-    // Calculate principal and interest breakdown (simplified - you can make this more sophisticated)
+    // ✅ FIXED: Calculate principal and interest breakdown using proper allocation
     const amount = parseFloat(paymentData.amount);
-    const principal = amount * 0.7; // Assuming 70% goes to principal
-    const interest = amount * 0.3; // Assuming 30% goes to interest
     
-    // Create the repayment object
+    // Use the payment allocation utility to calculate proper split
+    // This allocates payments in the standard order: Penalty → Interest → Principal
+    const allocation = allocatePayment(amount, loan);
+    
+    // Log the allocation for debugging (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      logPaymentAllocation(amount, loan, allocation);
+    }
+    
+    // Create the repayment object with PROPER allocation
     const repaymentRecord = {
       loanId: paymentData.loanId,
       clientId: loan.clientId,
       clientName: client.name,
       amount: amount,
-      principal: principal,
-      interest: interest,
-      penalty: 0,
+      principal: allocation.principal,  // ✅ Properly allocated principal
+      interest: allocation.interest,    // ✅ Properly allocated interest
+      penalty: allocation.penalty,      // ✅ Properly allocated penalty
       paymentMethod: paymentData.paymentMethod as 'M-Pesa' | 'Cash' | 'Bank Transfer' | 'Cheque',
       paymentReference: paymentData.mpesaCode || paymentData.transactionRef || `TXN${Date.now()}`,
       paymentDate: paymentData.paymentDate,
@@ -80,10 +88,11 @@ export function PaymentsTab() {
       // Close the modal
       setShowRecordPaymentModal(false);
 
-      // Show success toast
+      // Show success toast with allocation details
+      const allocationDetails = `Principal: KES ${allocation.principal.toLocaleString()}, Interest: KES ${allocation.interest.toLocaleString()}`;
       toast.success('Payment Recorded Successfully', {
-        description: `KES ${amount.toLocaleString()} recorded for ${client.name} via ${paymentData.paymentMethod}`,
-        duration: 5000,
+        description: `KES ${amount.toLocaleString()} recorded for ${client.name} via ${paymentData.paymentMethod}. ${allocationDetails}`,
+        duration: 6000,
       });
 
       // ✅ Refresh data from Supabase to ensure UI is in sync with database

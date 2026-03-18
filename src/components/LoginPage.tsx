@@ -222,7 +222,7 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
     }
   }, []);
 
-  // Check for saved credentials on mount and auto-login
+  // Check for saved credentials on mount - PRE-FILL ONLY (no auto-login)
   useEffect(() => {
     const savedCredentials = localStorage.getItem('bv_funguo_credentials');
     if (savedCredentials) {
@@ -232,72 +232,8 @@ export function LoginPage({ onLogin, onBack, platformName = 'SmartLenderUp', onG
         setPassword(savedPass);
         setRememberMe(true);
         
-        // Auto-login with saved credentials
-        setTimeout(() => {
-          const loginId = savedId.trim();
-          const loginPass = savedPass.trim();
-          
-          // Check admin credentials
-          if (loginId === '12345' && loginPass === 'Test@1234') {
-            const adminData = {
-              id: 'USR-001',
-              name: 'System Administrator',
-              email: 'admin@bvfunguo.co.ke',
-              phone: '0700000000',
-              role: 'Admin',
-              userType: 'admin' as const
-            };
-            onLogin('admin', adminData);
-            return;
-          }
-          
-          // Check employee credentials
-          if ((loginId === 'employee@bvfunguo.co.ke' || loginId === '0712345678') && loginPass === 'Employee@123') {
-            const employeeData = {
-              id: 'USR-001',
-              name: 'Victor Muthama',
-              email: 'victor.muthama@bvfunguo.co.ke',
-              phone: '0756789012',
-              role: 'Loan Officer',
-              userType: 'employee' as const
-            };
-            onLogin('employee', employeeData);
-            return;
-          }
-          
-          // Check organization accounts
-          const authResult = db.authenticate(loginId, loginPass);
-          if (authResult && authResult.type === 'organization') {
-            const org = authResult.data as any;
-            
-            // Check if organization is suspended
-            if (org.status && org.status.toLowerCase() === 'suspended') {
-              console.log('❌ Organization is suspended - preventing auto-login');
-              localStorage.removeItem('bv_funguo_credentials');
-              return;
-            }
-            
-            // Check if organization is rejected
-            if (org.status && org.status.toLowerCase() === 'rejected') {
-              console.log('❌ Organization is rejected - preventing auto-login');
-              localStorage.removeItem('bv_funguo_credentials');
-              return;
-            }
-            
-            const userData = {
-              id: org.id,
-              name: org.organization_name,
-              email: org.email,
-              phone: org.phone,
-              role: 'Admin', // Map to Admin role for permissions system
-              userType: 'admin' as const,
-              organizationId: org.id,
-              username: org.username
-            };
-            localStorage.setItem('current_organization', JSON.stringify(org));
-            onLogin('admin', userData);
-          }
-        }, 500);
+        // ❌ AUTO-LOGIN DISABLED - User must click Sign In button
+        // This ensures the login page is always visible
       } catch (error) {
         console.error('Error loading saved credentials:', error);
         localStorage.removeItem('bv_funguo_credentials');

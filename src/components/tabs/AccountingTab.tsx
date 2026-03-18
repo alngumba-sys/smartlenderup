@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
-import { BookOpen, Plus, Download, Search, Filter, Edit, Trash2, ChevronDown, ChevronUp, Calendar, CheckCircle, XCircle, TrendingUp, TrendingDown, FileText, Eye, DollarSign, AlertCircle, Receipt, Users, Wallet, FileCheck } from 'lucide-react';
+import { BookOpen, Plus, Download, Search, Filter, Edit, Trash2, ChevronDown, ChevronUp, Calendar, CheckCircle, XCircle, TrendingUp, TrendingDown, FileText, Eye, DollarSign, AlertCircle, Receipt, Users, Wallet, FileCheck, Bug } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ShareholderFormModal, CapitalDepositModal, ProfitDistributionModal } from '../modals/ShareholderModals';
@@ -109,6 +109,7 @@ export function AccountingTab() {
     fundingTransactions,
     payees,
     journalEntries,
+    clients,
     addShareholder,
     updateShareholder,
     addShareholderTransaction,
@@ -144,12 +145,34 @@ export function AccountingTab() {
   // Include ALL loans that have been disbursed (Active, Disbursed, Default, Paid)
   // Exclude Pending, Rejected, Draft statuses
   const disbursedLoanStatuses = ['Active', 'Disbursed', 'Default', 'Paid', 'Closed'];
-  const totalLoansDisbursed = loans
-    .filter(l => {
-      const status = (l.status || '').toLowerCase().trim();
-      return (disbursedLoanStatuses.includes(l.status) || l.disbursementDate) && status !== 'rejected';
-    })
-    .reduce((sum, l) => sum + (l.principalAmount || 0), 0);
+  
+  // Debug: Log the filtering logic for Cash Flow
+  console.log('=== CASH FLOW FILTERING LOGIC ===');
+  const disbursedLoansForCashFlow = loans.filter(l => {
+    const status = (l.status || '').toLowerCase().trim();
+    const hasValidStatus = disbursedLoanStatuses.includes(l.status);
+    const hasDisbursementDate = !!l.disbursementDate;
+    const isNotRejected = status !== 'rejected';
+    
+    const includeThisLoan = (hasValidStatus || hasDisbursementDate) && isNotRejected;
+    
+    if (includeThisLoan) {
+      console.log('Cash Flow - Including loan:', {
+        id: l.id?.substring(0, 8),
+        status: l.status,
+        principal: l.principalAmount,
+        paidAmount: l.paidAmount || l.amountPaid,
+        disbursementDate: l.disbursementDate,
+        reason: hasValidStatus ? 'valid status' : 'has disbursement date'
+      });
+    }
+    
+    return includeThisLoan;
+  });
+  
+  console.log(`Cash Flow: ${disbursedLoansForCashFlow.length} loans out of ${loans.length}`);
+  
+  const totalLoansDisbursed = disbursedLoansForCashFlow.reduce((sum, l) => sum + (l.principalAmount || 0), 0);
   
   const totalLoansOutstanding = loans
     .filter(l => {
@@ -184,12 +207,8 @@ export function AccountingTab() {
   const INITIAL_FUNDING = totalBankOpeningBalance + totalFundingReceived; // Bank opening balances + actual funding only
   
   // ✅ Use total paid from loans table (matches "Paid" column in All Loans)
-  const totalRepaymentsFromLoans = loans
-    .filter(l => {
-      const status = (l.status || '').toLowerCase().trim();
-      return (disbursedLoanStatuses.includes(l.status) || l.disbursementDate) && status !== 'rejected';
-    })
-    .reduce((sum, l) => sum + (l.paidAmount || l.amountPaid || 0), 0);
+  // Use the same filtered loans for consistency
+  const totalRepaymentsFromLoans = disbursedLoansForCashFlow.reduce((sum, l) => sum + (l.paidAmount || l.amountPaid || 0), 0);
   
   // Use loans table as source of truth for total repayments
   const totalRepayments = totalRepaymentsFromLoans;

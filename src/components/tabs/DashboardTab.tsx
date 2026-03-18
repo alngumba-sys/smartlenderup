@@ -3,7 +3,11 @@ import { useState, useEffect, useContext, useMemo } from 'react';
 import { DataContext } from '../../contexts/DataContext';
 import { useThemeStyles } from '../../hooks/useThemeStyles';
 import { useTheme } from '../../contexts/ThemeContext';
-import { DollarSign, Users, TrendingUp, AlertTriangle, Activity, Banknote, Receipt, Wallet, X, Info, ChevronDown, Calendar, Clock } from 'lucide-react';
+import { DollarSign, Users, TrendingUp, AlertTriangle, Activity, Banknote, Receipt, Wallet, X, Info, ChevronDown, Calendar, Clock, ArrowUpCircle, AlertCircle, Bug } from 'lucide-react';
+import { InterestComparisonTool } from '../diagnostics/InterestComparisonTool';
+import { InterestPaidBackDiagnostic } from '../diagnostics/InterestPaidBackDiagnostic';
+import { PaymentAllocationDiagnostic } from '../diagnostics/PaymentAllocationDiagnostic';
+import { LoanOutstandingBalancesFix } from '../diagnostics/LoanOutstandingBalancesFix';
 import { safePercentage, safeToFixed, safeDivideNum, safeFormat, safePercentageNum, safeDivide } from '../../utils/safeCalculations';
 import { getCurrencySymbol, getCurrencyCode, formatCurrency } from '../../utils/currencyUtils';
 import { getOrganizationName } from '../../utils/organizationUtils';
@@ -39,6 +43,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   
   // Add mounted state to prevent chart rendering before container dimensions are ready
   const [isMounted, setIsMounted] = useState(false);
+  const [showComparisonTool, setShowComparisonTool] = useState(false);
+  const [showInterestPaidDiagnostic, setShowInterestPaidDiagnostic] = useState(false);
+  const [showPaymentAllocationDiagnostic, setShowPaymentAllocationDiagnostic] = useState(false);
+  const [showLoanBalancesFix, setShowLoanBalancesFix] = useState(false);
   
   // Duration filters state - load from localStorage
   const [portfolioDuration, setPortfolioDuration] = useState<DurationFilter>(() => 
@@ -279,7 +287,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   // ✅ Helper to calculate outstanding balance correctly using SMART CALCULATION
   const calculateOutstanding = (l: any) => {
     const principalAmt = l.principalAmount || 0;
-    const paidAmount = l.paidAmount || l.amount_paid || l.amountPaid || 0;
+    
+    // ✅ Calculate total paid from payment records (principal + interest)
+    const loanPayments = payments.filter((p: any) => p.loanId === l.id);
+    const paidAmount = loanPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
     
     // Smart calculation: Use DB if it has a discount, otherwise use formula
     const calculatedInterest = calculateCorrectInterest(l);
@@ -312,6 +323,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const getPortfolioTrend = () => {
     const now = new Date();
     const months = [];
+    const seen = new Set(); // Track unique month identifiers
     
     // Get last 6 months including current
     for (let i = 5; i >= 0; i--) {
@@ -319,6 +331,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       const monthName = date.toLocaleDateString('en-US', { month: 'short' });
       const year = date.getFullYear();
       const month = date.getMonth();
+      
+      // Create unique identifier for this month
+      const uniqueId = `${year}-${month}`;
+      if (seen.has(uniqueId)) continue; // Skip duplicates
+      seen.add(uniqueId);
       
       // Filter loans that were active during this month
       const monthLoans = contextLoans.filter((loan: any) => {
@@ -350,10 +367,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       const par30Percentage = portfolio > 0 ? (par30Amount / portfolio) * 100 : 0;
       
       months.push({
-        month: `${monthName} '${String(year).slice(2)}`, // Include year to make unique
+        month: `${monthName} '${String(year).slice(2)}`,
         portfolio: Math.round(portfolio),
         par30: parseFloat(par30Percentage.toFixed(1)),
-        id: `portfolio-${year}-${month}` // ✅ FIXED: More unique ID for React key
+        id: uniqueId // Add unique ID for React keys
       });
     }
     
@@ -372,27 +389,37 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       }
     }
     
-    return loanProducts.map((product: any, index: number) => {
-      // ✅ Include all active loans for this product (more lenient criteria)
-      const productLoans = contextLoans.filter((l: any) => 
-        l.productId === product.id && isActiveStatus(l.status)
-      );
-      
-      // ✅ Calculate total outstanding balance from active loans correctly
-      const totalOutstanding = productLoans.reduce((sum: number, l: any) => sum + calculateOutstanding(l), 0);
-      
-      return {
-        id: product.id || `product-${index}-${product.name || index}`, // ✅ FIXED: Ensure unique ID even if product.id is null
-        name: product.name || `Product ${index + 1}`,
-        count: productLoans.length,
-        value: totalOutstanding
-      };
-    }).filter((product: any) => product.value > 0 || product.count > 0); // Show products with either value or count
+    const seen = new Set(); // Track unique product IDs
+    
+    return loanProducts
+      .map((product: any, index: number) => {
+        // ✅ Include all active loans for this product (more lenient criteria)
+        const productLoans = contextLoans.filter((l: any) => 
+          l.productId === product.id && isActiveStatus(l.status)
+        );
+        
+        // ✅ Calculate total outstanding balance from active loans correctly
+        const totalOutstanding = productLoans.reduce((sum: number, l: any) => sum + calculateOutstanding(l), 0);
+        
+        return {
+          id: product.id || `product-${index}-${product.name || index}`,
+          name: product.name || `Product ${index + 1}`,
+          count: productLoans.length,
+          value: totalOutstanding
+        };
+      })
+      .filter((product: any) => {
+        // Remove duplicates and filter out products with no value or count
+        if (seen.has(product.id)) return false;
+        seen.add(product.id);
+        return product.value > 0 || product.count > 0;
+      });
   };
 
   const getMonthlyDisbursements = () => {
     const now = new Date();
     const months = [];
+    const seen = new Set(); // Track unique month identifiers
     
     // Get last 7 months
     for (let i = 6; i >= 0; i--) {
@@ -400,6 +427,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       const monthName = date.toLocaleDateString('en-US', { month: 'short' });
       const year = date.getFullYear();
       const month = date.getMonth();
+      
+      // Create unique identifier for this month
+      const uniqueId = `${year}-${month}`;
+      if (seen.has(uniqueId)) continue; // Skip duplicates
+      seen.add(uniqueId);
       
       // Filter loans disbursed in this month
       const monthLoans = contextLoans.filter((loan: any) => {
@@ -411,10 +443,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       const totalAmount = monthLoans.reduce((sum: number, loan: any) => sum + (loan.principalAmount || 0), 0);
       
       months.push({
-        month: `${monthName} '${String(year).slice(2)}`, // Include year to make unique
+        month: `${monthName} '${String(year).slice(2)}`,
         amount: totalAmount,
         count: monthLoans.length,
-        id: `disbursement-${year}-${month}` // ✅ FIXED: More unique ID for React key
+        id: uniqueId // Add unique ID for React keys
       });
     }
     
@@ -424,7 +456,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const getCollectionRateByWeek = () => {
     const now = new Date();
     const weeks = [];
-    
+    const seen = new Set(); // Track unique week identifiers
     
     // Get last 5 weeks (including current week)
     for (let i = 4; i >= 0; i--) {
@@ -434,6 +466,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       
       const weekStart = new Date(weekEnd);
       weekStart.setDate(weekEnd.getDate() - 6); // Sunday
+      
+      // Create unique identifier for this week
+      const uniqueId = `${weekStart.getTime()}`;
+      if (seen.has(uniqueId)) continue; // Skip duplicates
+      seen.add(uniqueId);
       
       // Format date range for display
       const formatDate = (date: Date) => {
@@ -548,7 +585,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         collected: Math.round(collected),
         expected: Math.round(expected),
         rate: Math.min(rate, 100),
-        id: `collection-week-${weekStart.getTime()}-${i}` // ✅ FIXED: More unique ID using timestamp
+        id: uniqueId // Add unique ID for React keys
       });
     }
     
@@ -556,40 +593,10 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   };
 
   const parData = useMemo(() => getPARData(), [contextLoans]);
-  const portfolioTrend = useMemo(() => {
-    const data = getPortfolioTrend();
-    // Deduplicate by month key
-    const seen = new Set();
-    return data.filter(item => {
-      const key = item.month;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [contextLoans]);
+  const portfolioTrend = useMemo(() => getPortfolioTrend(), [contextLoans]);
   const loansByProduct = useMemo(() => getLoansByProduct(), [contextLoans, loanProducts]);
-  const monthlyDisbursements = useMemo(() => {
-    const data = getMonthlyDisbursements();
-    // Deduplicate by month key
-    const seen = new Set();
-    return data.filter(item => {
-      const key = item.month;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [contextLoans]);
-  const collectionRateByWeek = useMemo(() => {
-    const data = getCollectionRateByWeek();
-    // Deduplicate by week key
-    const seen = new Set();
-    return data.filter(item => {
-      const key = item.week;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [contextLoans, payments]);
+  const monthlyDisbursements = useMemo(() => getMonthlyDisbursements(), [contextLoans]);
+  const collectionRateByWeek = useMemo(() => getCollectionRateByWeek(), [contextLoans, payments]);
   
   // Calculate real metrics from DataContext
   const totalClients = contextClients.length;
@@ -617,21 +624,25 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   // ✅ Calculate portfolio total correctly
   const filteredPortfolioTotal = filteredLoansForPortfolio.reduce((sum: number, l: any) => sum + calculateOutstanding(l), 0);
   
-  // ✅ Calculate principal outstanding correctly: Principal - Principal Paid
+  // ✅ Calculate principal outstanding correctly: Principal - Principal Paid (from payment records)
   // ALWAYS calculate - don't use stored principalOutstanding from imports (may be wrong)
   const filteredPrincipalTotal = filteredLoansForPrincipal.reduce((sum: number, l: any) => {
     const principalAmount = l.principalAmount || 0;
-    const paidAmount = l.paidAmount || l.amountPaid || 0;
-    const interestPaid = l.interestPaid || 0;
-    const principalPaid = paidAmount - interestPaid;
+    // Calculate principal paid from payment records
+    const loanPayments = payments.filter((p: any) => p.loanId === l.id);
+    const principalPaid = loanPayments.reduce((pSum: number, p: any) => 
+      pSum + (p.principal || p.principalPortion || p.principalPaid || 0), 0);
     const principalOutstanding = Math.max(0, principalAmount - principalPaid);
     return sum + principalOutstanding;
   }, 0);
   
-  // ✅ Calculate outstanding interest correctly: Total Interest - Interest Paid
+  // ✅ Calculate outstanding interest correctly: Total Interest - Interest Paid (from payment records)
   const filteredInterestTotal = filteredLoansForInterest.reduce((sum: number, l: any) => {
     const totalInterest = calculateCorrectInterest(l);
-    const interestPaid = l.interestPaid || 0;
+    // Calculate interest paid from payment records
+    const loanPayments = payments.filter((p: any) => p.loanId === l.id);
+    const interestPaid = loanPayments.reduce((iSum: number, p: any) => 
+      iSum + (p.interest || p.interestPortion || p.interestPaid || 0), 0);
     const interestOutstanding = Math.max(0, totalInterest - interestPaid);
     return sum + interestOutstanding;
   }, 0);
@@ -648,6 +659,94 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const filteredDisbursedTotal = filteredLoansForDisbursement.reduce((sum: number, l: any) => sum + (l.principalAmount || 0), 0);
   const filteredCollectionsTotal = filteredPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
   
+  // ✅ Calculate 8 new comprehensive loan metrics
+  // a) CUMULATIVE AMOUNT BORROWED - Total principal from all disbursed loans
+  const cumulativeAmountBorrowed = contextLoans
+    .filter((l: any) => l.disbursementDate && l.status !== 'Rejected')
+    .reduce((sum: number, l: any) => sum + (l.principalAmount || 0), 0);
+  
+  // b) PROCESSING FEES - Total processing fees collected
+  const totalProcessingFees = contextLoans
+    .filter((l: any) => l.disbursementDate && l.status !== 'Rejected')
+    .reduce((sum: number, l: any) => sum + (l.processing_fee || 0), 0);
+  
+  // c) POTENTIAL INTEREST PAYABLE - Total interest from ALL loans (paid, active, settled, fully paid, etc.)
+  const potentialInterestPayable = contextLoans
+    .filter((l: any) => l.disbursementDate && l.status !== 'Rejected')
+    .reduce((sum: number, l: any) => sum + calculateCorrectInterest(l), 0);
+  
+  // d) TOTAL AMOUNT PAYABLE - Principal + Interest expected from all loans
+  const totalAmountPayable = cumulativeAmountBorrowed + potentialInterestPayable;
+  
+  // e) PRINCIPAL PAID BACK - Total principal repaid from all loans
+  // ✅ FIX: Calculate from payment records, not from loan.principalPaid
+  const principalPaidBack = payments
+    .filter((p: any) => {
+      // Only include payments for disbursed loans
+      const loan = contextLoans.find((l: any) => l.id === p.loanId);
+      return loan && loan.disbursementDate && loan.status !== 'Rejected';
+    })
+    .reduce((sum: number, p: any) => sum + (p.principal || p.principalPortion || p.principalPaid || 0), 0);
+  
+  // 🐛 DEBUG: Log repayment data for diagnostics (wrapped in try-catch for safety)
+  try {
+    console.log('💰 ========================================');
+    console.log('💰 PRINCIPAL PAID BACK Calculation:');
+    console.log('💰 ========================================');
+    console.log('   Total payments/repayments:', payments?.length || 0);
+    
+    // 🐛 DEBUG: Log the first payment to see its structure
+    if (payments && payments.length > 0) {
+      console.log('   First payment structure:', JSON.stringify(payments[0], null, 2));
+    }
+    
+    console.log('   Payments with principal > 0:', payments?.filter((p: any) => (p.principal || p.principalPortion || p.principalPaid || 0) > 0).length || 0);
+    console.log('   ✅ TOTAL PRINCIPAL PAID BACK:', principalPaidBack);
+    
+    // Show sample of payments with principal allocation
+    const paymentsWithPrincipal = payments?.filter((p: any) => (p.principal || p.principalPortion || p.principalPaid || 0) > 0).slice(0, 5);
+    if (paymentsWithPrincipal && paymentsWithPrincipal.length > 0) {
+      console.log('   Sample payments with principal:');
+      paymentsWithPrincipal.forEach((p: any) => {
+        console.log(`     - Payment ${p.id?.slice(0, 8)}: amount=${p.amount}, principal=${p.principal || p.principalPortion || p.principalPaid}`);
+      });
+    } else {
+      if (payments && payments.length > 0) {
+        console.warn('   ⚠️ WARNING: No payments found with principal allocation!');
+        console.warn('   This means payments exist but are not being allocated correctly.');
+        console.warn('   Run /supabase/ULTIMATE_FIX_principal_paid_back.sql to fix this issue.');
+      } else {
+        console.log('   ℹ️ No payments recorded yet - this is normal for a new system.');
+      }
+    }
+    console.log('💰 ========================================');
+  } catch (debugError) {
+    console.error('Debug logging error (non-critical):', debugError);
+  }
+  
+  // f) INTEREST PAID BACK - Total interest repaid from all loans
+  // ✅ FIX: Calculate from payment records, not from loan.interestPaid
+  const interestPaidBack = payments
+    .filter((p: any) => {
+      // Only include payments for disbursed loans
+      const loan = contextLoans.find((l: any) => l.id === p.loanId);
+      return loan && loan.disbursementDate && loan.status !== 'Rejected';
+    })
+    .reduce((sum: number, p: any) => sum + (p.interest || p.interestPortion || p.interestPaid || 0), 0);
+  
+  try {
+    console.log('💸 INTEREST PAID BACK Calculation:');
+    console.log('   Payments with interest:', payments?.filter((p: any) => (p.interest || p.interestPortion || p.interestPaid || 0) > 0).length || 0);
+    console.log('   Total interest paid:', interestPaidBack);
+  } catch (debugError) {
+    console.error('Debug logging error (non-critical):', debugError);
+  }
+  
+  // g) TOTAL AMOUNT REPAID BACK - Total principal + interest repaid
+  const totalAmountRepaidBack = principalPaidBack + interestPaidBack;
+  
+  // h) OUTSTANDING LOANS - Principal + Interest still owed
+  const outstandingLoansTotal = totalAmountPayable - totalAmountRepaidBack;
 
   
   // ✅ Calculate Collection Efficiency: (Total Collected / Total Expected Repayments) × 100
@@ -698,8 +797,9 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   
   // Calculate actual collection rate: Total Collected / Total Disbursed
   const totalDisbursed = contextLoans.reduce((sum: number, l: any) => sum + (l.principalAmount || 0), 0);
-  const totalPaidFromLoans = contextLoans.reduce((sum: number, l: any) => sum + (l.paidAmount || 0), 0);
-  const actualCollectionRate = safePercentageNum(totalPaidFromLoans, totalDisbursed);
+  // ✅ Calculate total paid from payment records
+  const totalPaidFromPayments = payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+  const actualCollectionRate = safePercentageNum(totalPaidFromPayments, totalDisbursed);
   
   // AI Risk Analysis calculated
   const atRiskDetails = atRiskLoans.map(l => ({ 
@@ -927,33 +1027,33 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     ];
   };
   
-  const loanStatusDistribution = getLoanStatusDistribution();
+  const loanStatusDistribution = useMemo(() => getLoanStatusDistribution(), [contextLoans]);
   
   // Case-insensitive status breakdown for analysis
   const normalizeStatusDebug = (status: string) => (status || '').toLowerCase().trim();
 
 
   // Transform loansByProduct data for MUI PieChart
-  const pieChartData = loansByProduct.map((item, index) => ({
+  const pieChartData = useMemo(() => loansByProduct.map((item, index) => ({
     label: item.name,
     value: item.value,
     color: COLORS[index % COLORS.length]
-  }));
+  })), [loansByProduct]);
 
   // Calculate total for percentages
-  const totalPortfolioValue = pieChartData.reduce((sum, item) => sum + item.value, 0);
+  const totalPortfolioValue = useMemo(() => pieChartData.reduce((sum, item) => sum + item.value, 0), [pieChartData]);
 
   // Transform loan status data for radial bar chart
-  const radialChartData = [
+  const radialChartData = useMemo(() => [
     {
-      active: loanStatusDistribution[0].count,
-      inArrears: loanStatusDistribution[1].count,
-      paidOff: loanStatusDistribution[2].count,
-      writtenOff: loanStatusDistribution[3].count,
+      active: loanStatusDistribution[0]?.count || 0,
+      inArrears: loanStatusDistribution[1]?.count || 0,
+      paidOff: loanStatusDistribution[2]?.count || 0,
+      writtenOff: loanStatusDistribution[3]?.count || 0,
     }
-  ];
+  ], [loanStatusDistribution]);
   
-  const totalLoans = loanStatusDistribution.reduce((sum, item) => sum + item.count, 0);
+  const totalLoans = useMemo(() => loanStatusDistribution.reduce((sum, item) => sum + item.count, 0), [loanStatusDistribution]);
 
   // Function to show calculation breakdown
   const showBreakdown = (metricType: string) => {
@@ -1149,11 +1249,11 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           },
           breakdown: {
             loans: filteredLoansForPrincipal.slice(0, 50).map((l: any) => {
-              // ✅ Use consistent calculation with filteredPrincipalTotal
+              // ✅ Calculate principal paid from payment records for this loan
               const principalAmount = l.principalAmount || 0;
-              const paidAmount = l.paidAmount || l.amountPaid || 0;
-              const interestPaid = l.interestPaid || 0;
-              const principalPaid = paidAmount - interestPaid;
+              const loanPayments = payments.filter((p: any) => p.loanId === l.id);
+              const principalPaid = loanPayments.reduce((sum: number, p: any) => 
+                sum + (p.principal || p.principalPortion || p.principalPaid || 0), 0);
               const principal = Math.max(0, principalAmount - principalPaid);
               return {
                 loanNumber: l.loanNumber || l.id,
@@ -1201,13 +1301,21 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             ]
           },
           breakdown: {
-            loans: filteredLoansForInterest.slice(0, 50).map((l: any) => ({
-              loanNumber: l.loanNumber || l.id,
-              clientName: l.clientName || 'Unknown',
-              amount: calculateCorrectInterest(l),
-              status: l.status,
-              date: l.applicationDate || l.disbursementDate || l.createdAt
-            })),
+            loans: filteredLoansForInterest.slice(0, 50).map((l: any) => {
+              // ✅ Calculate outstanding interest from payment records
+              const totalInterest = calculateCorrectInterest(l);
+              const loanPayments = payments.filter((p: any) => p.loanId === l.id);
+              const interestPaid = loanPayments.reduce((iSum: number, p: any) => 
+                iSum + (p.interest || p.interestPortion || p.interestPaid || 0), 0);
+              const interestOutstanding = Math.max(0, totalInterest - interestPaid);
+              return {
+                loanNumber: l.loanNumber || l.id,
+                clientName: l.clientName || 'Unknown',
+                amount: interestOutstanding,
+                status: l.status,
+                date: l.applicationDate || l.disbursementDate || l.createdAt
+              };
+            }),
             summary: [
               { label: 'Interest-Bearing Loans', value: filteredLoansForInterest.length },
               { label: 'Interest as % of Principal', value: `${safeToFixed(safeDivideNum(filteredInterestTotal, filteredPrincipalTotal) * 100, 1)}%` },
@@ -1565,6 +1673,357 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         };
         break;
 
+      // New comprehensive loan overview metrics
+      case 'cumulative-borrowed': {
+        const disbursedLoansForCumulative = contextLoans.filter((l: any) => l.disbursementDate && l.status !== 'Rejected');
+        modalData = {
+          metricType: 'cumulative-borrowed',
+          metricLabel: 'Cumulative Amount Borrowed',
+          metricValue: `${currencySymbol} ${formatSmartNumber(cumulativeAmountBorrowed || 0).number}${formatSmartNumber(cumulativeAmountBorrowed || 0).suffix}`,
+          icon: <DollarSign className="size-6" />,
+          color: COLORS[0],
+          calculation: {
+            formula: 'Cumulative Amount Borrowed = Sum of principal amounts from all disbursed loans',
+            steps: [
+              { label: 'Number of Disbursed Loans', value: `${disbursedLoansForCumulative.length} loans` },
+              { label: 'Cumulative Amount Borrowed', value: `${currencySymbol} ${formatNum(cumulativeAmountBorrowed)}` },
+              { label: 'Average Loan Size', value: `${currencySymbol} ${formatNum(cumulativeAmountBorrowed / Math.max(disbursedLoansForCumulative.length, 1))}` }
+            ]
+          },
+          breakdown: {
+            loans: disbursedLoansForCumulative.slice(0, 50).map((l: any) => ({
+              loanNumber: l.loanNumber || l.id,
+              clientName: l.clientName || 'Unknown',
+              amount: l.principalAmount || 0,
+              status: l.status,
+              date: l.disbursementDate
+            })),
+            summary: [
+              { label: 'Number of Loans', value: disbursedLoansForCumulative.length },
+              { label: 'Average Loan Size', value: `${currencySymbol} ${formatNum(cumulativeAmountBorrowed / Math.max(disbursedLoansForCumulative.length, 1))}` }
+            ]
+          },
+          insights: [
+            {
+              type: 'positive',
+              title: 'Total Capital Deployed',
+              description: `You have deployed ${currencySymbol}${formatSmartNumber(cumulativeAmountBorrowed).number}${formatSmartNumber(cumulativeAmountBorrowed).suffix} in principal to ${disbursedLoansForCumulative.length} loans, representing your total capital commitment.`
+            }
+          ]
+        };
+        break;
+      }
+
+      case 'processing-fees-total': {
+        const loansWithFeesTotal = contextLoans.filter((l: any) => l.disbursementDate && l.status !== 'Rejected' && (l.processing_fee || 0) > 0);
+        modalData = {
+          metricType: 'processing-fees-total',
+          metricLabel: 'Processing Fees',
+          metricValue: `${currencySymbol} ${formatSmartNumber(totalProcessingFees || 0).number}${formatSmartNumber(totalProcessingFees || 0).suffix}`,
+          icon: <Receipt className="size-6" />,
+          color: COLORS[5] || COLORS[1],
+          calculation: {
+            formula: 'Processing Fees = Sum of all processing fees collected from disbursed loans',
+            steps: [
+              { label: 'Number of Loans Disbursed', value: `${loansWithFeesTotal.length} loans` },
+              { label: 'Processing Fees Collected', value: `${currencySymbol} ${formatNum(totalProcessingFees)}` },
+              { label: 'Average Fee per Loan', value: `${currencySymbol} ${formatNum(totalProcessingFees / Math.max(loansWithFeesTotal.length, 1))}` }
+            ]
+          },
+          breakdown: {
+            loans: loansWithFeesTotal.slice(0, 50).map((l: any) => ({
+              loanNumber: l.loanNumber || l.id,
+              clientName: l.clientName || 'Unknown',
+              amount: l.processing_fee || 0,
+              status: l.status,
+              date: l.disbursementDate
+            })),
+            summary: [
+              { label: 'Number of Loans', value: loansWithFeesTotal.length },
+              { label: 'Average Fee per Loan', value: `${currencySymbol} ${formatNum(totalProcessingFees / Math.max(loansWithFeesTotal.length, 1))}` }
+            ]
+          },
+          insights: [
+            {
+              type: 'positive',
+              title: 'Processing Fee Revenue',
+              description: `Processing fees of ${currencySymbol}${formatSmartNumber(totalProcessingFees).number}${formatSmartNumber(totalProcessingFees).suffix} provide upfront revenue to cover operational costs.`
+            }
+          ]
+        };
+        break;
+      }
+
+      case 'potential-interest': {
+        const loansForInterest = contextLoans.filter((l: any) => l.disbursementDate && l.status !== 'Rejected');
+        modalData = {
+          metricType: 'potential-interest',
+          metricLabel: 'Potential Interest Payable',
+          metricValue: `${currencySymbol} ${formatSmartNumber(potentialInterestPayable || 0).number}${formatSmartNumber(potentialInterestPayable || 0).suffix}`,
+          icon: <TrendingUp className="size-6" />,
+          color: COLORS[4] || COLORS[2],
+          calculation: {
+            formula: 'Potential Interest Payable = Sum of calculated interest from all loans if paid in full',
+            steps: [
+              { label: 'Number of Disbursed Loans', value: `${loansForInterest.length} loans` },
+              { label: 'System Calculated Total', value: `${currencySymbol} ${formatNum(potentialInterestPayable)}` },
+              { label: 'Expected (Excel)', value: `${currencySymbol} 590,250`, description: 'Per your spreadsheet' },
+              { label: 'Difference', value: `${currencySymbol} ${formatNum(potentialInterestPayable - 590250)}`, description: potentialInterestPayable > 590250 ? '⚠️ System is HIGHER' : '✓ System is LOWER' }
+            ]
+          },
+          breakdown: {
+            loans: loansForInterest
+              .map((l: any) => {
+                const principal = l.principalAmount || l.amount || 0;
+                const rate = l.interestRate || 0;
+                const term = l.term || l.termPeriod || l.loanTerm || l.termMonths || 1;
+                const interest = calculateCorrectInterest(l);
+                return {
+                  loanNumber: l.loanNumber || l.id,
+                  clientName: l.clientName || 'Unknown',
+                  amount: interest,
+                  status: l.status,
+                  date: l.disbursementDate,
+                  requestDate: l.requestDate,
+                  principal: principal,
+                  rate: rate,
+                  term: term,
+                  calculationDetail: `${formatNum(principal)} × ${rate}% × ${term} ÷ 100 = ${formatNum(interest)}`
+                };
+              })
+              .sort((a, b) => {
+                // Sort by date first (oldest first)
+                const dateA = new Date(a.requestDate || a.date || 0);
+                const dateB = new Date(b.requestDate || b.date || 0);
+                return dateA.getTime() - dateB.getTime();
+              }),
+            summary: [
+              { label: 'Number of Loans', value: loansForInterest.length },
+              { label: 'Total Interest (Calculated)', value: `${currencySymbol} ${formatNum(loansForInterest.reduce((sum: number, l: any) => sum + calculateCorrectInterest(l), 0))}` },
+              { label: 'Average Interest per Loan', value: `${currencySymbol} ${formatNum(potentialInterestPayable / Math.max(loansForInterest.length, 1))}` },
+              { label: 'Principal to Interest Ratio', value: `${safeToFixed((potentialInterestPayable / Math.max(cumulativeAmountBorrowed, 1)) * 100, 1)}%` }
+            ]
+          },
+          insights: [
+            {
+              type: 'positive',
+              title: 'Expected Interest Revenue',
+              description: `If all loans are fully repaid, you will earn ${currencySymbol}${formatSmartNumber(potentialInterestPayable).number}${formatSmartNumber(potentialInterestPayable).suffix} in interest income.`
+            }
+          ]
+        };
+        break;
+      }
+
+      case 'total-payable': {
+        modalData = {
+          metricType: 'total-payable',
+          metricLabel: 'Total Amount Payable',
+          metricValue: `${currencySymbol} ${formatSmartNumber(totalAmountPayable || 0).number}${formatSmartNumber(totalAmountPayable || 0).suffix}`,
+          icon: <Wallet className="size-6" />,
+          color: '#6366f1',
+          calculation: {
+            formula: 'Total Amount Payable = Cumulative Amount Borrowed + Potential Interest Payable',
+            steps: [
+              { label: 'Cumulative Amount Borrowed', value: `${currencySymbol} ${formatNum(cumulativeAmountBorrowed)}` },
+              { label: 'Potential Interest Payable', value: `${currencySymbol} ${formatNum(potentialInterestPayable)}` },
+              { label: 'Total Amount Payable', value: `${currencySymbol} ${formatNum(totalAmountPayable)}` }
+            ]
+          },
+          insights: [
+            {
+              type: 'neutral',
+              title: 'Total Expected Collections',
+              description: `Your total expected collection from all loans is ${currencySymbol}${formatSmartNumber(totalAmountPayable).number}${formatSmartNumber(totalAmountPayable).suffix} (principal + interest).`
+            }
+          ]
+        };
+        break;
+      }
+
+      case 'principal-paid': {
+        // ✅ Filter loans that have principal payments from payment records
+        const loansWithPrincipalPaid = contextLoans.filter((l: any) => {
+          if (!l.disbursementDate || l.status === 'Rejected') return false;
+          const loanPayments = payments.filter((p: any) => p.loanId === l.id);
+          const principalPaid = loanPayments.reduce((sum: number, p: any) => 
+            sum + (p.principal || p.principalPortion || p.principalPaid || 0), 0);
+          return principalPaid > 0;
+        });
+        modalData = {
+          metricType: 'principal-paid',
+          metricLabel: 'Principal Paid Back',
+          metricValue: `${currencySymbol} ${formatSmartNumber(principalPaidBack || 0).number}${formatSmartNumber(principalPaidBack || 0).suffix}`,
+          icon: <Banknote className="size-6" />,
+          color: COLORS[1],
+          calculation: {
+            formula: 'Principal Paid Back = Sum of principal portions from all payment records',
+            steps: [
+              { label: 'Cumulative Amount Borrowed', value: `${currencySymbol} ${formatNum(cumulativeAmountBorrowed)}` },
+              { label: 'Principal Paid Back', value: `${currencySymbol} ${formatNum(principalPaidBack)}` },
+              { label: 'Principal Still Owed', value: `${currencySymbol} ${formatNum(Math.max(0, cumulativeAmountBorrowed - principalPaidBack))}` },
+              { label: 'Principal Recovery Rate', value: `${safeToFixed((principalPaidBack / Math.max(cumulativeAmountBorrowed, 1)) * 100, 1)}%` }
+            ]
+          },
+          breakdown: {
+            loans: loansWithPrincipalPaid.slice(0, 50).map((l: any) => {
+              // ✅ Calculate principal paid from payment records for this loan
+              const loanPayments = payments.filter((p: any) => p.loanId === l.id);
+              const principalPaid = loanPayments.reduce((sum: number, p: any) => 
+                sum + (p.principal || p.principalPortion || p.principalPaid || 0), 0);
+              return {
+                loanNumber: l.loanNumber || l.id,
+                clientName: l.clientName || 'Unknown',
+                amount: principalPaid,
+                status: l.status,
+                date: l.disbursementDate
+              };
+            }),
+            summary: [
+              { label: 'Cumulative Principal Borrowed', value: `${currencySymbol} ${formatNum(cumulativeAmountBorrowed)}` },
+              { label: 'Principal Paid Back', value: `${currencySymbol} ${formatNum(principalPaidBack)}` },
+              { label: 'Principal Still Owed', value: `${currencySymbol} ${formatNum(cumulativeAmountBorrowed - principalPaidBack)}` }
+            ]
+          },
+          insights: [
+            {
+              type: principalPaidBack > (cumulativeAmountBorrowed * 0.5) ? 'positive' : 'warning',
+              title: 'Principal Recovery',
+              description: `You have recovered ${safeToFixed((principalPaidBack / Math.max(cumulativeAmountBorrowed, 1)) * 100, 1)}% of disbursed principal, which is ${principalPaidBack > (cumulativeAmountBorrowed * 0.5) ? 'healthy' : 'below optimal levels'}.`
+            }
+          ]
+        };
+        break;
+      }
+
+      case 'interest-paid': {
+        // ✅ Filter loans that have interest payments from payment records
+        const loanInterestMap = new Map();
+        payments.forEach((p: any) => {
+          const loanId = p.loanId;
+          const interestAmount = p.interest || p.interestPortion || p.interestPaid || 0;
+          loanInterestMap.set(loanId, (loanInterestMap.get(loanId) || 0) + interestAmount);
+        });
+        
+        const loansWithInterestPaid = contextLoans.filter((l: any) => 
+          l.disbursementDate && l.status !== 'Rejected' && loanInterestMap.get(l.id) > 0
+        );
+        
+        modalData = {
+          metricType: 'interest-paid',
+          metricLabel: 'Interest Paid Back',
+          metricValue: `${currencySymbol} ${formatSmartNumber(interestPaidBack || 0).number}${formatSmartNumber(interestPaidBack || 0).suffix}`,
+          icon: <TrendingUp className="size-6" />,
+          color: '#10b981',
+          calculation: {
+            formula: 'Interest Paid Back = Sum of interest portions from all payment records',
+            steps: [
+              { label: 'Potential Interest Payable', value: `${currencySymbol} ${formatNum(potentialInterestPayable)}` },
+              { label: 'Interest Paid Back', value: `${currencySymbol} ${formatNum(interestPaidBack)}` },
+              { label: 'Interest Still Owed', value: `${currencySymbol} ${formatNum(Math.max(0, potentialInterestPayable - interestPaidBack))}` },
+              { label: 'Interest Collection Rate', value: `${safeToFixed((interestPaidBack / Math.max(potentialInterestPayable, 1)) * 100, 1)}%` }
+            ]
+          },
+          breakdown: {
+            loans: loansWithInterestPaid.slice(0, 50).map((l: any) => {
+              // ✅ Calculate interest paid from payment records for this loan
+              const loanPayments = payments.filter((p: any) => p.loanId === l.id);
+              const interestPaid = loanPayments.reduce((sum: number, p: any) => 
+                sum + (p.interest || p.interestPortion || p.interestPaid || 0), 0);
+              return {
+                loanNumber: l.loanNumber || l.id,
+                clientName: l.clientName || 'Unknown',
+                amount: interestPaid,
+                status: l.status,
+                date: l.disbursementDate
+              };
+            }),
+            summary: [
+              { label: 'Potential Interest Payable', value: `${currencySymbol} ${formatNum(potentialInterestPayable)}` },
+              { label: 'Interest Paid Back', value: `${currencySymbol} ${formatNum(interestPaidBack)}` },
+              { label: 'Interest Still Owed', value: `${currencySymbol} ${formatNum(potentialInterestPayable - interestPaidBack)}` }
+            ]
+          },
+          insights: [
+            {
+              type: 'positive',
+              title: 'Interest Revenue',
+              description: `You have collected ${currencySymbol}${formatSmartNumber(interestPaidBack).number}${formatSmartNumber(interestPaidBack).suffix} in interest revenue, representing ${safeToFixed((interestPaidBack / Math.max(potentialInterestPayable, 1)) * 100, 1)}% of potential interest.`
+            }
+          ]
+        };
+        break;
+      }
+
+      case 'total-repaid': {
+        modalData = {
+          metricType: 'total-repaid',
+          metricLabel: 'Total Amount Repaid Back',
+          metricValue: `${currencySymbol} ${formatSmartNumber(totalAmountRepaidBack || 0).number}${formatSmartNumber(totalAmountRepaidBack || 0).suffix}`,
+          icon: <ArrowUpCircle className="size-6" />,
+          color: '#22d3ee',
+          calculation: {
+            formula: 'Total Repaid = Principal Paid + Interest Paid',
+            steps: [
+              { label: 'Principal Paid Back', value: `${currencySymbol} ${formatNum(principalPaidBack)}` },
+              { label: 'Interest Paid Back', value: `${currencySymbol} ${formatNum(interestPaidBack)}` },
+              { label: 'Total Amount Repaid', value: `${currencySymbol} ${formatNum(totalAmountRepaidBack)}` },
+              { label: 'Overall Recovery Rate', value: `${safeToFixed((totalAmountRepaidBack / Math.max(totalAmountPayable, 1)) * 100, 1)}%` }
+            ]
+          },
+          insights: [
+            {
+              type: totalAmountRepaidBack > (totalAmountPayable * 0.5) ? 'positive' : 'warning',
+              title: 'Overall Collection Performance',
+              description: `You have collected ${currencySymbol}${formatSmartNumber(totalAmountRepaidBack).number}${formatSmartNumber(totalAmountRepaidBack).suffix} out of ${currencySymbol}${formatSmartNumber(totalAmountPayable).number}${formatSmartNumber(totalAmountPayable).suffix} expected, achieving a ${safeToFixed((totalAmountRepaidBack / Math.max(totalAmountPayable, 1)) * 100, 1)}% recovery rate.`
+            }
+          ]
+        };
+        break;
+      }
+
+      case 'outstanding-total': {
+        const activeLoansForOutstanding = contextLoans.filter((l: any) => isActiveStatus(l.status));
+        modalData = {
+          metricType: 'outstanding-total',
+          metricLabel: 'Outstanding Loans',
+          metricValue: `${currencySymbol} ${formatSmartNumber(outstandingLoansTotal || 0).number}${formatSmartNumber(outstandingLoansTotal || 0).suffix}`,
+          icon: <AlertCircle className="size-6" />,
+          color: '#ef4444',
+          calculation: {
+            formula: 'Outstanding = Total Amount Payable - Total Amount Repaid Back',
+            steps: [
+              { label: 'Total Amount Payable', value: `${currencySymbol} ${formatNum(totalAmountPayable)}` },
+              { label: 'Total Amount Repaid Back', value: `${currencySymbol} ${formatNum(totalAmountRepaidBack)}` },
+              { label: 'Outstanding Balance', value: `${currencySymbol} ${formatNum(outstandingLoansTotal)}` },
+              { label: 'Number of Active Loans', value: `${activeLoansForOutstanding.length} loans` }
+            ]
+          },
+          breakdown: {
+            loans: activeLoansForOutstanding.slice(0, 50).map((l: any) => ({
+              loanNumber: l.loanNumber || l.id,
+              clientName: l.clientName || 'Unknown',
+              amount: calculateOutstanding(l),
+              status: l.status,
+              date: l.disbursementDate
+            })),
+            summary: [
+              { label: 'Principal Outstanding', value: `${currencySymbol} ${formatNum(cumulativeAmountBorrowed - principalPaidBack)}` },
+              { label: 'Interest Outstanding', value: `${currencySymbol} ${formatNum(potentialInterestPayable - interestPaidBack)}` },
+              { label: 'Total Outstanding', value: `${currencySymbol} ${formatNum(outstandingLoansTotal)}` }
+            ]
+          },
+          insights: [
+            {
+              type: 'warning',
+              title: 'Outstanding Balance',
+              description: `You have ${currencySymbol}${formatSmartNumber(outstandingLoansTotal).number}${formatSmartNumber(outstandingLoansTotal).suffix} still owed from ${activeLoansForOutstanding.length} active loans. Focus on collections to reduce this balance.`
+            }
+          ]
+        };
+        break;
+      }
+
       default:
         return;
     }
@@ -1699,146 +2158,214 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         </div>
       </div>
 
-      {/* Loan Health Metrics - Top Row */}
+      {/* Comprehensive Loan Overview - 8 Key Metrics */}
       <div>
-        <h3 className={`${theme.textPrimary} mb-2 sm:mb-3 text-base sm:text-lg`}>Loan Health Metrics</h3>
+        <h3 className={`${theme.textPrimary} mb-2 sm:mb-3 text-base sm:text-lg`}>Comprehensive Loan Overview</h3>
         <div className="rounded-lg shadow-sm border px-[24px] py-[7px]" style={{
           backgroundColor: isDark ? '#1a1d29' : '#ffffff',
           borderColor: isDark ? '#252932' : '#e5e7eb'
         }}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
-            {/* Gross Loan Portfolio */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2 sm:gap-3">
+            {/* a) CUMULATIVE AMOUNT BORROWED */}
             <div 
-              className="transition-all rounded-lg p-4 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5"
+              className="transition-all rounded-lg p-3 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5 group relative"
               style={{ 
                 backgroundColor: isDark ? 'rgba(59, 130, 246, 0.08)' : 'rgba(59, 130, 246, 0.05)',
                 border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.15)'}`
               }}
-              onClick={() => showMetricDetail('gross-portfolio')}
+              onClick={() => showMetricDetail('cumulative-borrowed')}
             >
-              <div className="flex items-start gap-3">
-                <DollarSign className="size-6 flex-shrink-0 mt-1" style={{ color: COLORS[0] }} />
-                <div className="flex-1">
-                  <p className="text-sm mb-1" style={{ color: themeColors.cardTextSecondary }}>Gross Loan Portfolio</p>
-                  <p className="text-2xl mb-1" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(filteredPortfolioTotal || 0).number}{formatSmartNumber(filteredPortfolioTotal || 0).suffix}</p>
-                  <p className="text-xs" style={{ color: themeColors.textSecondary }}>{filteredLoansForPortfolio.length} active loans</p>
+              <div className="flex items-start gap-2">
+                <DollarSign className="size-5 flex-shrink-0 mt-0.5" style={{ color: COLORS[0] }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs mb-0.5 truncate" style={{ color: themeColors.cardTextSecondary }}>Cumulative Amount Borrowed</p>
+                  <p className="text-lg mb-0.5 font-semibold truncate" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(cumulativeAmountBorrowed || 0).number}{formatSmartNumber(cumulativeAmountBorrowed || 0).suffix}</p>
+                  <p className="text-[10px] truncate" style={{ color: themeColors.textSecondary }}>Total principal disbursed</p>
                 </div>
+                {/* Diagnostic button - appears on hover */}
+                <button
+                  className="opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2 p-1.5 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowLoanBalancesFix(true);
+                  }}
+                  title="Fix Loan Outstanding Balances"
+                >
+                  <Bug className="size-4 text-blue-600" />
+                </button>
               </div>
             </div>
 
-            {/* Outstanding Principal */}
+            {/* b) PROCESSING FEES */}
             <div 
-              className="transition-all rounded-lg p-4 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5"
-              style={{ 
-                backgroundColor: isDark ? 'rgba(34, 197, 94, 0.08)' : 'rgba(34, 197, 94, 0.05)',
-                border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)'}`
-              }}
-              onClick={() => showMetricDetail('outstanding-principal')}
-            >
-              <div className="flex items-start gap-3">
-                <Banknote className="size-6 flex-shrink-0 mt-1" style={{ color: COLORS[1] }} />
-                <div className="flex-1">
-                  <p className="text-sm mb-1" style={{ color: themeColors.cardTextSecondary }}>Outstanding Principal</p>
-                  <p className="text-2xl mb-1" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(filteredPrincipalTotal || 0).number}{formatSmartNumber(filteredPrincipalTotal || 0).suffix}</p>
-                  <p className="text-xs" style={{ color: themeColors.textSecondary }}>from {filteredLoansForPrincipal.length} active loans</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Outstanding Interest */}
-            <div 
-              className="transition-all rounded-lg p-4 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5"
-              style={{ 
-                backgroundColor: isDark ? 'rgba(251, 146, 60, 0.08)' : 'rgba(251, 146, 60, 0.05)',
-                border: `1px solid ${isDark ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.15)'}`
-              }}
-              onClick={() => showMetricDetail('outstanding-interest')}
-            >
-              <div className="flex items-start gap-3">
-                <TrendingUp className="size-6 flex-shrink-0 mt-1" style={{ color: COLORS[4] || COLORS[2] }} />
-                <div className="flex-1">
-                  <p className="text-sm mb-1" style={{ color: themeColors.cardTextSecondary }}>Outstanding Interest</p>
-                  <p className="text-2xl mb-1" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(filteredInterestTotal || 0).number}{formatSmartNumber(filteredInterestTotal || 0).suffix}</p>
-                  <p className="text-xs" style={{ color: themeColors.textSecondary }}>Accrued interest</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Collected Interest */}
-            <div 
-              className="transition-all rounded-lg p-4 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5"
-              style={{ 
-                backgroundColor: isDark ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.05)',
-                border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.15)'}`
-              }}
-              onClick={() => showMetricDetail('collected-interest')}
-            >
-              <div className="flex items-start gap-3">
-                <Wallet className="size-6 flex-shrink-0 mt-1" style={{ color: '#10b981' }} />
-                <div className="flex-1">
-                  <p className="text-sm mb-1" style={{ color: themeColors.cardTextSecondary }}>Collected Interest</p>
-                  <p className="text-2xl mb-1" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(filteredCollectedInterestTotal || 0).number}{formatSmartNumber(filteredCollectedInterestTotal || 0).suffix}</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs" style={{ color: themeColors.textSecondary }}>{filteredRepaymentsForInterest.length} payments</p>
-                    <select
-                      value={collectedInterestDuration}
-                      onChange={(e) => {
-                        setCollectedInterestDuration(e.target.value as DurationFilter);
-                        localStorage.setItem('collectedInterestDuration', e.target.value);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-[9px] px-1.5 py-1 rounded border cursor-pointer opacity-40 hover:opacity-70 transition-opacity ml-auto"
-                      style={{ 
-                        backgroundColor: isDark ? 'rgba(30, 58, 138, 0.2)' : 'rgba(219, 234, 254, 0.3)',
-                        borderColor: isDark ? 'rgba(96, 165, 250, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                        color: isDark ? '#93c5fd' : '#3b82f6'
-                      }}
-                    >
-                      <option value="today">1D</option>
-                      <option value="week">1W</option>
-                      <option value="month">1M</option>
-                      <option value="3month">3M</option>
-                      <option value="6month">6M</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Processing Fee Revenue */}
-            <div 
-              className="transition-all rounded-lg p-4 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5"
+              className="transition-all rounded-lg p-3 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5"
               style={{ 
                 backgroundColor: isDark ? 'rgba(168, 85, 247, 0.08)' : 'rgba(168, 85, 247, 0.05)',
                 border: `1px solid ${isDark ? 'rgba(168, 85, 247, 0.2)' : 'rgba(168, 85, 247, 0.15)'}`
               }}
-              onClick={() => showMetricDetail('processing-fees')}
+              onClick={() => showMetricDetail('processing-fees-total')}
             >
-              <div className="flex items-start gap-3">
-                <Receipt className="size-6 flex-shrink-0 mt-1" style={{ color: COLORS[5] || COLORS[1] }} />
-                <div className="flex-1">
-                  <p className="text-sm mb-1" style={{ color: themeColors.cardTextSecondary }}>Processing Fee Revenue</p>
-                  <p className="text-2xl mb-1" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(calculatedProcessingFees || 0).number}{formatSmartNumber(calculatedProcessingFees || 0).suffix}</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs" style={{ color: themeColors.textSecondary }}>{filteredLoansForDisbursement.filter((l: any) => (l.processing_fee || 0) > 0).length} fees collected</p>
-                    <select
-                      value={processingFeeDuration}
-                      onChange={(e) => setProcessingFeeDuration(e.target.value as DurationFilter)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-[9px] px-1.5 py-1 rounded border cursor-pointer opacity-40 hover:opacity-70 transition-opacity ml-auto"
-                      style={{ 
-                        backgroundColor: isDark ? 'rgba(30, 58, 138, 0.2)' : 'rgba(219, 234, 254, 0.3)',
-                        borderColor: isDark ? 'rgba(96, 165, 250, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                        color: isDark ? '#93c5fd' : '#3b82f6'
-                      }}
-                    >
-                      <option value="today">1D</option>
-                      <option value="week">1W</option>
-                      <option value="month">1M</option>
-                      <option value="3month">3M</option>
-                      <option value="6month">6M</option>
-                    </select>
+              <div className="flex items-start gap-2">
+                <Receipt className="size-5 flex-shrink-0 mt-0.5" style={{ color: COLORS[5] || COLORS[1] }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs mb-0.5 truncate" style={{ color: themeColors.cardTextSecondary }}>Processing Fees</p>
+                  <p className="text-lg mb-0.5 font-semibold truncate" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(totalProcessingFees || 0).number}{formatSmartNumber(totalProcessingFees || 0).suffix}</p>
+                  <p className="text-[10px] truncate" style={{ color: themeColors.textSecondary }}>Total fees collected</p>
+                </div>
+              </div>
+            </div>
+
+            {/* c) POTENTIAL INTEREST PAYABLE */}
+            <div 
+              className="transition-all rounded-lg p-3 relative group"
+              style={{ 
+                backgroundColor: isDark ? 'rgba(251, 146, 60, 0.08)' : 'rgba(251, 146, 60, 0.05)',
+                border: `1px solid ${isDark ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.15)'}`
+              }}
+            >
+              <div 
+                className="cursor-pointer hover:opacity-80"
+                onClick={() => showMetricDetail('potential-interest')}
+              >
+                <div className="flex items-start gap-2">
+                  <TrendingUp className="size-5 flex-shrink-0 mt-0.5" style={{ color: COLORS[4] || COLORS[2] }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs mb-0.5 truncate" style={{ color: themeColors.cardTextSecondary }}>Potential Interest Payable</p>
+                    <p className="text-lg mb-0.5 font-semibold truncate" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(potentialInterestPayable || 0).number}{formatSmartNumber(potentialInterestPayable || 0).suffix}</p>
+                    <p className="text-[10px] truncate" style={{ color: themeColors.textSecondary }}>Expected interest income</p>
                   </div>
+                </div>
+              </div>
+              {/* Debug Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowComparisonTool(true);
+                }}
+                className="absolute top-2 right-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ 
+                  backgroundColor: isDark ? 'rgba(251, 146, 60, 0.2)' : 'rgba(251, 146, 60, 0.15)',
+                  color: COLORS[4] || COLORS[2]
+                }}
+                title="Compare with Spreadsheet"
+              >
+                <Bug className="size-3" />
+              </button>
+            </div>
+
+            {/* d) TOTAL AMOUNT PAYABLE */}
+            <div 
+              className="transition-all rounded-lg p-3 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5"
+              style={{ 
+                backgroundColor: isDark ? 'rgba(99, 102, 241, 0.08)' : 'rgba(99, 102, 241, 0.05)',
+                border: `1px solid ${isDark ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.15)'}`
+              }}
+              onClick={() => showMetricDetail('total-payable')}
+            >
+              <div className="flex items-start gap-2">
+                <Wallet className="size-5 flex-shrink-0 mt-0.5" style={{ color: '#6366f1' }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs mb-0.5 truncate" style={{ color: themeColors.cardTextSecondary }}>Total Amount Payable</p>
+                  <p className="text-lg mb-0.5 font-semibold truncate" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(totalAmountPayable || 0).number}{formatSmartNumber(totalAmountPayable || 0).suffix}</p>
+                  <p className="text-[10px] truncate" style={{ color: themeColors.textSecondary }}>Principal + Interest</p>
+                </div>
+              </div>
+            </div>
+
+            {/* e) PRINCIPAL PAID BACK */}
+            <div 
+              className="transition-all rounded-lg p-3 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5 group relative"
+              style={{ 
+                backgroundColor: isDark ? 'rgba(34, 197, 94, 0.08)' : 'rgba(34, 197, 94, 0.05)',
+                border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)'}`
+              }}
+              onClick={() => showMetricDetail('principal-paid')}
+            >
+              <div className="flex items-start gap-2">
+                <Banknote className="size-5 flex-shrink-0 mt-0.5" style={{ color: COLORS[1] }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs mb-0.5 truncate" style={{ color: themeColors.cardTextSecondary }}>Principal Paid Back</p>
+                  <p className="text-lg mb-0.5 font-semibold truncate" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(principalPaidBack || 0).number}{formatSmartNumber(principalPaidBack || 0).suffix}</p>
+                  <p className="text-[10px] truncate" style={{ color: themeColors.textSecondary }}>Principal repaid</p>
+                </div>
+                {/* Diagnostic button - appears on hover */}
+                <button
+                  className="opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2 p-1.5 rounded-md hover:bg-green-100 dark:hover:bg-green-900/30"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowPaymentAllocationDiagnostic(true);
+                  }}
+                  title="View Payment Allocation Diagnostic"
+                >
+                  <Bug className="size-4 text-green-600" />
+                </button>
+              </div>
+            </div>
+
+            {/* f) INTEREST PAID BACK */}
+            <div 
+              className="transition-all rounded-lg p-3 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5 group relative"
+              style={{ 
+                backgroundColor: isDark ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.05)',
+                border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.15)'}`
+              }}
+              onClick={() => showMetricDetail('interest-paid')}
+            >
+              <div className="flex items-start gap-2">
+                <TrendingUp className="size-5 flex-shrink-0 mt-0.5" style={{ color: '#10b981' }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs mb-0.5 truncate" style={{ color: themeColors.cardTextSecondary }}>Interest Paid Back</p>
+                  <p className="text-lg mb-0.5 font-semibold truncate" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(interestPaidBack || 0).number}{formatSmartNumber(interestPaidBack || 0).suffix}</p>
+                  <p className="text-[10px] truncate" style={{ color: themeColors.textSecondary }}>Interest collected</p>
+                </div>
+                {/* Diagnostic button - appears on hover */}
+                <button
+                  className="opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2 p-1.5 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowInterestPaidDiagnostic(true);
+                  }}
+                  title="View Interest Paid Back Diagnostic"
+                >
+                  <Bug className="size-4 text-emerald-600" />
+                </button>
+              </div>
+            </div>
+
+            {/* g) TOTAL AMOUNT REPAID BACK */}
+            <div 
+              className="transition-all rounded-lg p-3 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5"
+              style={{ 
+                backgroundColor: isDark ? 'rgba(34, 211, 238, 0.08)' : 'rgba(34, 211, 238, 0.05)',
+                border: `1px solid ${isDark ? 'rgba(34, 211, 238, 0.2)' : 'rgba(34, 211, 238, 0.15)'}`
+              }}
+              onClick={() => showMetricDetail('total-repaid')}
+            >
+              <div className="flex items-start gap-2">
+                <ArrowUpCircle className="size-5 flex-shrink-0 mt-0.5" style={{ color: '#22d3ee' }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs mb-0.5 truncate" style={{ color: themeColors.cardTextSecondary }}>Total Amount Repaid Back</p>
+                  <p className="text-lg mb-0.5 font-semibold truncate" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(totalAmountRepaidBack || 0).number}{formatSmartNumber(totalAmountRepaidBack || 0).suffix}</p>
+                  <p className="text-[10px] truncate" style={{ color: themeColors.textSecondary }}>Principal + Interest collected</p>
+                </div>
+              </div>
+            </div>
+
+            {/* h) OUTSTANDING LOANS */}
+            <div 
+              className="transition-all rounded-lg p-3 cursor-pointer hover:shadow-lg transform hover:-translate-y-0.5"
+              style={{ 
+                backgroundColor: isDark ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 68, 68, 0.05)',
+                border: `1px solid ${isDark ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.15)'}`
+              }}
+              onClick={() => showMetricDetail('outstanding-total')}
+            >
+              <div className="flex items-start gap-2">
+                <AlertCircle className="size-5 flex-shrink-0 mt-0.5" style={{ color: '#ef4444' }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs mb-0.5 truncate" style={{ color: themeColors.cardTextSecondary }}>Outstanding Loans</p>
+                  <p className="text-lg mb-0.5 font-semibold truncate" style={{ color: themeColors.cardText }}>{currencySymbol} {formatSmartNumber(outstandingLoansTotal || 0).number}{formatSmartNumber(outstandingLoansTotal || 0).suffix}</p>
+                  <p className="text-[10px] truncate" style={{ color: themeColors.textSecondary }}>Principal + Interest owed</p>
                 </div>
               </div>
             </div>
@@ -1849,7 +2376,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       {/* Operational Health & Risk - Bottom Row */}
       <div>
         <h3 className="mb-2 sm:mb-3 text-base sm:text-lg" style={{ color: themeColors.cardText }}>Operational Health & Risk</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-5 gap-3 sm:gap-4">
           <div 
             onClick={() => showMetricDetail('total-clients')}
             className="rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer px-[16px] py-[10px]"
@@ -1888,7 +2415,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           </div>
 
           <div 
-            onClick={() => showMetricDetail('disbursed-total')}
+            onClick={() => showMetricDetail('more-clients-male')}
             className="rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer px-[16px] py-[10px]"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[1]}15, ${themeColors.cardBackground})`,
@@ -1897,35 +2424,18 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <p className="text-sm mb-2" style={{ color: themeColors.cardTextSecondary }}>Disbursed (Total)</p>
-                <p className="text-3xl mb-1" style={{ color: COLORS[1] }}>{currencySymbol} {formatSmartNumber(filteredDisbursedTotal || 0).number}{formatSmartNumber(filteredDisbursedTotal || 0).suffix}</p>
-                <p className="text-xs" style={{ color: themeColors.textSecondary }}>{filteredLoansForDisbursement.length} loans total</p>
+                <p className="text-sm mb-2" style={{ color: themeColors.cardTextSecondary }}>More about clients</p>
+                <p className="text-3xl mb-1" style={{ color: COLORS[1] }}>{contextClients.filter((c: any) => c.gender?.toLowerCase() === 'male').length}</p>
+                <p className="text-xs" style={{ color: themeColors.textSecondary }}>Male clients</p>
               </div>
               <div className="flex flex-col items-center gap-1">
-                <DollarSign className="size-8 flex-shrink-0" style={{ color: COLORS[1] }} />
-                <select
-                  value={disbursedDuration}
-                  onChange={(e) => setDisbursedDuration(e.target.value as DurationFilter)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-[9px] px-1 py-0.5 rounded border cursor-pointer opacity-50 hover:opacity-100 transition-opacity"
-                  style={{ 
-                    backgroundColor: isDark ? 'rgba(13, 40, 56, 0.5)' : 'rgba(255, 255, 255, 0.8)',
-                    borderColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(156, 163, 175, 0.5)',
-                    color: isDark ? '#3b82f6' : '#374151'
-                  }}
-                >
-                  <option value="today">1D</option>
-                  <option value="week">1W</option>
-                  <option value="month">1M</option>
-                  <option value="3month">3M</option>
-                  <option value="6month">6M</option>
-                </select>
+                <Users className="size-8 flex-shrink-0" style={{ color: COLORS[1] }} />
               </div>
             </div>
           </div>
 
           <div 
-            onClick={() => showMetricDetail('collections-total')}
+            onClick={() => showMetricDetail('more-clients-female')}
             className="rounded-lg border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer px-[16px] py-[10px]"
             style={{ 
               background: `linear-gradient(to bottom right, ${COLORS[2]}15, ${themeColors.cardBackground})`,
@@ -1934,29 +2444,12 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <p className="text-sm mb-2" style={{ color: themeColors.cardTextSecondary }}>Collections (Total)</p>
-                <p className="text-3xl mb-1" style={{ color: COLORS[2] }}>{currencySymbol} {formatSmartNumber(filteredCollectionsTotal || 0).number}{formatSmartNumber(filteredCollectionsTotal || 0).suffix}</p>
-                <p className="text-xs" style={{ color: themeColors.textSecondary }}>{filteredPayments.length} total payments</p>
+                <p className="text-sm mb-2" style={{ color: themeColors.cardTextSecondary }}>More about clients</p>
+                <p className="text-3xl mb-1" style={{ color: COLORS[2] }}>{contextClients.filter((c: any) => c.gender?.toLowerCase() === 'female').length}</p>
+                <p className="text-xs" style={{ color: themeColors.textSecondary }}>Female clients</p>
               </div>
               <div className="flex flex-col items-center gap-1">
-                <Wallet className="size-8 flex-shrink-0" style={{ color: COLORS[2] }} />
-                <select
-                  value={collectionsDuration}
-                  onChange={(e) => setCollectionsDuration(e.target.value as DurationFilter)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-[9px] px-1 py-0.5 rounded border cursor-pointer opacity-50 hover:opacity-100 transition-opacity"
-                  style={{ 
-                    backgroundColor: isDark ? 'rgba(13, 40, 56, 0.5)' : 'rgba(255, 255, 255, 0.8)',
-                    borderColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(156, 163, 175, 0.5)',
-                    color: isDark ? '#3b82f6' : '#374151'
-                  }}
-                >
-                  <option value="today">1D</option>
-                  <option value="week">1W</option>
-                  <option value="month">1M</option>
-                  <option value="3month">3M</option>
-                  <option value="6month">6M</option>
-                </select>
+                <Users className="size-8 flex-shrink-0" style={{ color: COLORS[2] }} />
               </div>
             </div>
           </div>
@@ -2010,7 +2503,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         }}>
           <h3 className="mb-2 sm:mb-3 text-sm sm:text-base" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Portfolio Growth & PAR Trend</h3>
           <div style={{ width: '100%', height: '250px', minHeight: '250px', minWidth: '100px', position: 'relative' }}>
-            {isMounted && <ResponsiveContainer width="100%" height={250} aspect={undefined}>
+            {isMounted && <ResponsiveContainer key="rc-portfolio-trend" width="100%" height={250} aspect={undefined}>
               <LineChart 
               data={portfolioTrend}
               margin={{ top: 10, right: 0, bottom: 5, left: 0 }}
@@ -2093,7 +2586,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {/* Donut Chart */}
               <div className="flex items-center justify-center relative" style={{ width: '100%', height: '200px', minHeight: '200px', minWidth: '100px' }}>
-                {isMounted && <ResponsiveContainer width="100%" height={200} aspect={undefined}>
+                {isMounted && <ResponsiveContainer key="rc-loans-by-product" width="100%" height={200} aspect={undefined}>
                   <RechartsPieChart>
                     <Pie
                       key="pie-loans-by-product"
@@ -2106,7 +2599,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                       outerRadius={80}
                     >
                       {loansByProduct.map((entry, index) => (
-                        <Cell key={`cell-product-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`cell-${entry.id}-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip 
@@ -2134,7 +2627,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                   {loansByProduct.map((item, index) => {
                     const percentage = safePercentage(item.value || 0, totalPortfolioValue || 0, 1);
                     return (
-                      <li key={`product-${index}-${item.name}`} className="flex space-x-3">
+                      <li key={`legend-${item.id}-${index}`} className="flex space-x-3">
                         <span
                           className="w-1 shrink-0 rounded"
                           style={{ backgroundColor: COLORS[index % COLORS.length] }}
@@ -2182,7 +2675,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         }}>
           <h3 className="mb-2 sm:mb-3 text-sm sm:text-base" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Monthly Disbursements (Last 7 Months)</h3>
           <div style={{ width: '100%', height: '250px', minHeight: '250px', minWidth: '100px', position: 'relative' }}>
-            {isMounted && <ResponsiveContainer width="100%" height={250} aspect={undefined}>
+            {isMounted && <ResponsiveContainer key="rc-monthly-disbursements" width="100%" height={250} aspect={undefined}>
               <BarChart 
               data={monthlyDisbursements}
               margin={{ top: 20, right: 10, left: 10, bottom: 5 }}
@@ -2206,7 +2699,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
               />
               <Bar key="bar-disbursements" dataKey="amount" radius={8}>
                 {monthlyDisbursements.map((entry: any, index: number) => (
-                  <Cell key={`cell-disbursement-${index}`} fill={entry.amount > 0 ? COLORS[1] : 'transparent'} />
+                  <Cell key={`cell-disbursement-${entry.id || index}`} fill={entry.amount > 0 ? COLORS[1] : 'transparent'} />
                 ))}
                 <LabelList
                   position="top"
@@ -2228,7 +2721,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         }}>
           <h3 className="mb-2 sm:mb-3 text-sm sm:text-base" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Collection Rate (Last 5 Weeks)</h3>
           <div style={{ width: '100%', height: '250px', minHeight: '250px', minWidth: '100px', position: 'relative' }}>
-            {isMounted && <ResponsiveContainer width="100%" height={250} aspect={undefined}>
+            {isMounted && <ResponsiveContainer key="rc-collection-rate" width="100%" height={250} aspect={undefined}>
               <AreaChart 
               data={collectionRateByWeek}
               margin={{ left: 12, right: 12, top: 30, bottom: 5 }}
@@ -2303,7 +2796,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         }}>
           <h3 className="mb-2 sm:mb-3 text-sm sm:text-base" style={{ color: isDark ? '#e1e8f0' : '#111827' }}>Loan Status Distribution</h3>
           <div style={{ width: '100%', height: '250px', minHeight: '250px', minWidth: '100px', position: 'relative' }}>
-            {isMounted && <ResponsiveContainer width="100%" height={250} aspect={undefined}>
+            {isMounted && <ResponsiveContainer key="rc-loan-status" width="100%" height={250} aspect={undefined}>
               <BarChart
                 data={loanStatusDistribution}
                 layout="vertical"
@@ -2341,7 +2834,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                 radius={4}
               >
                 {loanStatusDistribution.map((entry, index) => (
-                  <Cell key={`cell-status-${index}`} fill={entry.color} />
+                  <Cell key={`cell-status-${entry.id || index}`} fill={entry.color} />
                 ))}
                 <LabelList
                   key="label-status"
@@ -3386,7 +3879,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
                               payment.status === 'Overdue' 
                                 ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
                                 : payment.status === 'Due Today'
-                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                                ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-400'
                                 : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
                             }`}>
                               {payment.status}
@@ -3435,6 +3928,26 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Interest Comparison Tool */}
+      {showComparisonTool && (
+        <InterestComparisonTool onClose={() => setShowComparisonTool(false)} />
+      )}
+
+      {/* Interest Paid Back Diagnostic */}
+      {showInterestPaidDiagnostic && (
+        <InterestPaidBackDiagnostic onClose={() => setShowInterestPaidDiagnostic(false)} />
+      )}
+
+      {/* Payment Allocation Diagnostic */}
+      {showPaymentAllocationDiagnostic && (
+        <PaymentAllocationDiagnostic onClose={() => setShowPaymentAllocationDiagnostic(false)} />
+      )}
+
+      {/* Loan Outstanding Balances Fix */}
+      {showLoanBalancesFix && (
+        <LoanOutstandingBalancesFix onClose={() => setShowLoanBalancesFix(false)} />
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import { useData } from '../../contexts/DataContext';
 const logo = '/logo.svg'; // Replaced figma:asset for deployment
 import { getOrganizationName, getOrganizationLogo } from '../../utils/organizationUtils';
+import { isPaidStatus } from '../../utils/statusUtils';
 
 interface ReportProps {
   dateRange: {
@@ -16,7 +17,7 @@ export function BalanceSheetReport({ dateRange }: ReportProps) {
   
   // Calculate REAL balances from actual data
   const activeLoans = loans.filter(l => l.status === 'Active' || l.status === 'Disbursed');
-  const fullyPaidLoans = loans.filter(l => l.status === 'Paid' || l.status === 'Closed' || l.status === 'Fully Paid');
+  const fullyPaidLoans = loans.filter(l => isPaidStatus(l.status));
   
   // ASSETS - CURRENT ASSETS
   // Cash from bank accounts (actual data)

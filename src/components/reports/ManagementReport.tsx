@@ -5,6 +5,7 @@ import { getOrganizationName, getOrganizationLogo } from '../../utils/organizati
 import logoImage from "figma:asset/e19de9b1a3313f261c0276da257bd631603f9688.png";
 import { getCurrencyCode } from '../../utils/currencyUtils';
 import { safeToFixed, safePercentage, safeDivide, safeFormat } from '../../utils/safeCalculations';
+import { isPaidStatus } from '../../utils/statusUtils';
 import { 
   LineChart as RechartsLineChart, 
   BarChart as RechartsBarChart, 
@@ -259,7 +260,7 @@ export function ManagementReport({ dateRange }: ReportProps) {
     cumulativeOpen += 1;
     
     // Subtract if it's closed or fully paid in the same period
-    if (loan.status === 'Fully Paid' || loan.status === 'Closed') {
+    if (isPaidStatus(loan.status)) {
       const closedDate = new Date(loan.maturityDate);
       const closedMonthKey = `${closedDate.getFullYear()}-${String(closedDate.getMonth() + 1).padStart(2, '0')}`;
       if (closedMonthKey <= monthKey) {

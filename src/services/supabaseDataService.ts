@@ -1022,18 +1022,58 @@ export const loanService = {
     
     // ✅ Resolve client_id: Find UUID by custom client number (CL001 format)
     let clientUUID = loanData.clientId || loanData.client_id;
+    let clientFirstName: string | null = null;
+    let clientLastName: string | null = null;
+    
     if (clientUUID && clientUUID.startsWith('CL')) {
       console.log('🔍 Looking up client UUID for:', clientUUID);
       const { data: clientData } = await supabase
         .from('clients')
-        .select('id')
+        .select('id, first_name, last_name')
         .eq('client_number', clientUUID)
         .eq('organization_id', organizationId)
         .single();
       
       if (clientData) {
         clientUUID = clientData.id;
+        clientFirstName = clientData.first_name || null;
+        clientLastName = clientData.last_name || null;
         console.log('✅ Found client UUID:', clientUUID);
+        console.log('✅ Client name:', clientFirstName, clientLastName);
+      }
+    } else if (clientUUID) {
+      // UUID provided directly - fetch the names
+      console.log('🔍 Fetching client names for UUID:', clientUUID);
+      const { data: clientData } = await supabase
+        .from('clients')
+        .select('first_name, last_name')
+        .eq('id', clientUUID)
+        .eq('organization_id', organizationId)
+        .single();
+      
+      if (clientData) {
+        clientFirstName = clientData.first_name || null;
+        clientLastName = clientData.last_name || null;
+        console.log('✅ Client name:', clientFirstName, clientLastName);
+      }
+    }
+    
+    // ✅ Resolve staff_member_id and fetch staff member name
+    let staffMemberUUID = loanData.staffMemberId || loanData.staff_member_id || null;
+    let staffMemberName: string | null = null;
+    
+    if (staffMemberUUID) {
+      console.log('🔍 Fetching staff member name for UUID:', staffMemberUUID);
+      const { data: staffData } = await supabase
+        .from('users')
+        .select('first_name, last_name')
+        .eq('id', staffMemberUUID)
+        .single();
+      
+      if (staffData) {
+        // Combine first_name + last_name
+        staffMemberName = `${staffData.first_name || ''} ${staffData.last_name || ''}`.trim() || null;
+        console.log('✅ Staff member name:', staffMemberName);
       }
     }
     
@@ -1102,6 +1142,12 @@ export const loanService = {
       loanRecord.purpose = loanData.purpose || loanData.loanPurpose || 'General';
     }
     
+    // ✅ Add denormalized name fields for performance and reporting
+    if (clientFirstName) loanRecord.first_name = clientFirstName;
+    if (clientLastName) loanRecord.last_name = clientLastName;
+    if (staffMemberUUID) loanRecord.staff_member_id = staffMemberUUID;
+    if (staffMemberName) loanRecord.staff_member_name = staffMemberName;
+    
     // ✅ Add optional dates and disbursement info
     if (loanData.applicationDate || loanData.application_date) {
       loanRecord.application_date = loanData.applicationDate || loanData.application_date;
@@ -1129,6 +1175,11 @@ export const loanService = {
     
     if (loanData.approvalDate || loanData.approval_date) {
       loanRecord.approval_date = loanData.approvalDate || loanData.approval_date;
+    }
+    
+    // ✅ Add processing fee
+    if (loanData.facilitationFee !== undefined || loanData.processing_fee !== undefined) {
+      loanRecord.processing_fee = parseNumber(loanData.facilitationFee || loanData.processing_fee || 0);
     }
 
     console.log('💾 Inserting loan record:', loanRecord);
@@ -1384,6 +1435,9 @@ export const loanService = {
       'total_interest',
       'daysInArrears',
       'days_in_arrears',
+      'interestPaid', // ❌ This column doesn't exist in loans table - tracked in payments table
+      'principalPaid', // ❌ This column doesn't exist in loans table - tracked in payments table
+      'lastPaymentDate', // ❌ This column doesn't exist in loans table
       // ❌ Non-existent date/disbursement fields - exclude from updates
       'firstPaymentDate',
       'maturityDate',
@@ -1405,6 +1459,49 @@ export const loanService = {
       const mappedKey = fieldMap[key] || key;
       transformedUpdates[mappedKey] = updates[key];
     });
+    
+    // ✅ If client_id is being updated, also update first_name and last_name
+    if (transformedUpdates.client_id) {
+      try {
+        const { data: clientData } = await supabase
+          .from('clients')
+          .select('first_name, last_name')
+          .eq('id', transformedUpdates.client_id)
+          .eq('organization_id', organizationId)
+          .single();
+        
+        if (clientData) {
+          transformedUpdates.first_name = clientData.first_name || null;
+          transformedUpdates.last_name = clientData.last_name || null;
+          console.log('✅ Updated client names:', clientData.first_name, clientData.last_name);
+        }
+      } catch (err) {
+        console.warn('⚠️ Could not fetch client names:', err);
+      }
+    }
+    
+    // ✅ If staff_member_id is being updated, also update staff_member_name
+    if (transformedUpdates.staff_member_id) {
+      try {
+        const { data: staffData } = await supabase
+          .from('users')
+          .select('first_name, last_name')
+          .eq('id', transformedUpdates.staff_member_id)
+          .single();
+        
+        if (staffData) {
+          transformedUpdates.staff_member_name = `${staffData.first_name || ''} ${staffData.last_name || ''}`.trim() || null;
+          console.log('✅ Updated staff member name:', transformedUpdates.staff_member_name);
+        }
+      } catch (err) {
+        console.warn('⚠️ Could not fetch staff member name:', err);
+      }
+    }
+    
+    // ✅ Handle processing fee mapping
+    if (updates.facilitationFee !== undefined) {
+      transformedUpdates.processing_fee = parseNumber(updates.facilitationFee);
+    }
     
     console.log('📝 Transformed updates for database:', transformedUpdates);
     
@@ -1555,15 +1652,25 @@ export const repaymentService = {
       client_id: repaymentData.clientId || repaymentData.client_id || null,
       
       // Payment details
+      receipt_number: repaymentData.receiptNumber || `RCT${Date.now()}`, // ✅ Add receipt_number (required field)
       amount: parseNumber(repaymentData.amount),
       payment_date: repaymentData.paymentDate || repaymentData.payment_date || new Date().toISOString(),
       payment_method: repaymentData.paymentMethod || repaymentData.payment_method || 'Cash',
-      transaction_ref: repaymentData.transactionRef || repaymentData.transaction_ref || null,
+      transaction_reference: repaymentData.transactionRef || repaymentData.transaction_reference || repaymentData.paymentReference || null,
+      notes: repaymentData.notes || null,
+      recorded_by: repaymentData.receivedBy || repaymentData.recorded_by || null,
       
-      // Allocation
-      principal_amount: parseNumber(repaymentData.principalAmount || repaymentData.principal_amount),
-      interest_amount: parseNumber(repaymentData.interestAmount || repaymentData.interest_amount),
-      penalty_amount: parseNumber(repaymentData.penaltyAmount || repaymentData.penalty_amount),
+      // ✅ FIX: Use correct column names for repayments table
+      // The repayments table uses: principal_paid, interest_paid, penalties_paid
+      // Also add new standardized columns: principal, interest, penalty
+      principal_paid: parseNumber(repaymentData.principalAmount || repaymentData.principal || repaymentData.principal_paid || 0),
+      interest_paid: parseNumber(repaymentData.interestAmount || repaymentData.interest || repaymentData.interest_paid || 0),
+      penalties_paid: parseNumber(repaymentData.penaltyAmount || repaymentData.penalty || repaymentData.penalties_paid || 0),
+      // Also populate the standardized columns (for frontend compatibility)
+      principal: parseNumber(repaymentData.principalAmount || repaymentData.principal || repaymentData.principal_paid || 0),
+      interest: parseNumber(repaymentData.interestAmount || repaymentData.interest || repaymentData.interest_paid || 0),
+      penalty: parseNumber(repaymentData.penaltyAmount || repaymentData.penalty || repaymentData.penalties_paid || 0),
+      amount_paid: parseNumber(repaymentData.amount), // Also populate amount_paid for backwards compatibility
       
       // Status
       status: 'completed',
@@ -1572,6 +1679,17 @@ export const repaymentService = {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
+    
+    // 🐛 DEBUG: Log what we're inserting
+    console.log('💾 Inserting repayment into Supabase:', {
+      id: newRepayment.id,
+      loan_id: newRepayment.loan_id,
+      amount: newRepayment.amount,
+      principal_paid: newRepayment.principal_paid,
+      interest_paid: newRepayment.interest_paid,
+      principal: newRepayment.principal,
+      interest: newRepayment.interest,
+    });
     
     const { data, error } = await supabase
       .from('repayments')
@@ -1584,31 +1702,124 @@ export const repaymentService = {
       throw error;
     }
     
+    console.log('✅ Repayment created successfully:', data);
+    
     // Update loan balance
     const loanId = repaymentData.loanId || repaymentData.loan_id;
     const { data: loan } = await supabase
       .from('loans')
-      .select('outstanding_balance, paid_amount') // ✅ Using correct column names from schema.sql
+      .select('outstanding_balance, paid_amount, principal_paid, interest_paid, principal_amount, interest_amount') // ✅ Get current values
       .eq('id', loanId)
       .single();
     
     if (loan) {
-      const newBalance = (loan.outstanding_balance || 0) - parseNumber(repaymentData.amount);
-      const newAmountPaid = (loan.paid_amount || 0) + parseNumber(repaymentData.amount);
+      const newBalance = Math.max(0, (loan.outstanding_balance || 0) - parseNumber(repaymentData.amount));
+      const newAmountPaid = (loan.paid_amount || loan.total_paid || 0) + parseNumber(repaymentData.amount);
+      const newPrincipalPaid = (loan.principal_paid || 0) + parseNumber(repaymentData.principalAmount || repaymentData.principal || 0);
+      const newInterestPaid = (loan.interest_paid || 0) + parseNumber(repaymentData.interestAmount || repaymentData.interest || 0);
+      
+      // Calculate outstanding amounts
+      const principalOutstanding = Math.max(0, (loan.principal_amount || 0) - newPrincipalPaid);
+      const interestOutstanding = Math.max(0, (loan.interest_amount || 0) - newInterestPaid);
       
       await supabase
         .from('loans')
         .update({
-          outstanding_balance: newBalance, // ✅ Fixed: schema.sql has 'outstanding_balance' not 'total_outstanding'
-          paid_amount: newAmountPaid, // ✅ Fixed: schema.sql has 'paid_amount' not 'total_paid'
+          outstanding_balance: newBalance,
+          total_outstanding: newBalance, // Also update total_outstanding if it exists
+          paid_amount: newAmountPaid,
+          total_paid: newAmountPaid, // Also update total_paid if it exists
+          principal_paid: newPrincipalPaid, // ✅ Update principal_paid
+          interest_paid: newInterestPaid, // ✅ Update interest_paid
+          principalOutstanding: principalOutstanding, // ✅ Update principalOutstanding (camelCase)
+          outstanding_principal: principalOutstanding, // ✅ Also update snake_case version
+          interestOutstanding: interestOutstanding, // ✅ Update interestOutstanding (camelCase)
+          outstanding_interest: interestOutstanding, // ✅ Also update snake_case version
           status: newBalance <= 0 ? 'fully_paid' : 'active',
           updated_at: new Date().toISOString()
         })
         .eq('id', loanId)
         .eq('organization_id', organizationId);
+        
+      console.log('✅ Loan balance updated:', {
+        loanId,
+        newBalance,
+        newPrincipalPaid,
+        newInterestPaid,
+        principalOutstanding,
+        interestOutstanding
+      });
     }
     
     console.log('✅ Repayment created successfully:', data);
+    return data;
+  },
+
+  /**
+   * Update repayment
+   */
+  async update(repaymentId: string, updates: any, organizationId: string) {
+    console.log('🔄 Updating repayment:', { repaymentId, updates });
+    
+    const dbUpdates: any = {
+      updated_at: new Date().toISOString()
+    };
+    
+    // Map frontend fields to database fields
+    // ✅ FIX: Use correct repayments table column names
+    if (updates.amount !== undefined) {
+      dbUpdates.amount = parseNumber(updates.amount);
+      dbUpdates.amount_paid = parseNumber(updates.amount); // Also update amount_paid
+    }
+    if (updates.principal !== undefined) {
+      dbUpdates.principal = parseNumber(updates.principal);
+      dbUpdates.principal_paid = parseNumber(updates.principal); // Also update principal_paid
+    }
+    if (updates.principalAmount !== undefined) {
+      dbUpdates.principal = parseNumber(updates.principalAmount);
+      dbUpdates.principal_paid = parseNumber(updates.principalAmount);
+    }
+    if (updates.interest !== undefined) {
+      dbUpdates.interest = parseNumber(updates.interest);
+      dbUpdates.interest_paid = parseNumber(updates.interest); // Also update interest_paid
+    }
+    if (updates.interestAmount !== undefined) {
+      dbUpdates.interest = parseNumber(updates.interestAmount);
+      dbUpdates.interest_paid = parseNumber(updates.interestAmount);
+    }
+    if (updates.penalty !== undefined) {
+      dbUpdates.penalty = parseNumber(updates.penalty);
+      dbUpdates.penalties_paid = parseNumber(updates.penalty); // Also update penalties_paid
+    }
+    if (updates.penaltyAmount !== undefined) {
+      dbUpdates.penalty = parseNumber(updates.penaltyAmount);
+      dbUpdates.penalties_paid = parseNumber(updates.penaltyAmount);
+    }
+    if (updates.paymentDate !== undefined) dbUpdates.payment_date = updates.paymentDate;
+    if (updates.paymentMethod !== undefined) dbUpdates.payment_method = updates.paymentMethod;
+    if (updates.transactionRef !== undefined) dbUpdates.transaction_reference = updates.transactionRef; // ✅ Fixed: use transaction_reference not transaction_ref
+    if (updates.status !== undefined) dbUpdates.status = updates.status;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+    if (updates.receiptNumber !== undefined) dbUpdates.receipt_number = updates.receiptNumber;
+    if (updates.recordedBy !== undefined) dbUpdates.recorded_by = updates.recordedBy;
+    if (updates.bankAccountId !== undefined) dbUpdates.bank_account_id = updates.bankAccountId;
+    
+    console.log('💾 Updating repayment in Supabase:', { repaymentId, updates: dbUpdates });
+    
+    const { data, error } = await supabase
+      .from('repayments')
+      .update(dbUpdates)
+      .eq('id', repaymentId)
+      .eq('organization_id', organizationId)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('❌ Error updating repayment:', error);
+      throw error;
+    }
+    
+    console.log('✅ Repayment updated successfully:', data);
     return data;
   }
 };

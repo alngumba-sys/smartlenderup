@@ -16,6 +16,7 @@ import { ensureSupabaseConnection } from '../../utils/supabaseConnectionCheck';
 import { getCurrencySymbol, getCurrencyCode } from '../../utils/currencyUtils';
 import { canCreateInTab, canEditInTab, canDeleteInTab, showPermissionError } from '../../utils/staffPermissions';
 import { AIInsightPopover } from '../AIInsightPopover';
+import { isPaidStatus, isActiveStatus } from '../../utils/statusUtils';
 
 // ✨ Professional redesign: Compact tables + Expected payments analytics
 export function LoansTab() {
@@ -630,13 +631,9 @@ export function LoansTab() {
     case 'active':
       // ✅ FIXED: Only show truly active loans, exclude Paid/Closed loans
       displayLoans = loans.filter(loan => {
-        const status = (loan.status || '').toLowerCase().trim();
         // Include: Active, Disbursed, In Arrears
-        const isActiveStatus = status === 'active' || status === 'disbursed' || status === 'in arrears';
         // Exclude: Paid, Closed, Fully Paid, etc.
-        const isPaidStatus = status === 'paid' || status === 'closed' || status === 'fully paid';
-        
-        return isActiveStatus && !isPaidStatus;
+        return isActiveStatus(loan.status) && !isPaidStatus(loan.status);
       });
       break;
     case 'settled':
@@ -653,12 +650,10 @@ export function LoansTab() {
       break;
     case 'defaulted':
       displayLoans = loans.filter(loan => {
-        const status = (loan.status || '').toLowerCase();
-        const isPaid = status === 'paid' || status === 'closed' || status === 'fully paid';
         const outstandingBalance = loan.outstandingBalance || 0;
         
         // Exclude paid loans (status = Paid OR outstanding = 0)
-        if (isPaid || outstandingBalance <= 0) return false;
+        if (isPaidStatus(loan.status) || outstandingBalance <= 0) return false;
         
         // Only include loans that are truly defaulted
         return loan.status === 'Written Off' || 
@@ -675,10 +670,9 @@ export function LoansTab() {
         const interestAmt = calculateCorrectInterest(loan);
         const totalRepayable = principalAmt + interestAmt;
         const outstanding = Math.max(0, totalRepayable - paidAmt);
-        const status = (loan.status || '').toLowerCase();
-        const isPaid = status === 'paid' || status === 'closed' || status === 'fully paid' || outstanding <= 0;
+        const paid = isPaidStatus(loan.status) || outstanding <= 0;
         
-        if (isPaid) return false;
+        if (paid) return false;
         
         return isDueSoon(loan) && loan.status === 'Active';
       });
@@ -686,15 +680,13 @@ export function LoansTab() {
     case 'no-repayments':
       // ✅ Show loans with zero repayments (paidAmount = 0), excluding Paid/Closed loans
       displayLoans = loans.filter(loan => {
-        const status = (loan.status || '').toLowerCase().trim();
-        const isPaidStatus = status === 'paid' || status === 'closed' || status === 'fully paid';
         const hasNoPayments = (loan.paidAmount || 0) === 0;
         
         // Include loans with 0 payments that are Active, Disbursed, or In Arrears
         // Exclude loans that are Paid, Closed, Pending, Approved, Rejected
-        const isActiveLoan = status === 'active' || status === 'disbursed' || status === 'in arrears';
+        const isActiveLoan = isActiveStatus(loan.status);
         
-        return hasNoPayments && isActiveLoan && !isPaidStatus;
+        return hasNoPayments && isActiveLoan && !isPaidStatus(loan.status);
       });
       break;
     case 'principal':
@@ -1660,10 +1652,7 @@ export function LoansTab() {
         });
         
         // Paid loans
-        const paidLoans = loans.filter(l => {
-          const status = (l.status || '').toLowerCase().trim();
-          return status === 'paid' || status === 'fully paid' || status === 'closed';
-        });
+        const paidLoans = loans.filter(l => isPaidStatus(l.status));
         
         // Defaulted loans (loans that are severely overdue)
         const defaultedLoans = loans.filter(l => {

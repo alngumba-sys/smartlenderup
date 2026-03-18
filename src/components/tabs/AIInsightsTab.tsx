@@ -135,24 +135,24 @@ export function AIInsightsTab() {
 
   // Predicted PAR forecast - based on actual data
   const parForecast = [
-    { month: 'Dec (Actual)', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30) },
-    { month: 'Jan (Forecast)', par30: parseFloat(forecastedPAR30), par90: parseFloat(currentPAR30) },
-    { month: 'Feb (Forecast)', par30: parseFloat(forecastedPAR30), par90: parseFloat(currentPAR30) },
-    { month: 'Mar (Forecast)', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30) }
+    { id: 'dec-actual', month: 'Dec (Actual)', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30) },
+    { id: 'jan-forecast', month: 'Jan (Forecast)', par30: parseFloat(forecastedPAR30), par90: parseFloat(currentPAR30) },
+    { id: 'feb-forecast', month: 'Feb (Forecast)', par30: parseFloat(forecastedPAR30), par90: parseFloat(currentPAR30) },
+    { id: 'mar-forecast', month: 'Mar (Forecast)', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30) }
   ];
 
   // Extended PAR forecast for modal - based on actual data
   const extendedPARForecast = [
-    { month: 'Sep', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30), confidence: 95 },
-    { month: 'Oct', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30), confidence: 94 },
-    { month: 'Nov', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30), confidence: 93 },
-    { month: 'Dec', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30), confidence: 92 },
-    { month: 'Jan (F)', par30: parseFloat(forecastedPAR30), par90: parseFloat(currentPAR30), confidence: 88 },
-    { month: 'Feb (F)', par30: parseFloat(forecastedPAR30), par90: parseFloat(currentPAR30), confidence: 82 },
-    { month: 'Mar (F)', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30), confidence: 78 },
-    { month: 'Apr (F)', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30), confidence: 72 },
-    { month: 'May (F)', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30), confidence: 68 },
-    { month: 'Jun (F)', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30), confidence: 65 }
+    { id: 'sep', month: 'Sep', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30), confidence: 95 },
+    { id: 'oct', month: 'Oct', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30), confidence: 94 },
+    { id: 'nov', month: 'Nov', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30), confidence: 93 },
+    { id: 'dec', month: 'Dec', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30), confidence: 92 },
+    { id: 'jan-f', month: 'Jan (F)', par30: parseFloat(forecastedPAR30), par90: parseFloat(currentPAR30), confidence: 88 },
+    { id: 'feb-f', month: 'Feb (F)', par30: parseFloat(forecastedPAR30), par90: parseFloat(currentPAR30), confidence: 82 },
+    { id: 'mar-f', month: 'Mar (F)', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30), confidence: 78 },
+    { id: 'apr-f', month: 'Apr (F)', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30), confidence: 72 },
+    { id: 'may-f', month: 'May (F)', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30), confidence: 68 },
+    { id: 'jun-f', month: 'Jun (F)', par30: parseFloat(currentPAR30), par90: parseFloat(currentPAR30), confidence: 65 }
   ];
 
   // Client segmentation - based on actual loan performance
@@ -164,10 +164,10 @@ export function AIInsightsTab() {
   const uniqueArrearsClients = [...new Set(arrearsClients)].length;
   
   const clientSegments = [
-    { name: 'High-Value Repayer', count: uniqueFullyPaidClients, avgScore: 92, color: '#10b981', loanSize: 85000, retention: 98 },
-    { name: 'Steady Performer', count: uniqueActiveClients - uniqueArrearsClients, avgScore: 85, color: '#3b82f6', loanSize: 75000, retention: 92 },
-    { name: 'Arrears Risk', count: uniqueArrearsClients, avgScore: 65, color: '#f59e0b', loanSize: 60000, retention: 75 },
-    { name: 'High Risk', count: highRiskClients.length, avgScore: 45, color: '#ef4444', loanSize: 50000, retention: 45 }
+    { id: 'high-value-repayer', name: 'High-Value Repayer', count: uniqueFullyPaidClients, avgScore: 92, color: '#10b981', loanSize: 85000, retention: 98 },
+    { id: 'steady-performer', name: 'Steady Performer', count: uniqueActiveClients - uniqueArrearsClients, avgScore: 85, color: '#3b82f6', loanSize: 75000, retention: 92 },
+    { id: 'arrears-risk', name: 'Arrears Risk', count: uniqueArrearsClients, avgScore: 65, color: '#f59e0b', loanSize: 60000, retention: 75 },
+    { id: 'high-risk', name: 'High Risk', count: highRiskClients.length, avgScore: 45, color: '#ef4444', loanSize: 50000, retention: 45 }
   ];
 
   // Geographic risk data - based on organization's country
@@ -175,6 +175,7 @@ export function AIInsightsTab() {
   const primaryRegion = getCountryRegions(organizationCountry)[0]; // Use first major city/region
   const geoRiskData = [
     { 
+      id: 'primary-region',
       county: primaryRegion, 
       loans: loans.length, 
       par30: parseFloat(currentPAR30), 
@@ -240,10 +241,10 @@ export function AIInsightsTab() {
   const collectionImprovement = optimizedCollectionRate - actualCollectionRate;
   
   const collectionOptimization = [
-    { segment: 'Early Stage (1-7 days)', currentRate: actualCollectionRate, optimizedRate: optimizedCollectionRate, channel: 'SMS + WhatsApp', timing: 'Morning 9-11 AM' },
-    { segment: 'Mid Stage (8-30 days)', currentRate: actualCollectionRate - 10, optimizedRate: optimizedCollectionRate - 5, channel: 'Phone Call', timing: 'Evening 5-7 PM' },
-    { segment: 'Late Stage (31-60 days)', currentRate: actualCollectionRate - 30, optimizedRate: optimizedCollectionRate - 20, channel: 'Field Visit', timing: 'Weekend Visit' },
-    { segment: 'Critical (60+ days)', currentRate: actualCollectionRate - 50, optimizedRate: optimizedCollectionRate - 40, channel: 'Legal Notice + Visit', timing: 'Immediate' }
+    { id: 'early-stage', segment: 'Early Stage (1-7 days)', currentRate: actualCollectionRate, optimizedRate: optimizedCollectionRate, channel: 'SMS + WhatsApp', timing: 'Morning 9-11 AM' },
+    { id: 'mid-stage', segment: 'Mid Stage (8-30 days)', currentRate: actualCollectionRate - 10, optimizedRate: optimizedCollectionRate - 5, channel: 'Phone Call', timing: 'Evening 5-7 PM' },
+    { id: 'late-stage', segment: 'Late Stage (31-60 days)', currentRate: actualCollectionRate - 30, optimizedRate: optimizedCollectionRate - 20, channel: 'Field Visit', timing: 'Weekend Visit' },
+    { id: 'critical', segment: 'Critical (60+ days)', currentRate: actualCollectionRate - 50, optimizedRate: optimizedCollectionRate - 40, channel: 'Legal Notice + Visit', timing: 'Immediate' }
   ];
 
   const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'];

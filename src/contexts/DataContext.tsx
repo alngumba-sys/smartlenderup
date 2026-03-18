@@ -33,6 +33,7 @@ import { generateUniqueJournalEntryNumber } from '../utils/journalEntryNumberGen
 import { getCorrectPrincipal } from '../utils/knownLoanPrincipals';
 import { loadDisbursementPrincipals, getPrincipalFromDisbursements, clearDisbursementPrincipalsCache } from '../utils/getPrincipalFromDisbursements';
 import { fixPrincipalAmounts } from '../utils/fixPrincipalAmounts';
+import { normalizeStatus } from '../utils/statusUtils';
 
 // ============= TYPE DEFINITIONS =============
 
@@ -1750,7 +1751,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               console.log('4. Paste into Supabase SQL Editor');
               console.log('5. Click "Run" or press Ctrl+Enter');
               console.log('6. Refresh this page');
-              console.log('═══════════════════════════════════════════════════════════════');
+              console.log('════════════════════════════════════════��══════════════════════');
               console.log('');
               
               // Don't show toast error - just set empty array
@@ -2061,12 +2062,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
               
               // Map Supabase schema to frontend Loan type
               const mappedLoans = supabaseLoans.map((l: any) => {
-                // Capitalize status properly and convert Disbursed to Active
+                // Capitalize status properly and convert Disbursed to Active, Fully Paid to Paid
                 const capitalizeStatus = (status: string) => {
                   if (!status) return 'Pending';
                   const normalized = status.toLowerCase().trim();
                   if (normalized === 'disbursed') return 'Active';
-                  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+                  // ✅ Normalize "Fully Paid" to "Paid" for consistency
+                  return normalizeStatus(status);
                 };
                 
                 // ✅ GET CORRECT PRINCIPAL using 4-tier approach:
@@ -2106,10 +2108,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
                     (Math.abs(dbPrincipalAmount - totalAmountFromDB) >= 1 ? '💾 Database' : '🧮 Reverse Calc')
                 });
                 
-                const paidAmount = parseFloat(l.amount_paid) || 0;
+                const paidAmount = parseFloat(l.amount_paid) || parseFloat(l.total_paid) || 0;
                 const principalPaidFromDB = parseFloat(l.principal_paid) || 0;
                 const interestPaidFromDB = parseFloat(l.interest_paid) || 0;
                 const balanceFromDB = parseFloat(l.balance) || 0;
+                
+                // ✅ Read outstanding balances from database if available (more accurate)
+                const principalOutstandingFromDB = parseFloat(l.principalOutstanding) || parseFloat(l.outstanding_principal) || null;
+                const interestOutstandingFromDB = parseFloat(l.interestOutstanding) || parseFloat(l.outstanding_interest) || null;
                 
                 // ✅ CALCULATE interest from FORMULA: amount × (interest_rate / 100) × term_period
                 const calculatedInterest = principalAmount * (interestRate / 100) * termPeriod;
@@ -2253,8 +2259,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   principalPaid: principalPaidFromDB,  // ✅ Read from database
                   interestPaid: interestPaidFromDB,    // ✅ Read from database
                   outstandingBalance: calculatedOutstanding,
-                  principalOutstanding: Math.max(0, principalAmount - principalPaidFromDB), // Principal - Principal paid
-                  interestOutstanding: Math.max(0, calculatedInterest - interestPaidFromDB), // ✅ Calculated interest - Interest paid (never negative)
+                  // ✅ Use database values if available, otherwise calculate
+                  principalOutstanding: principalOutstandingFromDB !== null 
+                    ? principalOutstandingFromDB 
+                    : Math.max(0, principalAmount - principalPaidFromDB), // Principal - Principal paid
+                  interestOutstanding: interestOutstandingFromDB !== null
+                    ? interestOutstandingFromDB
+                    : Math.max(0, calculatedInterest - interestPaidFromDB), // ✅ Calculated interest - Interest paid (never negative)
                   createdBy: '',
                   loanOfficer: '',
                   purpose: l.purpose || '',
@@ -2439,20 +2450,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   loan_id: r.loan_id, // Snake_case alias
                   clientId: r.client_id, // Keep UUID for joining later in components
                   client_id: r.client_id, // Snake_case alias
-                  amount: r.amount || 0,
-                  principal: r.principal_amount || 0,
-                  interest: r.interest_amount || 0,
-                  penalty: r.penalty_amount || 0,
+                  amount: r.amount || r.amount_paid || 0, // Try 'amount' first, fallback to 'amount_paid'
+                  // ✅ FIX: Map all possible principal field names
+                  // The repayments table has: principal_paid (main), principal (standardized)
+                  principal: r.principal || r.principal_paid || 0,
+                  principalPaid: r.principal || r.principal_paid || 0, // camelCase alias
+                  principalPortion: r.principal || r.principal_paid || 0, // alternative alias
+                  // ✅ FIX: Map all possible interest field names  
+                  // The repayments table has: interest_paid (main), interest (standardized)
+                  interest: r.interest || r.interest_paid || 0,
+                  interestPaid: r.interest || r.interest_paid || 0, // camelCase alias
+                  interestPortion: r.interest || r.interest_paid || 0, // alternative alias
+                  fees: r.fees_paid || 0,
+                  feesPaid: r.fees_paid || 0,
+                  penalty: r.penalty || r.penalties_paid || 0, // Try 'penalty' first, fallback to 'penalties_paid'
+                  penaltiesPaid: r.penalty || r.penalties_paid || 0,
                   paymentMethod: r.payment_method || 'Cash',
                   payment_method: r.payment_method, // Snake_case alias
-                  transactionRef: r.transaction_ref || '',
-                  paymentReference: r.transaction_ref || '',
+                  transactionRef: r.transaction_reference || r.transaction_ref || '',
+                  paymentReference: r.transaction_reference || r.transaction_ref || '',
                   paymentDate: r.payment_date?.split('T')[0] || new Date().toISOString().split('T')[0],
                   payment_date: r.payment_date?.split('T')[0], // Snake_case alias
                   receiptNumber: r.receipt_number || '',
-                  receivedBy: r.received_by || 'System',
-                  recordedBy: r.received_by || 'System', // Alternative field name
-                  recorded_by: r.received_by, // Snake_case alias
+                  receivedBy: r.recorded_by || 'System',
+                  recordedBy: r.recorded_by || 'System', // Alternative field name
+                  recorded_by: r.recorded_by, // Snake_case alias
                   notes: r.notes || '',
                   status: r.status === 'completed' ? 'Approved' : (r.status || 'Pending'),
                   bankAccountId: r.bank_account_id || '',
@@ -3024,7 +3046,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
             if (!status) return 'Pending';
             const normalized = status.toLowerCase().trim();
             if (normalized === 'disbursed') return 'Active';
-            return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+            // ✅ Normalize "Fully Paid" to "Paid" for consistency
+            return normalizeStatus(status);
           };
           
           // ✅ GET CORRECT PRINCIPAL using 4-tier approach
@@ -3061,7 +3084,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           const totalRepayable = (totalAmountFromDB > 0 && totalAmountFromDB < calculatedTotal) 
             ? totalAmountFromDB  // Use DB value only if it's a discounted amount
             : calculatedTotal;   // Otherwise use calculated value
-          // ✅ ALWAYS calculate outstanding from totalRepayable - paidAmount for accuracy
+          // ��� ALWAYS calculate outstanding from totalRepayable - paidAmount for accuracy
           const calculatedOutstanding = Math.max(0, totalRepayable - paidAmount);
           
           console.log(`📊 [REFRESH] ${l.loan_number} - Total Repayable: ${totalRepayable}, Outstanding: ${calculatedOutstanding}`);
@@ -3194,7 +3217,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         });
         
         setLoans(mappedLoans);
-        console.log('✅ Loans refreshed:', mappedLoans.length);
+        console.log('�� Loans refreshed:', mappedLoans.length);
       }
       
       // Load credit scoring parameters
@@ -4175,13 +4198,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
     // Update loan balance and bank account (loan already declared above)
     if (loan && newRepayment.status === 'Approved') {
       const newOutstandingBalance = loan.outstandingBalance - repaymentData.amount;
-      updateLoan(loan.id, {
-        paidAmount: loan.paidAmount + (repaymentData.principal || 0),
-        interestPaid: (loan.interestPaid || 0) + (repaymentData.interest || 0),
+      
+      // ✅ Update LOCAL STATE ONLY (Supabase already updated by repaymentService.create)
+      // Do NOT call updateLoan() as it would create a duplicate Supabase update
+      setLoans(loans.map(l => l.id === loan.id ? {
+        ...l,
+        paidAmount: l.paidAmount + repaymentData.amount,
         outstandingBalance: newOutstandingBalance,
-        lastPaymentDate: repaymentData.paymentDate,
-        status: newOutstandingBalance <= 0 ? 'Fully Paid' : loan.status
-      });
+        status: newOutstandingBalance <= 0 ? 'Fully Paid' : l.status
+      } : l));
       
       // If bankAccountId provided, credit to bank account
       if (newRepayment.bankAccountId) {
@@ -4247,8 +4272,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateRepayment = (id: string, updates: Partial<Repayment>) => {
+  const updateRepayment = async (id: string, updates: Partial<Repayment>) => {
+    // Update local state immediately for fast UI
     setRepayments(repayments.map(r => r.id === id ? { ...r, ...updates } : r));
+    
+    // Update in Supabase
+    if (currentUser?.organizationId) {
+      try {
+        console.log('🔄 [DB UPDATE] Updating repayment in Supabase database:', {
+          repaymentId: id,
+          updates: updates,
+          organizationId: currentUser.organizationId
+        });
+        
+        await supabaseDataService.repayments.update(id, updates, currentUser.organizationId);
+        
+        console.log('✅ [DB UPDATE] Repayment successfully updated in Supabase database');
+        console.log('   📝 Repayment ID:', id);
+        console.log('   📊 Updated fields:', Object.keys(updates));
+      } catch (error: any) {
+        console.error('❌ Error updating repayment in Supabase database:', error);
+        console.error('   Repayment ID:', id);
+        console.error('   Organization ID:', currentUser.organizationId);
+        console.error('   Updates:', updates);
+        console.error('   Error message:', error.message);
+        
+        toast.error(`Failed to update repayment in database: ${error.message}`);
+        throw error;
+      }
+    }
   };
 
   const deleteRepayment = (id: string) => {
@@ -7241,21 +7293,39 @@ export function DataProvider({ children }: { children: ReactNode }) {
     syncAllToSupabase,
   };
 
+  // ✅ SAFETY CHECK: Ensure value is never undefined
+  if (!value || typeof value !== 'object') {
+    console.error('❌ CRITICAL: DataContext value is invalid!', value);
+    console.error('This should never happen - there is a bug in DataProvider');
+  }
+
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
 
 // ============= CUSTOM HOOK =============
-// Version: 2025-01-11 - Fixed cache issue
+// Version: 2025-01-17 - Added better error diagnostics
 
 export function useData() {
   const context = useContext(DataContext);
-  if (!context) {
-    console.error('🚨 DataContext is undefined! This means useData() was called outside DataProvider');
+  
+  // Enhanced debugging
+  if (context === undefined) {
+    console.error('🚨 CRITICAL: DataContext returned undefined!');
     console.error('🔍 Debug info:', {
-      contextExists: !!context,
-      dataContextType: typeof DataContext
+      contextValue: context,
+      contextType: typeof context,
+      dataContextExists: typeof DataContext !== 'undefined',
+      dataContextType: typeof DataContext,
+      isDataContextNull: DataContext === null,
+      isDataContextUndefined: DataContext === undefined,
     });
+    console.error('📍 This means useData() was called but DataProvider did not provide a value');
+    console.error('💡 Possible causes:');
+    console.error('   1. Component is outside <DataProvider>');
+    console.error('   2. Error during DataProvider render');
+    console.error('   3. Module loading / caching issue');
     throw new Error('useData must be used within a DataProvider');
   }
+  
   return context;
 }

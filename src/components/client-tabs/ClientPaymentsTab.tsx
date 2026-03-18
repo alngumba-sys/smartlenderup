@@ -289,10 +289,15 @@ export function ClientPaymentsTab({ clientId }: ClientPaymentsTabProps) {
                           type="number"
                           value={customAmount}
                           onChange={(e) => setCustomAmount(e.target.value)}
+                          onFocus={(e) => {
+                            if (e.target.value === '0' || e.target.value === '0.00') e.target.value = '';
+                            e.target.select();
+                          }}
+                          onBlur={(e) => {
+                            if (e.target.value === '') setCustomAmount('0');
+                          }}
                           placeholder="Enter amount"
-                          className="w-full pl-16 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                          min={currentLoan.minimum_payment}
-                          max={currentLoan.outstanding_balance}
+                          className="flex-1 px-3 py-2 border-t border-b border-r border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
                     )}

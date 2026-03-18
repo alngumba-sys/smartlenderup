@@ -52,6 +52,8 @@ import { DebugPermissions } from '../components/DebugPermissions';
 import { DatabaseErrorHandler } from '../components/DatabaseErrorHandler';
 import { DatabaseErrorHelper } from '../components/DatabaseErrorHelper';
 import { FigmaMakeStatus } from '../components/FigmaMakeStatus';
+import { FaviconSetter } from '../components/FaviconSetter';
+import { initializeGlobalNumericInputs } from '../utils/globalNumericInputs';
 // Disabled temporarily to debug loading issues
 // import '../utils/devMigrationTools'; // Import developer migration tools for data updates
 import '../utils/localStorageMonitor'; // Monitor all localStorage operations for debugging
@@ -141,7 +143,7 @@ initializeDefaultSession();
 
 function AppContent() {
   const { currentUser, isAuthenticated, isLoading, logout, login } = useAuth();
-  const [currentPlatform, setCurrentPlatform] = useState<string | null>('smartlenderup'); // Default to SmartLenderUp
+  const [currentPlatform, setCurrentPlatform] = useState<string | null>(null); // Start with null to show landing page
   const [currentRoute, setCurrentRoute] = useState<string>(window.location.pathname);
   const [portalView, setPortalView] = useState<'staff' | 'client'>('staff');
   const [selectedClientId, setSelectedClientId] = useState('CL001'); // Default client ID
@@ -208,8 +210,27 @@ function AppContent() {
     });
   }, [isAuthenticated, isLoading, currentUser, currentRoute, portalView]);
 
+  // EMERGENCY: Force isLoading to false if it's stuck for more than 3 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isLoading) {
+        console.error('⚠️ [App] STUCK IN LOADING STATE - This should not happen!');
+        console.error('⚠️ [App] isAuthenticated:', isAuthenticated);
+        console.error('⚠️ [App] currentUser:', currentUser);
+        console.error('⚠️ [App] Please check AuthContext or DataContext for errors');
+      }
+    }, 3000);
+    
+    return () => clearTimeout(timer);
+  }, [isLoading, isAuthenticated, currentUser]);
+
   // Auto-login effect - runs once when component mounts
   useEffect(() => {
+    // ❌ DISABLED: Auto-login removed to show landing page
+    // Users should see the login/landing page first
+    setAutoLoginAttempted(true);
+    
+    /* ORIGINAL AUTO-LOGIN CODE - DISABLED
     // Only run once, immediately on mount
     if (autoLoginAttempted) return;
     
@@ -228,6 +249,8 @@ function AppContent() {
     if (existingUser) {
       console.log('🔐 User already exists in localStorage, AuthContext will load it');
       setAutoLoginAttempted(true);
+      // Auto-select SmartLenderUp platform to skip brown landing page
+      setCurrentPlatform('smartlenderup');
       return;
     }
     
@@ -250,10 +273,21 @@ function AppContent() {
       
       // Call login directly (no setTimeout to avoid timing issues)
       login(adminUser);
+      // Auto-select SmartLenderUp platform to skip brown landing page
+      setCurrentPlatform('smartlenderup');
     } else {
       setAutoLoginAttempted(true);
     }
+    */
   }, []); // Run only once on mount
+
+  // Auto-select platform when authenticated (skip landing page)
+  useEffect(() => {
+    if (isAuthenticated && !currentPlatform) {
+      console.log('🔐 User authenticated, auto-selecting platform to skip landing page');
+      setCurrentPlatform('smartlenderup');
+    }
+  }, [isAuthenticated, currentPlatform]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -381,6 +415,9 @@ function AppContent() {
     // Close any open dropdowns
     setOpenHeaderDropdown(null);
     
+    // ✅ Auto-select platform to skip landing page
+    setCurrentPlatform('smartlenderup');
+    
     // Check if this is a client logging in
     if (userData.userType === 'client' && userData.clientId) {
       setPortalView('client');
@@ -447,6 +484,26 @@ function AppContent() {
         onLogin={handleLogin}
         onGoToRegister={handleGoToRegister}
       />
+    );
+  }
+
+  // 🏠 Show landing page if authenticated but no platform selected
+  if (!currentPlatform) {
+    console.log('🏠 [App] Authenticated - showing landing page');
+    console.log('🏠 [App] currentPlatform:', currentPlatform);
+    console.log('🏠 [App] isAuthenticated:', isAuthenticated);
+    console.log('🏠 [App] currentUser:', currentUser);
+    
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#3c1f1b' }}>
+        {/* Added wrapper with explicit background to ensure visibility */}
+        <MotherCompanyHome 
+          onSelectPlatform={(platformId) => {
+            console.log('✅ Platform selected:', platformId);
+            setCurrentPlatform(platformId);
+          }}
+        />
+      </div>
     );
   }
 
@@ -861,6 +918,12 @@ function AppContent() {
 }
 
 export default function App() {
+  // Initialize global numeric input enhancement
+  React.useEffect(() => {
+    const cleanup = initializeGlobalNumericInputs();
+    return cleanup;
+  }, []);
+
   // Suppress known Recharts duplicate key warnings (harmless library issue)
   React.useEffect(() => {
     const originalError = console.error;
@@ -898,6 +961,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      <FaviconSetter />
       <ThemeProvider>
         <AuthProvider>
           <DataProvider>

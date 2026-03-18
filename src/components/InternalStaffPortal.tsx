@@ -20,6 +20,7 @@ import { AIInsightsTab } from './tabs/AIInsightsTab';
 import { SMSCampaignsTab } from './tabs/SMSCampaignsTab';
 import { NotificationsTab } from './tabs/NotificationsTab';
 import { ReportsTab } from './tabs/ReportsTab';
+import { ReconcileTab } from './tabs/ReconcileTab';
 import { TasksTab } from './tabs/TasksTab';
 import { KYCTab } from './tabs/KYCTab';
 import { DocumentManagementTab } from './tabs/DocumentManagementTab';
@@ -135,6 +136,7 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
       type: 'dropdown' as const,
       items: [
         { id: 'reports', label: 'Reports & Analytics', icon: BarChart3, tabKey: 'reports_management' as const },
+        { id: 'reconcile', label: 'Reconcile', icon: FileCheck, tabKey: 'reports_management' as const },
         { id: 'tasks', label: 'Tasks', icon: CheckSquare, tabKey: 'dashboard' as const },
         { id: 'payroll', label: 'Payroll', icon: Banknote, tabKey: 'payroll' as const },
         { id: 'expenses', label: 'Expenses', icon: Receipt, tabKey: 'accounting_journal' as const },
@@ -287,6 +289,8 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
         
         {activeTab === 'reports' && <ReportsTab />}
         
+        {activeTab === 'reconcile' && <ReconcileTab />}
+        
         {activeTab === 'tasks' && <TasksTab />}
         
         {activeTab === 'kyc' && <KYCTab />}
@@ -316,7 +320,7 @@ export function InternalStaffPortal({ onClientSelect, triggerTab }: InternalStaf
         {/* 🐛 FALLBACK: Show dashboard if no tab matches */}
         {!['dashboard', 'clients', 'institutions', 'loans', 'loan-calculator', 'approvals', 'approval1', 'approval2', 
             'loan-reconciliation', 'payments', 'collection-sheets', 'credit-scoring', 'ai-insights', 'sms-campaigns', 
-            'notifications', 'reports', 'tasks', 'kyc', 'compliance', 'audit-trail', 'tickets', 'staff-management', 
+            'notifications', 'reports', 'reconcile', 'tasks', 'kyc', 'compliance', 'audit-trail', 'tickets', 'staff-management', 
             'documents', 'settings', 'accounting', 'loan-products', 'expenses', 'payroll', 'financial-statements'].includes(activeTab) && (
           <div className="p-6 text-center">
             <p className="text-red-500 mb-4">Unknown tab: "{activeTab}"</p>

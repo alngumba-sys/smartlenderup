@@ -1,0 +1,155 @@
+[
+  {
+    "column_name": "id"
+  },
+  {
+    "column_name": "organization_id"
+  },
+  {
+    "column_name": "client_number"
+  },
+  {
+    "column_name": "first_name"
+  },
+  {
+    "column_name": "last_name"
+  },
+  {
+    "column_name": "name"
+  },
+  {
+    "column_name": "date_of_birth"
+  },
+  {
+    "column_name": "gender"
+  },
+  {
+    "column_name": "marital_status"
+  },
+  {
+    "column_name": "email"
+  },
+  {
+    "column_name": "phone"
+  },
+  {
+    "column_name": "phone_secondary"
+  },
+  {
+    "column_name": "address"
+  },
+  {
+    "column_name": "county"
+  },
+  {
+    "column_name": "sub_county"
+  },
+  {
+    "column_name": "ward"
+  },
+  {
+    "column_name": "town"
+  },
+  {
+    "column_name": "id_number"
+  },
+  {
+    "column_name": "id_type"
+  },
+  {
+    "column_name": "occupation"
+  },
+  {
+    "column_name": "employer"
+  },
+  {
+    "column_name": "employer_phone"
+  },
+  {
+    "column_name": "monthly_income"
+  },
+  {
+    "column_name": "business_name"
+  },
+  {
+    "column_name": "business_type"
+  },
+  {
+    "column_name": "business_location"
+  },
+  {
+    "column_name": "years_in_business"
+  },
+  {
+    "column_name": "next_of_kin_name"
+  },
+  {
+    "column_name": "next_of_kin_phone"
+  },
+  {
+    "column_name": "next_of_kin_relationship"
+  },
+  {
+    "column_name": "status"
+  },
+  {
+    "column_name": "kyc_status"
+  },
+  {
+    "column_name": "verification_status"
+  },
+  {
+    "column_name": "photo_url"
+  },
+  {
+    "column_name": "created_at"
+  },
+  {
+    "column_name": "updated_at"
+  },
+  {
+    "column_name": "created_by"
+  },
+  {
+    "column_name": "institution_id"
+  },
+  {
+    "column_name": "client_password"
+  },
+  {
+    "column_name": "has_changed_password"
+  },
+  {
+    "column_name": "staff_member_id"
+  },
+  {
+    "column_name": "requires_2fa"
+  },
+  {
+    "column_name": "two_factor_secret"
+  },
+  {
+    "column_name": "two_factor_verified_at"
+  },
+  {
+    "column_name": "account_status"
+  },
+  {
+    "column_name": "failed_login_attempts"
+  },
+  {
+    "column_name": "last_failed_login_at"
+  },
+  {
+    "column_name": "locked_until"
+  },
+  {
+    "column_name": "last_login_at"
+  },
+  {
+    "column_name": "password_changed_at"
+  },
+  {
+    "column_name": "organization_code"
+  }
+]

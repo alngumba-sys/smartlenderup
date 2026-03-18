@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { Check, AlertCircle, CreditCard, Loader, Building } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getOrganizationName } from '../utils/organizationUtils';
 import { STRIPE_CONFIG, validateStripeConfig } from '../stripe-config';

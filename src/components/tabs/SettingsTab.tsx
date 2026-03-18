@@ -1,4 +1,4 @@
-import { Settings, Globe, Bell, Lock, User, Shield, Palette, Database, Mail, Sun, Moon, Monitor, DollarSign, Calculator, Info, CreditCard, AlertTriangle } from 'lucide-react';
+import { Settings, Globe, Bell, Lock, User, Shield, Palette, Database, Mail, Sun, Moon, Monitor, DollarSign, Calculator, Info, CreditCard, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getOrganizationName, getOrganizationCountry, getOrganizationId } from '../../utils/organizationUtils';
@@ -12,6 +12,8 @@ import { DataImportExport } from '../DataImportExport';
 import { EmailNotificationSettings } from '../EmailNotificationSettings';
 import { Users as UsersIcon } from 'lucide-react';
 import { isManager } from '../../utils/staffPermissions';
+import { backfillLoanNames } from '../../utils/backfillLoanNames';
+import { toast } from 'sonner@2.0.3';
 
 export function SettingsTab() {
   const { currentTheme, themes, setTheme, isDark, mode, toggleMode } = useTheme();
@@ -30,6 +32,9 @@ export function SettingsTab() {
   // Check if settings should be locked
   const isSettingsLocked = !paymentStatus.isPaid && !isManagerRole;
   const isNonPaymentSectionLocked = !paymentStatus.isPaid && isManagerRole;
+
+  // Backfill state
+  const [isBackfilling, setIsBackfilling] = useState(false);
 
   // Loan disbursement configuration state
   const [disbursementModel, setDisbursementModel] = useState<'fee_deducted_upfront' | 'fee_added_to_repayment' | 'no_fee_deduction' | 'interest_on_disbursed'>('fee_deducted_upfront');
@@ -116,6 +121,34 @@ Best regards,
   };
   
   const example = calculateExample();
+  
+  // Backfill loan names handler
+  const handleBackfillLoanNames = async () => {
+    if (!organizationId) {
+      toast.error('❌ Organization ID not found');
+      return;
+    }
+    
+    setIsBackfilling(true);
+    toast.info('🔄 Starting backfill process...');
+    
+    try {
+      const result = await backfillLoanNames(organizationId);
+      
+      if (result.errors > 0) {
+        toast.warning(`⚠️ Backfill completed with ${result.errors} errors. Updated ${result.updated} out of ${result.total} loans.`);
+      } else if (result.updated === 0) {
+        toast.success('✅ All loans already have names populated!');
+      } else {
+        toast.success(`✅ Successfully updated ${result.updated} loans out of ${result.total} total.`);
+      }
+    } catch (error) {
+      console.error('Backfill error:', error);
+      toast.error('❌ Backfill failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -705,6 +738,51 @@ Best regards,
             </div>
             <div className="space-y-4">
               <DataImportExport />
+            </div>
+          </div>
+          
+          {/* Database Utilities */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <RefreshCw className="size-5 text-emerald-600" />
+              <h3 className="text-gray-900">Database Utilities</h3>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-gray-900 mb-1">
+                      Backfill Loan Names
+                    </h4>
+                    <p className="text-xs text-gray-600 mb-2">
+                      Populate missing client names (first_name, last_name) and staff member names in existing loans by looking them up from the clients and users tables.
+                    </p>
+                    <p className="text-xs text-amber-600">
+                      ⚠️ This will update all loans with NULL name fields. Only needed if you have existing loans missing name data.
+                    </p>
+                  </div>
+                  
+                  <button
+                    onClick={handleBackfillLoanNames}
+                    disabled={isBackfilling}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                      isBackfilling
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    }`}
+                  >
+                    {isBackfilling ? (
+                      <span className="flex items-center gap-2">
+                        <RefreshCw className="size-4 animate-spin" />
+                        Processing...
+                      </span>
+                    ) : (
+                      'Run Backfill'
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
